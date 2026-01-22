@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { X, Mail, ChevronDown, Search, Eye, EyeOff } from 'lucide-react'
+import { Mail, ChevronDown, Search, Eye, EyeOff } from 'lucide-react'
 import { signup } from '../api/auth'
+import { useTheme } from '../context/ThemeContext'
 import logo from '../assets/logo.png'
 
 import { API_URL } from '../config/api'
@@ -44,6 +45,7 @@ const countries = [
 
 const Signup = () => {
   const navigate = useNavigate()
+  const { isDarkMode } = useTheme()
   const [searchParams] = useSearchParams()
   const referralCode = searchParams.get('ref')
   const [activeTab, setActiveTab] = useState('signup')
@@ -144,38 +146,40 @@ const Signup = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4 sm:p-6 md:p-8 relative overflow-hidden">
+    <div className={`min-h-screen ${isDarkMode ? 'bg-black' : 'bg-gray-100'} flex items-center justify-center p-4 sm:p-6 md:p-8 relative overflow-hidden`}>
       {/* Background gradient effects */}
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-r from-cyan-500/20 to-transparent rounded-full blur-3xl" />
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-l from-orange-500/20 via-purple-500/20 to-transparent rounded-full blur-3xl" />
       
       {/* Modal */}
-      <div className="relative bg-dark-700 rounded-2xl p-6 sm:p-8 w-full max-w-md border border-gray-800 mx-4 sm:mx-0">
+      <div className={`relative ${isDarkMode ? 'bg-dark-700 border-gray-800' : 'bg-white border-gray-200 shadow-xl'} rounded-2xl p-6 sm:p-8 w-full max-w-md border mx-4 sm:mx-0`}>
         {/* Logo */}
         <div className="flex justify-center mb-6">
           <img src={logo} alt="ProfitVisionFX" className="h-32 object-contain" />
         </div>
 
         {/* Tabs */}
-        <div className="flex bg-dark-600 rounded-full p-1 w-fit mb-8">
+        <div className={`flex ${isDarkMode ? 'bg-dark-600' : 'bg-gray-100'} rounded-full p-1 w-fit mb-8`}>
           <button
             onClick={() => setActiveTab('signup')}
             className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
-              activeTab === 'signup' ? 'bg-dark-500 text-white' : 'text-gray-400 hover:text-white'
+              activeTab === 'signup' 
+                ? isDarkMode ? 'bg-dark-500 text-white' : 'bg-white text-gray-900 shadow-sm'
+                : isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             Sign up
           </button>
           <Link
             to="/user/login"
-            className="px-6 py-2 rounded-full text-sm font-medium text-gray-400 hover:text-white transition-colors"
+            className={`px-6 py-2 rounded-full text-sm font-medium ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'} transition-colors`}
           >
             Sign in
           </Link>
         </div>
 
         {/* Title */}
-        <h1 className="text-2xl font-semibold text-white mb-6">Create an account</h1>
+        <h1 className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-6`}>Create an account</h1>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -186,7 +190,7 @@ const Signup = () => {
             placeholder="Enter your name"
             value={formData.firstName}
             onChange={handleChange}
-            className="w-full bg-dark-600 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-gray-600 transition-colors"
+            className={`w-full ${isDarkMode ? 'bg-dark-600 border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'} border rounded-lg px-4 py-3 placeholder-gray-500 focus:outline-none focus:border-gray-600 transition-colors`}
           />
 
           {/* Email field */}
@@ -198,7 +202,7 @@ const Signup = () => {
               placeholder="Enter your email"
               value={formData.email}
               onChange={handleChange}
-              className="w-full bg-dark-600 border border-gray-700 rounded-lg pl-11 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-gray-600 transition-colors"
+              className={`w-full ${isDarkMode ? 'bg-dark-600 border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'} border rounded-lg pl-11 pr-4 py-3 placeholder-gray-500 focus:outline-none focus:border-gray-600 transition-colors`}
             />
           </div>
 
@@ -207,7 +211,7 @@ const Signup = () => {
             <button
               type="button"
               onClick={() => setShowCountryDropdown(!showCountryDropdown)}
-              className="flex items-center gap-1 sm:gap-2 bg-dark-600 border border-gray-700 rounded-l-lg px-2 sm:px-3 py-3 border-r-0 hover:bg-dark-500 transition-colors min-w-[70px] sm:min-w-[90px]"
+              className={`flex items-center gap-1 sm:gap-2 ${isDarkMode ? 'bg-dark-600 border-gray-700 hover:bg-dark-500' : 'bg-gray-50 border-gray-300 hover:bg-gray-100'} border rounded-l-lg px-2 sm:px-3 py-3 border-r-0 transition-colors min-w-[70px] sm:min-w-[90px]`}
             >
               <span className="text-base sm:text-lg">{selectedCountry.flag}</span>
               <span className="text-gray-400 text-xs sm:text-sm hidden sm:inline">{selectedCountry.code}</span>
@@ -257,7 +261,7 @@ const Signup = () => {
               placeholder="Enter phone number"
               value={formData.phone}
               onChange={handleChange}
-              className="flex-1 bg-dark-600 border border-gray-700 rounded-r-lg px-3 sm:px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-gray-600 transition-colors min-w-0"
+              className={`flex-1 ${isDarkMode ? 'bg-dark-600 border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'} border rounded-r-lg px-3 sm:px-4 py-3 placeholder-gray-500 focus:outline-none focus:border-gray-600 transition-colors min-w-0`}
             />
           </div>
 
@@ -269,7 +273,7 @@ const Signup = () => {
               placeholder="Create password"
               value={formData.password}
               onChange={handleChange}
-              className="w-full bg-dark-600 border border-gray-700 rounded-lg px-4 py-3 pr-12 text-white placeholder-gray-500 focus:outline-none focus:border-gray-600 transition-colors"
+              className={`w-full ${isDarkMode ? 'bg-dark-600 border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'} border rounded-lg px-4 py-3 pr-12 placeholder-gray-500 focus:outline-none focus:border-gray-600 transition-colors`}
             />
             <button
               type="button"
@@ -298,7 +302,7 @@ const Signup = () => {
         {/* Terms */}
         <p className="text-center text-gray-500 text-sm mt-6">
           By creating an account, you agree to our{' '}
-          <a href="#" className="text-white hover:underline">Terms & Service</a>
+          <a href="#" className={`${isDarkMode ? 'text-white' : 'text-gray-900'} hover:underline`}>Terms & Service</a>
         </p>
       </div>
     </div>

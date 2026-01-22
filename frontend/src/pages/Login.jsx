@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { X, Mail, Lock, Eye, EyeOff } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
 import { login } from '../api/auth'
+import { useTheme } from '../context/ThemeContext'
 import logo from '../assets/logo.png'
 
 const Login = () => {
   const navigate = useNavigate()
+  const { isDarkMode } = useTheme()
   const [activeTab, setActiveTab] = useState('signin')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -52,30 +54,32 @@ const Login = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
+    <div className={`min-h-screen ${isDarkMode ? 'bg-black' : 'bg-gray-100'} flex items-center justify-center p-4 relative overflow-hidden`}>
       {/* Background gradient effects */}
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-r from-cyan-500/20 to-transparent rounded-full blur-3xl" />
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-l from-orange-500/20 via-purple-500/20 to-transparent rounded-full blur-3xl" />
       
       {/* Modal */}
-      <div className="relative bg-dark-700 rounded-2xl p-8 w-full max-w-md border border-gray-800">
+      <div className={`relative ${isDarkMode ? 'bg-dark-700 border-gray-800' : 'bg-white border-gray-200 shadow-xl'} rounded-2xl p-8 w-full max-w-md border`}>
         {/* Logo */}
         <div className="flex justify-center mb-6">
           <img src={logo} alt="ProfitVisionFX" className="h-32 object-contain" />
         </div>
 
         {/* Tabs */}
-        <div className="flex bg-dark-600 rounded-full p-1 w-fit mb-8">
+        <div className={`flex ${isDarkMode ? 'bg-dark-600' : 'bg-gray-100'} rounded-full p-1 w-fit mb-8`}>
           <Link
             to="/user/signup"
-            className="px-6 py-2 rounded-full text-sm font-medium text-gray-400 hover:text-white transition-colors"
+            className={`px-6 py-2 rounded-full text-sm font-medium ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'} transition-colors`}
           >
             Sign up
           </Link>
           <button
             onClick={() => setActiveTab('signin')}
             className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
-              activeTab === 'signin' ? 'bg-dark-500 text-white' : 'text-gray-400 hover:text-white'
+              activeTab === 'signin' 
+                ? isDarkMode ? 'bg-dark-500 text-white' : 'bg-white text-gray-900 shadow-sm'
+                : isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
             }`}
           >
             Sign in
@@ -83,7 +87,7 @@ const Login = () => {
         </div>
 
         {/* Title */}
-        <h1 className="text-2xl font-semibold text-white mb-6">Welcome back</h1>
+        <h1 className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-6`}>Welcome back</h1>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -96,7 +100,7 @@ const Login = () => {
               placeholder="Enter your email"
               value={formData.email}
               onChange={handleChange}
-              className="w-full bg-dark-600 border border-gray-700 rounded-lg pl-11 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-gray-600 transition-colors"
+              className={`w-full ${isDarkMode ? 'bg-dark-600 border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'} border rounded-lg pl-11 pr-4 py-3 placeholder-gray-500 focus:outline-none focus:border-gray-600 transition-colors`}
             />
           </div>
 
@@ -109,7 +113,7 @@ const Login = () => {
               placeholder="Enter your password"
               value={formData.password}
               onChange={handleChange}
-              className="w-full bg-dark-600 border border-gray-700 rounded-lg pl-11 pr-12 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-gray-600 transition-colors"
+              className={`w-full ${isDarkMode ? 'bg-dark-600 border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'} border rounded-lg pl-11 pr-12 py-3 placeholder-gray-500 focus:outline-none focus:border-gray-600 transition-colors`}
             />
             <button
               type="button"
@@ -122,7 +126,7 @@ const Login = () => {
 
           {/* Forgot password */}
           <div className="text-right">
-            <Link to="/user/forgot-password" className="text-sm text-gray-400 hover:text-white transition-colors">
+            <Link to="/user/forgot-password" className={`text-sm ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'} transition-colors`}>
               Forgot password?
             </Link>
           </div>
@@ -145,7 +149,7 @@ const Login = () => {
         {/* Terms */}
         <p className="text-center text-gray-500 text-sm mt-6">
           Don't have an account?{' '}
-          <Link to="/user/signup" className="text-white hover:underline">Sign up</Link>
+          <Link to="/user/signup" className={`${isDarkMode ? 'text-white' : 'text-gray-900'} hover:underline`}>Sign up</Link>
         </p>
       </div>
     </div>

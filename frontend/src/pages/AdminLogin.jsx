@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { X, Mail, Lock, Eye, EyeOff } from 'lucide-react'
+import { Mail, Lock, Eye, EyeOff } from 'lucide-react'
+import { useTheme } from '../context/ThemeContext'
 import logo from '../assets/logo.png'
 
 const API_URL = import.meta.env.VITE_API_URL || '' + API_URL + ''
 
 const AdminLogin = () => {
   const navigate = useNavigate()
+  const { isDarkMode } = useTheme()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -48,13 +50,13 @@ const AdminLogin = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4 sm:p-6 md:p-8 relative overflow-hidden">
+    <div className={`min-h-screen ${isDarkMode ? 'bg-black' : 'bg-gray-100'} flex items-center justify-center p-4 sm:p-6 md:p-8 relative overflow-hidden`}>
       {/* Background gradient effects */}
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-r from-red-500/20 to-transparent rounded-full blur-3xl" />
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-l from-purple-500/20 via-red-500/20 to-transparent rounded-full blur-3xl" />
       
       {/* Modal */}
-      <div className="relative bg-dark-700 rounded-2xl p-6 sm:p-8 w-full max-w-md border border-gray-800 mx-4 sm:mx-0">
+      <div className={`relative ${isDarkMode ? 'bg-dark-700 border-gray-800' : 'bg-white border-gray-200 shadow-xl'} rounded-2xl p-6 sm:p-8 w-full max-w-md border mx-4 sm:mx-0`}>
         {/* Logo */}
         <div className="flex justify-center mb-6">
           <img src={logo} alt="ProfitVisionFX" className="h-32 object-contain" />
@@ -68,7 +70,7 @@ const AdminLogin = () => {
         </div>
 
         {/* Title */}
-        <h1 className="text-2xl font-semibold text-white mb-2">Admin Login</h1>
+        <h1 className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>Admin Login</h1>
         <p className="text-gray-500 text-sm mb-6">Enter your admin credentials to continue</p>
 
         {/* Form */}
@@ -82,7 +84,7 @@ const AdminLogin = () => {
               placeholder="Admin email"
               value={formData.email}
               onChange={handleChange}
-              className="w-full bg-dark-600 border border-gray-700 rounded-lg pl-11 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-red-500/50 transition-colors"
+              className={`w-full ${isDarkMode ? 'bg-dark-600 border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'} border rounded-lg pl-11 pr-4 py-3 placeholder-gray-500 focus:outline-none focus:border-red-500/50 transition-colors`}
             />
           </div>
 
@@ -95,7 +97,7 @@ const AdminLogin = () => {
               placeholder="Admin password"
               value={formData.password}
               onChange={handleChange}
-              className="w-full bg-dark-600 border border-gray-700 rounded-lg pl-11 pr-12 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-red-500/50 transition-colors"
+              className={`w-full ${isDarkMode ? 'bg-dark-600 border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'} border rounded-lg pl-11 pr-12 py-3 placeholder-gray-500 focus:outline-none focus:border-red-500/50 transition-colors`}
             />
             <button
               type="button"
@@ -124,7 +126,7 @@ const AdminLogin = () => {
         {/* Info */}
         <p className="text-center text-gray-500 text-sm mt-6">
           Not an admin?{' '}
-          <button onClick={() => navigate('/user/login')} className="text-white hover:underline">
+          <button onClick={() => navigate('/user/login')} className={`${isDarkMode ? 'text-white' : 'text-gray-900'} hover:underline`}>
             User Login
           </button>
         </p>
