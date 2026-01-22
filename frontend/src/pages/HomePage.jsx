@@ -33,8 +33,14 @@ const HomePage = () => {
 
   const toggleMute = () => {
     if (videoRef.current) {
-      videoRef.current.muted = !videoRef.current.muted
-      setIsMuted(videoRef.current.muted)
+      if (videoRef.current.muted) {
+        videoRef.current.muted = false
+        videoRef.current.volume = 1.0
+        setIsMuted(false)
+      } else {
+        videoRef.current.muted = true
+        setIsMuted(true)
+      }
     }
   }
 
@@ -134,15 +140,21 @@ const HomePage = () => {
       {/* Hero Section with Video */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Video Background */}
-        <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 z-0 w-full h-full">
           <video
             ref={videoRef}
             autoPlay
             loop
             muted
             playsInline
-            className="w-full h-full object-cover min-h-screen"
-            style={{ objectPosition: 'center center' }}
+            webkit-playsinline="true"
+            className="absolute top-0 left-0 w-full h-full object-cover"
+            style={{ 
+              minWidth: '100%', 
+              minHeight: '100%',
+              width: 'auto',
+              height: 'auto'
+            }}
           >
             <source src={heroVideo} type="video/mp4" />
           </video>
@@ -152,13 +164,13 @@ const HomePage = () => {
           {/* Audio Toggle Button */}
           <button
             onClick={toggleMute}
-            className="absolute bottom-8 right-8 z-20 bg-white/10 hover:bg-white/20 backdrop-blur-sm p-3 rounded-full border border-white/20 transition-all"
-            title={isMuted ? 'Unmute' : 'Mute'}
+            className="absolute bottom-4 right-4 sm:bottom-8 sm:right-8 z-20 bg-white/20 hover:bg-white/30 backdrop-blur-sm p-3 rounded-full border border-white/30 transition-all shadow-lg"
+            title={isMuted ? 'Click to Unmute' : 'Click to Mute'}
           >
             {isMuted ? (
-              <VolumeX className="w-6 h-6 text-white" />
+              <VolumeX className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             ) : (
-              <Volume2 className="w-6 h-6 text-white" />
+              <Volume2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
             )}
           </button>
         </div>
