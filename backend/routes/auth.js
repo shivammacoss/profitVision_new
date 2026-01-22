@@ -2,6 +2,8 @@ import express from 'express'
 import jwt from 'jsonwebtoken'
 import User from '../models/User.js'
 import Admin from '../models/Admin.js'
+import OTP from '../models/OTP.js'
+import { generateOTP, sendOTPEmail, sendWelcomeEmail } from '../services/emailService.js'
 
 const router = express.Router()
 
@@ -10,7 +12,216 @@ const generateToken = (userId) => {
   return jwt.sign({ id: userId, iat: Math.floor(Date.now() / 1000) }, process.env.JWT_SECRET, { expiresIn: '7d' })
 }
 
-// POST /api/auth/signup
+// POST /api/auth/send-otp - Send OTP for registration
+router.post('/send-otp', async (req, res) => {
+  try {
+    const { firstName, email, phone, countryCode, password, adminSlug, referralCode } = req.body
+
+    // Validate required fields
+    if (!firstName || !email || !password) {
+      return res.status(400).json({ message: 'Name, email and password are required' })
+    }
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email: email.toLowerCase() })
+    if (existingUser) {
+      return res.status(400).json({ message: 'User already exists with this email' })
+    }
+
+    // Delete any existing OTP for this email
+    await OTP.deleteMany({ email: email.toLowerCase(), purpose: 'registration' })
+
+    // Generate OTP
+    const otp = generateOTP()
+
+    // Store OTP with user data
+    await OTP.create({
+      email: email.toLowerCase(),
+      otp,
+      purpose: 'registration',
+      userData: { firstName, email, phone, countryCode, password, adminSlug, referralCode },
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+    })
+
+    // Send OTP email
+    const emailResult = await sendOTPEmail(email, otp, firstName)
+    
+    if (!emailResult.success) {
+      return res.status(500).json({ message: 'Failed to send OTP email. Please try again.' })
+    }
+
+    res.json({ 
+      success: true,
+      message: 'OTP sent to your email. Please verify to complete registration.',
+      email: email
+    })
+  } catch (error) {
+    console.error('Send OTP error:', error)
+    res.status(500).json({ message: 'Error sending OTP', error: error.message })
+  }
+})
+
+// POST /api/auth/verify-otp - Verify OTP and complete registration
+router.post('/verify-otp', async (req, res) => {
+  try {
+    const { email, otp } = req.body
+
+    if (!email || !otp) {
+      return res.status(400).json({ message: 'Email and OTP are required' })
+    }
+
+    // Find OTP record
+    const otpRecord = await OTP.findOne({ 
+      email: email.toLowerCase(), 
+      purpose: 'registration',
+      verified: false
+    })
+
+    if (!otpRecord) {
+      return res.status(400).json({ message: 'OTP expired or not found. Please request a new one.' })
+    }
+
+    // Check attempts
+    if (otpRecord.attempts >= 5) {
+      await OTP.deleteOne({ _id: otpRecord._id })
+      return res.status(400).json({ message: 'Too many failed attempts. Please request a new OTP.' })
+    }
+
+    // Verify OTP
+    if (otpRecord.otp !== otp) {
+      await OTP.updateOne({ _id: otpRecord._id }, { $inc: { attempts: 1 } })
+      return res.status(400).json({ message: 'Invalid OTP. Please try again.' })
+    }
+
+    // OTP is valid - create user
+    const { firstName, phone, countryCode, password, adminSlug, referralCode } = otpRecord.userData
+
+    // Find admin by slug if provided
+    let assignedAdmin = null
+    let adminUrlSlug = null
+    if (adminSlug) {
+      const admin = await Admin.findOne({ urlSlug: adminSlug.toLowerCase(), status: 'ACTIVE' })
+      if (admin) {
+        assignedAdmin = admin._id
+        adminUrlSlug = admin.urlSlug
+      }
+    }
+
+    // Handle referral code
+    let parentIBId = null
+    let referredBy = null
+    if (referralCode) {
+      const referringIB = await User.findOne({ 
+        referralCode: referralCode, 
+        isIB: true, 
+        ibStatus: 'ACTIVE' 
+      })
+      if (referringIB) {
+        parentIBId = referringIB._id
+        referredBy = referralCode
+        console.log(`[Signup] User ${email} referred by IB ${referringIB.firstName} (${referralCode})`)
+      }
+    }
+
+    // Create new user
+    const user = await User.create({
+      firstName,
+      email: email.toLowerCase(),
+      phone,
+      countryCode,
+      password,
+      assignedAdmin,
+      adminUrlSlug,
+      parentIBId,
+      referredBy,
+      emailVerified: true
+    })
+
+    // Update admin stats if assigned
+    if (assignedAdmin) {
+      await Admin.findByIdAndUpdate(assignedAdmin, { $inc: { 'stats.totalUsers': 1 } })
+    }
+
+    // Delete OTP record
+    await OTP.deleteOne({ _id: otpRecord._id })
+
+    // Send welcome email (async, don't wait)
+    sendWelcomeEmail(email, firstName).catch(err => console.error('Welcome email error:', err))
+
+    // Generate token
+    const token = generateToken(user._id)
+
+    res.status(201).json({
+      success: true,
+      message: 'Registration successful! Welcome to ProfitVisionFX.',
+      user: {
+        _id: user._id,
+        id: user._id,
+        firstName: user.firstName,
+        email: user.email,
+        phone: user.phone,
+        assignedAdmin,
+        adminUrlSlug
+      },
+      token
+    })
+  } catch (error) {
+    console.error('Verify OTP error:', error)
+    res.status(500).json({ message: 'Error verifying OTP', error: error.message })
+  }
+})
+
+// POST /api/auth/resend-otp - Resend OTP
+router.post('/resend-otp', async (req, res) => {
+  try {
+    const { email } = req.body
+
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' })
+    }
+
+    // Find existing OTP record
+    const existingOTP = await OTP.findOne({ 
+      email: email.toLowerCase(), 
+      purpose: 'registration',
+      verified: false
+    })
+
+    if (!existingOTP || !existingOTP.userData) {
+      return res.status(400).json({ message: 'No pending registration found. Please start over.' })
+    }
+
+    // Generate new OTP
+    const otp = generateOTP()
+
+    // Update OTP record
+    await OTP.updateOne(
+      { _id: existingOTP._id },
+      { 
+        otp, 
+        attempts: 0,
+        expiresAt: new Date(Date.now() + 10 * 60 * 1000)
+      }
+    )
+
+    // Send OTP email
+    const emailResult = await sendOTPEmail(email, otp, existingOTP.userData.firstName)
+    
+    if (!emailResult.success) {
+      return res.status(500).json({ message: 'Failed to send OTP email. Please try again.' })
+    }
+
+    res.json({ 
+      success: true,
+      message: 'New OTP sent to your email.'
+    })
+  } catch (error) {
+    console.error('Resend OTP error:', error)
+    res.status(500).json({ message: 'Error resending OTP', error: error.message })
+  }
+})
+
+// POST /api/auth/signup - Direct signup (fallback if OTP is disabled)
 router.post('/signup', async (req, res) => {
   try {
     const { firstName, email, phone, countryCode, password, adminSlug, referralCode } = req.body
@@ -65,6 +276,9 @@ router.post('/signup', async (req, res) => {
     if (assignedAdmin) {
       await Admin.findByIdAndUpdate(assignedAdmin, { $inc: { 'stats.totalUsers': 1 } })
     }
+
+    // Send welcome email (async)
+    sendWelcomeEmail(email, firstName).catch(err => console.error('Welcome email error:', err))
 
     // Generate token
     const token = generateToken(user._id)
