@@ -24,7 +24,8 @@ import {
   BookOpen,
   Layers,
   Sun,
-  Moon
+  Moon,
+  Mail
 } from 'lucide-react'
 import logo from '../assets/logo.png'
 import { useTheme } from '../context/ThemeContext'
@@ -54,6 +55,7 @@ const AdminLayout = ({ children, title, subtitle }) => {
     { name: 'Admin Management', icon: Shield, path: '/admin/admin-management' },
     { name: 'KYC Verification', icon: FileCheck, path: '/admin/kyc' },
     { name: 'Support Tickets', icon: HeadphonesIcon, path: '/admin/support' },
+    { name: 'Email Users', icon: Mail, path: '/admin/email' },
   ]
 
   useEffect(() => {
