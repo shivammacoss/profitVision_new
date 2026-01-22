@@ -515,7 +515,7 @@ const ProfilePage = () => {
                       type="text"
                       value={profile.country}
                       onChange={(e) => setProfile({...profile, country: e.target.value})}
-                      className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                      className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-4 py-2`}
                     />
                   ) : (
                     <p className="text-white">{profile.country || '-'}</p>
@@ -531,7 +531,7 @@ const ProfilePage = () => {
                       type="text"
                       value={profile.address}
                       onChange={(e) => setProfile({...profile, address: e.target.value})}
-                      className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                      className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-4 py-2`}
                     />
                   ) : (
                     <p className="text-white">{profile.address || '-'}</p>
@@ -558,7 +558,7 @@ const ProfilePage = () => {
                         bankDetails: {...profile.bankDetails, bankName: e.target.value}
                       })}
                       placeholder="e.g., HDFC Bank"
-                      className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                      className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-4 py-2`}
                     />
                   ) : (
                     <p className="text-white">{profile.bankDetails?.bankName || '-'}</p>
@@ -576,7 +576,7 @@ const ProfilePage = () => {
                         bankDetails: {...profile.bankDetails, accountHolderName: e.target.value}
                       })}
                       placeholder="Name as per bank account"
-                      className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                      className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-4 py-2`}
                     />
                   ) : (
                     <p className="text-white">{profile.bankDetails?.accountHolderName || '-'}</p>
@@ -594,7 +594,7 @@ const ProfilePage = () => {
                         bankDetails: {...profile.bankDetails, accountNumber: e.target.value}
                       })}
                       placeholder="Enter account number"
-                      className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                      className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-4 py-2`}
                     />
                   ) : (
                     <p className="text-white">{profile.bankDetails?.accountNumber || '-'}</p>
@@ -612,7 +612,7 @@ const ProfilePage = () => {
                         bankDetails: {...profile.bankDetails, ifscCode: e.target.value.toUpperCase()}
                       })}
                       placeholder="e.g., HDFC0001234"
-                      className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-2 text-white uppercase"
+                      className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-4 py-2 uppercase`}
                     />
                   ) : (
                     <p className="text-white">{profile.bankDetails?.ifscCode || '-'}</p>
@@ -630,7 +630,7 @@ const ProfilePage = () => {
                         bankDetails: {...profile.bankDetails, branchName: e.target.value}
                       })}
                       placeholder="e.g., Mumbai Main Branch"
-                      className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                      className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-4 py-2`}
                     />
                   ) : (
                     <p className="text-white">{profile.bankDetails?.branchName || '-'}</p>
@@ -653,7 +653,7 @@ const ProfilePage = () => {
                     value={profile.upiId || ''}
                     onChange={(e) => setProfile({...profile, upiId: e.target.value})}
                     placeholder="e.g., yourname@upi"
-                    className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-2 text-white"
+                    className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-4 py-2`}
                   />
                 ) : (
                   <p className="text-white">{profile.upiId || '-'}</p>
@@ -786,7 +786,7 @@ const ProfilePage = () => {
                             value={bankForm.bankName}
                             onChange={(e) => setBankForm({...bankForm, bankName: e.target.value})}
                             placeholder="e.g., HDFC Bank"
-                            className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                            className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-3 py-2`}
                           />
                         </div>
                         <div>
@@ -796,7 +796,7 @@ const ProfilePage = () => {
                             value={bankForm.accountNumber}
                             onChange={(e) => setBankForm({...bankForm, accountNumber: e.target.value})}
                             placeholder="e.g., 1234567890"
-                            className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                            className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-3 py-2`}
                           />
                         </div>
                         <div>
@@ -806,7 +806,7 @@ const ProfilePage = () => {
                             value={bankForm.accountHolderName}
                             onChange={(e) => setBankForm({...bankForm, accountHolderName: e.target.value})}
                             placeholder="e.g., John Doe"
-                            className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                            className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-3 py-2`}
                           />
                         </div>
                         <div>
@@ -816,7 +816,7 @@ const ProfilePage = () => {
                             value={bankForm.ifscCode}
                             onChange={(e) => setBankForm({...bankForm, ifscCode: e.target.value.toUpperCase()})}
                             placeholder="e.g., HDFC0001234"
-                            className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white uppercase"
+                            className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-3 py-2 uppercase`}
                           />
                         </div>
                         <div>
@@ -826,7 +826,7 @@ const ProfilePage = () => {
                             value={bankForm.branchName}
                             onChange={(e) => setBankForm({...bankForm, branchName: e.target.value})}
                             placeholder="e.g., Mumbai Main"
-                            className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                            className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-3 py-2`}
                           />
                         </div>
                       </>
@@ -838,7 +838,7 @@ const ProfilePage = () => {
                           value={bankForm.upiId}
                           onChange={(e) => setBankForm({...bankForm, upiId: e.target.value})}
                           placeholder="e.g., yourname@upi"
-                          className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                          className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-3 py-2`}
                         />
                       </div>
                     )}
@@ -929,7 +929,7 @@ const ProfilePage = () => {
                     <select
                       value={kycForm.documentType}
                       onChange={(e) => setKycForm({ ...kycForm, documentType: e.target.value })}
-                      className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-3 text-white"
+                      className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-4 py-3`}
                     >
                       <option value="aadhaar">Aadhaar Card</option>
                       <option value="pan_card">PAN Card</option>
@@ -948,7 +948,7 @@ const ProfilePage = () => {
                       value={kycForm.documentNumber}
                       onChange={(e) => setKycForm({ ...kycForm, documentNumber: e.target.value })}
                       placeholder="Enter document number"
-                      className="w-full bg-dark-700 border border-gray-600 rounded-lg px-4 py-3 text-white"
+                      className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-4 py-3`}
                     />
                   </div>
                   
