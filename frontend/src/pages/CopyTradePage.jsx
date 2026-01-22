@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { 
   LayoutDashboard, User, Wallet, Users, Copy, UserCircle, HelpCircle, FileText, LogOut,
-  TrendingUp, Pause, Play, X, Search, DollarSign,
+  TrendingUp, Star, UserPlus, Pause, Play, X, Search, Filter, ChevronRight, Trophy, Crown, DollarSign,
   ArrowLeft, Home, Sun, Moon
 } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
@@ -18,6 +18,10 @@ const CopyTradePage = () => {
   const [masters, setMasters] = useState([])
   const [mySubscriptions, setMySubscriptions] = useState([])
   const [myCopyTrades, setMyCopyTrades] = useState([])
+  const [myFollowers, setMyFollowers] = useState([])
+  const [myCommissions, setMyCommissions] = useState([])
+  const [commissionTotals, setCommissionTotals] = useState(null)
+  const [masterStats, setMasterStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [showFollowModal, setShowFollowModal] = useState(false)
   const [selectedMaster, setSelectedMaster] = useState(null)
@@ -30,6 +34,17 @@ const CopyTradePage = () => {
   const [walletBalance, setWalletBalance] = useState(0)
   const [challengeModeEnabled, setChallengeModeEnabled] = useState(false)
   
+  // Master trader states
+  const [myMasterProfile, setMyMasterProfile] = useState(null)
+  const [showMasterModal, setShowMasterModal] = useState(false)
+  const [masterForm, setMasterForm] = useState({
+    displayName: '',
+    description: '',
+    tradingAccountId: '',
+    requestedCommissionPercentage: 10,
+    minimumFollowerDeposit: 0
+  })
+  const [applyingMaster, setApplyingMaster] = useState(false)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   
   // Edit subscription states
@@ -65,9 +80,77 @@ const CopyTradePage = () => {
     fetchMySubscriptions()
     fetchMyCopyTrades()
     fetchAccounts()
+    fetchMyMasterProfile()
     fetchWalletBalance()
   }, [])
 
+  // Fetch my followers and commissions when master profile is loaded
+  useEffect(() => {
+    if (myMasterProfile?._id) {
+      fetchMyFollowers()
+      fetchMyCommissions()
+    }
+  }, [myMasterProfile])
+
+  const fetchMyFollowers = async () => {
+    if (!myMasterProfile?._id) return
+    try {
+      const res = await fetch(`${API_URL}/copy/my-followers/${myMasterProfile._id}`)
+      const data = await res.json()
+      setMyFollowers(data.followers || [])
+    } catch (error) {
+      console.error('Error fetching my followers:', error)
+    }
+  }
+
+  const fetchMyCommissions = async () => {
+    if (!myMasterProfile?._id) return
+    try {
+      const res = await fetch(`${API_URL}/copy/master/commissions/${myMasterProfile._id}`)
+      const data = await res.json()
+      if (data.success) {
+        setMyCommissions(data.commissions || [])
+        setCommissionTotals(data.totals)
+        setMasterStats(data.masterStats)
+      }
+    } catch (error) {
+      console.error('Error fetching commissions:', error)
+    }
+  }
+
+  const handleWithdrawCommission = async () => {
+    if (!myMasterProfile?._id || !masterStats?.pendingCommission) return
+    
+    const amount = masterStats.pendingCommission
+    if (amount < 10) {
+      alert('Minimum withdrawal amount is $10')
+      return
+    }
+    
+    if (!confirm(`Withdraw $${amount.toFixed(2)} commission to your wallet?`)) return
+    
+    try {
+      const res = await fetch(`${API_URL}/copy/master/withdraw`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          masterId: myMasterProfile._id,
+          amount
+        })
+      })
+      const data = await res.json()
+      if (data.message) {
+        alert('Commission withdrawn successfully!')
+        fetchMyCommissions()
+        fetchMyMasterProfile()
+      } else {
+        alert(data.message || 'Failed to withdraw')
+      }
+    } catch (error) {
+      console.error('Error withdrawing:', error)
+      alert('Failed to withdraw commission')
+    }
+  }
 
   const fetchChallengeStatus = async () => {
     try {
@@ -134,6 +217,62 @@ const CopyTradePage = () => {
     }
   }
 
+  const fetchMyMasterProfile = async () => {
+    try {
+      const res = await fetch(`${API_URL}/copy/master/my-profile/${user._id}`)
+      const data = await res.json()
+      if (data.master) {
+        setMyMasterProfile(data.master)
+      }
+    } catch (error) {
+      // User is not a master - that's okay
+      console.log('No master profile found')
+    }
+  }
+
+  const handleApplyMaster = async () => {
+    const accountId = masterForm.tradingAccountId || (accounts.length > 0 ? accounts[0]._id : '')
+    
+    if (!masterForm.displayName.trim()) {
+      alert('Please enter a display name')
+      return
+    }
+    if (!accountId) {
+      alert('Please select a trading account')
+      return
+    }
+    
+    // Update form with selected account if not set
+    const formData = {
+      ...masterForm,
+      tradingAccountId: accountId
+    }
+
+    setApplyingMaster(true)
+    try {
+      const res = await fetch(`${API_URL}/copy/master/apply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user._id,
+          ...formData
+        })
+      })
+
+      const data = await res.json()
+      if (data.master) {
+        alert('Application submitted successfully! Please wait for admin approval.')
+        setShowMasterModal(false)
+        fetchMyMasterProfile()
+      } else {
+        alert(data.message || 'Failed to submit application')
+      }
+    } catch (error) {
+      console.error('Error applying as master:', error)
+      alert('Failed to submit application')
+    }
+    setApplyingMaster(false)
+  }
 
   const handleFollow = async () => {
     if (!selectedMaster) return
@@ -348,28 +487,75 @@ const CopyTradePage = () => {
         )}
 
         <div className={`${isMobile ? 'p-4' : 'p-6'}`}>
-          {/* Copy Trading Info Banner */}
-          <div className={`bg-gradient-to-r from-accent-green/20 to-blue-500/20 rounded-xl ${isMobile ? 'p-4' : 'p-5'} border border-accent-green/30 mb-4`}>
-            <div className={`${isMobile ? 'flex flex-col gap-3' : 'flex items-center justify-between'}`}>
-              <div className="flex items-center gap-3">
-                <div className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'} bg-accent-green/20 rounded-full flex items-center justify-center`}>
-                  <Copy size={isMobile ? 20 : 24} className="text-accent-green" />
+          {/* Become a Master Banner */}
+          {!myMasterProfile && (
+            <div className={`bg-gradient-to-r from-yellow-500/20 to-orange-500/20 rounded-xl ${isMobile ? 'p-4' : 'p-5'} border border-yellow-500/30 mb-4`}>
+              <div className={`${isMobile ? 'flex flex-col gap-3' : 'flex items-center justify-between'}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'} bg-yellow-500/20 rounded-full flex items-center justify-center`}>
+                    <Crown size={isMobile ? 20 : 24} className="text-yellow-500" />
+                  </div>
+                  <div>
+                    <h3 className={`text-white font-semibold ${isMobile ? 'text-sm' : ''}`}>Become a Master Trader</h3>
+                    <p className="text-gray-400 text-xs">Share your trades and earn commission</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className={`${isDarkMode ? 'text-white' : 'text-gray-900'} font-semibold ${isMobile ? 'text-sm' : ''}`}>Copy Trading</h3>
-                  <p className="text-gray-400 text-xs">Follow our expert trader and copy their trades automatically</p>
-                </div>
-              </div>
-              <div className={`${isMobile ? 'w-full' : ''} px-4 py-2 bg-accent-green/10 border border-accent-green/30 rounded-lg`}>
-                <p className="text-accent-green text-sm font-medium text-center">50/50 Profit Split</p>
-                <p className="text-gray-400 text-xs text-center">You keep 50% of profits</p>
+                <button
+                  onClick={() => setShowMasterModal(true)}
+                  className={`bg-yellow-500 text-black ${isMobile ? 'px-4 py-2 text-sm w-full' : 'px-6 py-2'} rounded-lg font-medium hover:bg-yellow-400 flex items-center justify-center gap-2`}
+                >
+                  <Crown size={16} />
+                  Apply Now
+                </button>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* Master Status Banner */}
+          {myMasterProfile && (
+            <div className={`rounded-xl ${isMobile ? 'p-4' : 'p-5'} border mb-4 ${
+              myMasterProfile.status === 'ACTIVE' ? 'bg-green-500/10 border-green-500/30' :
+              myMasterProfile.status === 'PENDING' ? 'bg-yellow-500/10 border-yellow-500/30' :
+              myMasterProfile.status === 'REJECTED' ? 'bg-red-500/10 border-red-500/30' :
+              'bg-gray-500/10 border-gray-500/30'
+            }`}>
+              <div className={`${isMobile ? 'flex flex-col gap-3' : 'flex items-center justify-between'}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'} rounded-full flex items-center justify-center ${
+                    myMasterProfile.status === 'ACTIVE' ? 'bg-green-500/20' :
+                    myMasterProfile.status === 'PENDING' ? 'bg-yellow-500/20' : 'bg-red-500/20'
+                  }`}>
+                    <Crown size={isMobile ? 20 : 24} className={
+                      myMasterProfile.status === 'ACTIVE' ? 'text-green-500' :
+                      myMasterProfile.status === 'PENDING' ? 'text-yellow-500' : 'text-red-500'
+                    } />
+                  </div>
+                  <div>
+                    <h3 className={`text-white font-semibold ${isMobile ? 'text-sm' : ''}`}>{myMasterProfile.displayName}</h3>
+                    <p className="text-gray-400 text-xs">
+                      <span className={
+                        myMasterProfile.status === 'ACTIVE' ? 'text-green-500' :
+                        myMasterProfile.status === 'PENDING' ? 'text-yellow-500' : 'text-red-500'
+                      }>{myMasterProfile.status}</span>
+                      {myMasterProfile.status === 'ACTIVE' && ` • ${myMasterProfile.stats?.activeFollowers || 0} followers`}
+                    </p>
+                  </div>
+                </div>
+                {myMasterProfile.status === 'ACTIVE' && (
+                  <div className={isMobile ? '' : 'text-right'}>
+                    <p className="text-gray-400 text-xs">Commission: <span className="text-white font-semibold">{myMasterProfile.approvedCommissionPercentage}%</span></p>
+                  </div>
+                )}
+              </div>
+              {myMasterProfile.status === 'REJECTED' && myMasterProfile.rejectionReason && (
+                <p className="text-red-400 text-xs mt-2">Reason: {myMasterProfile.rejectionReason}</p>
+              )}
+            </div>
+          )}
 
           {/* Tabs - Scrollable on mobile */}
           <div className={`flex ${isMobile ? 'gap-2 overflow-x-auto pb-2' : 'gap-4'} mb-4`}>
-            {['discover', 'subscriptions', 'trades'].map(tab => (
+            {['discover', 'subscriptions', 'trades', ...(myMasterProfile?.status === 'ACTIVE' ? ['my-followers', 'commissions'] : [])].map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -378,7 +564,9 @@ const CopyTradePage = () => {
                 }`}
               >
                 {tab === 'discover' ? 'Discover' : 
-                 tab === 'subscriptions' ? 'Subscriptions' : 'Trades'}
+                 tab === 'subscriptions' ? 'Subscriptions' : 
+                 tab === 'trades' ? 'Trades' : 
+                 tab === 'my-followers' ? 'Followers' : 'Commissions'}
               </button>
             ))}
           </div>
@@ -622,6 +810,180 @@ const CopyTradePage = () => {
             </div>
           )}
 
+          {/* My Followers (for Master Traders) */}
+          {activeTab === 'my-followers' && myMasterProfile?.status === 'ACTIVE' && (
+            <div>
+              {myFollowers.length === 0 ? (
+                <div className="text-center py-12">
+                  <Users size={48} className="mx-auto text-gray-600 mb-4" />
+                  <p className="text-gray-500">No followers yet</p>
+                  <p className="text-gray-600 text-sm mt-2">Share your profile to attract followers</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {myFollowers.map(follower => (
+                    <div key={follower._id} className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-5 border`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center">
+                            <span className="text-blue-500 font-bold">{follower.followerId?.firstName?.charAt(0) || 'U'}</span>
+                          </div>
+                          <div>
+                            <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{follower.followerId?.firstName} {follower.followerId?.lastName}</h3>
+                            <p className="text-gray-500 text-sm">{follower.followerId?.email}</p>
+                            <p className="text-gray-600 text-xs mt-1">
+                              {follower.copyMode === 'FIXED_LOT' && `Fixed: ${follower.copyValue} lots`}
+                              {follower.copyMode === 'BALANCE_BASED' && 'Balance Based'}
+                              {follower.copyMode === 'EQUITY_BASED' && 'Equity Based'}
+                              {follower.copyMode === 'MULTIPLIER' && `Multiplier: ${follower.copyValue}x`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            follower.status === 'ACTIVE' ? 'bg-green-500/20 text-green-500' : 
+                            follower.status === 'PAUSED' ? 'bg-yellow-500/20 text-yellow-500' : 'bg-red-500/20 text-red-500'
+                          }`}>
+                            {follower.status}
+                          </span>
+                          <p className="text-gray-500 text-xs mt-2">Account: {follower.followerAccountId?.accountId}</p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-4 gap-4 mt-4 pt-4 border-t border-gray-700">
+                        <div>
+                          <p className="text-gray-500 text-xs">Copied Trades</p>
+                          <p className="text-white font-semibold">{follower.stats?.totalCopiedTrades || 0}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 text-xs">Their Profit</p>
+                          <p className="text-accent-green font-semibold">${follower.stats?.totalProfit?.toFixed(2) || '0.00'}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 text-xs">Their Loss</p>
+                          <p className="text-red-500 font-semibold">${follower.stats?.totalLoss?.toFixed(2) || '0.00'}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 text-xs">Commission Earned</p>
+                          <p className="text-purple-400 font-semibold">${follower.stats?.totalCommissionPaid?.toFixed(2) || '0.00'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Commission Tab (for Master Traders) */}
+          {activeTab === 'commissions' && myMasterProfile?.status === 'ACTIVE' && (
+            <div>
+              {/* Commission Stats Cards */}
+              <div className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-4'} gap-4 mb-6`}>
+                <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-4 border`}>
+                  <p className="text-gray-500 text-xs mb-1">Pending Commission</p>
+                  <p className="text-purple-400 text-xl font-bold">${masterStats?.pendingCommission?.toFixed(2) || '0.00'}</p>
+                </div>
+                <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-4 border`}>
+                  <p className="text-gray-500 text-xs mb-1">Total Earned</p>
+                  <p className="text-accent-green text-xl font-bold">${masterStats?.totalCommissionEarned?.toFixed(2) || '0.00'}</p>
+                </div>
+                <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-4 border`}>
+                  <p className="text-gray-500 text-xs mb-1">Total Withdrawn</p>
+                  <p className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>${masterStats?.totalCommissionWithdrawn?.toFixed(2) || '0.00'}</p>
+                </div>
+                <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-4 border`}>
+                  <p className="text-gray-500 text-xs mb-1">Your Commission Rate</p>
+                  <p className="text-blue-400 text-xl font-bold">{myMasterProfile?.approvedCommissionPercentage || 0}%</p>
+                </div>
+              </div>
+
+              {/* Withdraw Button */}
+              {masterStats?.pendingCommission >= 10 && (
+                <div className={`${isDarkMode ? 'bg-purple-500/10 border-purple-500/30' : 'bg-purple-50 border-purple-200'} rounded-xl p-4 border mb-6`}>
+                  <div className={`flex ${isMobile ? 'flex-col gap-3' : 'items-center justify-between'}`}>
+                    <div>
+                      <p className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        You have ${masterStats.pendingCommission.toFixed(2)} available to withdraw
+                      </p>
+                      <p className="text-gray-500 text-sm">Minimum withdrawal: $10</p>
+                    </div>
+                    <button
+                      onClick={handleWithdrawCommission}
+                      className="bg-purple-500 text-white px-6 py-2 rounded-lg font-medium hover:bg-purple-600 flex items-center gap-2"
+                    >
+                      <DollarSign size={16} />
+                      Withdraw to Wallet
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Commission History */}
+              <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl border`}>
+                <div className={`px-5 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Commission History</h3>
+                  <p className="text-gray-500 text-sm">Daily profit share from your followers</p>
+                </div>
+                
+                {myCommissions.length === 0 ? (
+                  <div className="text-center py-12">
+                    <DollarSign size={48} className="mx-auto text-gray-600 mb-4" />
+                    <p className="text-gray-500">No commission records yet</p>
+                    <p className="text-gray-600 text-sm mt-2">Commission is calculated daily from followers' profits</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className={isDarkMode ? 'bg-dark-700' : 'bg-gray-50'}>
+                        <tr>
+                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Date</th>
+                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Follower</th>
+                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Daily Profit</th>
+                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Rate</th>
+                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Your Share</th>
+                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {myCommissions.map(comm => (
+                          <tr key={comm._id} className={`border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+                            <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{comm.tradingDay}</td>
+                            <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                              {comm.followerUserId?.firstName || 'User'} {comm.followerUserId?.lastName || ''}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-accent-green font-medium">${comm.dailyProfit?.toFixed(2)}</td>
+                            <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{comm.commissionPercentage}%</td>
+                            <td className="px-4 py-3 text-sm text-purple-400 font-medium">${comm.masterShare?.toFixed(2)}</td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-1 rounded text-xs ${
+                                comm.status === 'DEDUCTED' ? 'bg-green-500/20 text-green-500' :
+                                comm.status === 'SETTLED' ? 'bg-blue-500/20 text-blue-500' :
+                                comm.status === 'FAILED' ? 'bg-red-500/20 text-red-500' : 'bg-yellow-500/20 text-yellow-500'
+                              }`}>
+                                {comm.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Commission Info */}
+              <div className={`mt-6 ${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-5 border`}>
+                <h4 className={`font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>How Commission Works</h4>
+                <ul className="text-gray-500 text-sm space-y-2">
+                  <li>• Commission is calculated daily based on your followers' profits</li>
+                  <li>• Your rate: <span className="text-purple-400 font-medium">{myMasterProfile?.approvedCommissionPercentage}%</span> of daily profit</li>
+                  <li>• Commission is only charged when followers make profit</li>
+                  <li>• Minimum withdrawal amount is $10</li>
+                  <li>• Withdrawals are transferred to your wallet instantly</li>
+                </ul>
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
@@ -736,6 +1098,112 @@ const CopyTradePage = () => {
                 className="flex-1 bg-accent-green text-black py-2 rounded-lg font-medium hover:bg-accent-green/90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Deposit & Follow
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Master Application Modal */}
+      {showMasterModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-dark-800 rounded-xl p-6 w-full max-w-md border border-gray-700">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-yellow-500/20 rounded-full flex items-center justify-center">
+                <Crown size={20} className="text-yellow-500" />
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-white">Become a Master Trader</h2>
+                <p className="text-gray-500 text-sm">Share your trades with followers</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="text-gray-400 text-sm mb-1 block">Display Name *</label>
+                <input
+                  type="text"
+                  value={masterForm.displayName}
+                  onChange={(e) => setMasterForm(prev => ({ ...prev, displayName: e.target.value }))}
+                  placeholder="Your trading name"
+                  className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-gray-400 text-sm mb-1 block">Description</label>
+                <textarea
+                  value={masterForm.description}
+                  onChange={(e) => setMasterForm(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Tell followers about your trading strategy..."
+                  rows={3}
+                  className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-gray-400 text-sm mb-1 block">Trading Account *</label>
+                <select
+                  value={masterForm.tradingAccountId || (accounts.length > 0 ? accounts[0]._id : '')}
+                  onChange={(e) => setMasterForm(prev => ({ ...prev, tradingAccountId: e.target.value }))}
+                  className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                >
+                  {accounts.length === 0 && <option value="">No accounts available</option>}
+                  {accounts.map(acc => (
+                    <option key={acc._id} value={acc._id}>{acc.accountId} - ${acc.balance?.toFixed(2)}</option>
+                  ))}
+                </select>
+                <p className="text-gray-500 text-xs mt-1">Trades from this account will be copied to followers</p>
+              </div>
+
+              <div>
+                <label className="text-gray-400 text-sm mb-1 block">Requested Commission (%)</label>
+                <input
+                  type="number"
+                  value={masterForm.requestedCommissionPercentage}
+                  onChange={(e) => setMasterForm(prev => ({ ...prev, requestedCommissionPercentage: parseFloat(e.target.value) || 0 }))}
+                  min="0"
+                  max="50"
+                  className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                />
+                <p className="text-gray-500 text-xs mt-1">Commission you'll earn from followers' daily profits (0-50%)</p>
+              </div>
+
+              <div>
+                <label className="text-gray-400 text-sm mb-1 block">Minimum Follower Deposit ($)</label>
+                <input
+                  type="number"
+                  value={masterForm.minimumFollowerDeposit}
+                  onChange={(e) => setMasterForm(prev => ({ ...prev, minimumFollowerDeposit: parseFloat(e.target.value) || 0 }))}
+                  min="0"
+                  className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                />
+                <p className="text-gray-500 text-xs mt-1">Minimum balance required for followers to copy you (0 = no minimum)</p>
+              </div>
+
+              <div className="bg-dark-700 rounded-lg p-4 space-y-2">
+                <p className="text-white text-sm font-medium">Requirements:</p>
+                <ul className="text-gray-400 text-xs space-y-1">
+                  <li>• Minimum account balance may be required</li>
+                  <li>• Trading history will be reviewed</li>
+                  <li>• Admin approval is required</li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setShowMasterModal(false)}
+                className="flex-1 bg-dark-700 text-white py-2 rounded-lg hover:bg-dark-600"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleApplyMaster}
+                disabled={applyingMaster}
+                className="flex-1 bg-yellow-500 text-black py-2 rounded-lg font-medium hover:bg-yellow-400 disabled:opacity-50"
+              >
+                {applyingMaster ? 'Submitting...' : 'Submit Application'}
               </button>
             </div>
           </div>
