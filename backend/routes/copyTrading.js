@@ -6,7 +6,11 @@ import CopyTrade from '../models/CopyTrade.js'
 import CopyCommission from '../models/CopyCommission.js'
 import CopySettings from '../models/CopySettings.js'
 import TradingAccount from '../models/TradingAccount.js'
+import AccountType from '../models/AccountType.js'
 import Trade from '../models/Trade.js'
+import User from '../models/User.js'
+import Wallet from '../models/Wallet.js'
+import Transaction from '../models/Transaction.js'
 import copyTradingEngine from '../services/copyTradingEngine.js'
 
 const router = express.Router()
@@ -16,7 +20,7 @@ const router = express.Router()
 // POST /api/copy/master/apply - Apply to become a master trader
 router.post('/master/apply', async (req, res) => {
   try {
-    const { userId, tradingAccountId, displayName, description, requestedCommissionPercentage } = req.body
+    const { userId, tradingAccountId, displayName, description, requestedCommissionPercentage, minimumFollowerDeposit } = req.body
 
     // Check if copy trading is enabled
     const settings = await CopySettings.getSettings()
@@ -64,6 +68,7 @@ router.post('/master/apply', async (req, res) => {
       displayName,
       description,
       requestedCommissionPercentage,
+      minimumFollowerDeposit: minimumFollowerDeposit || 0,
       minimumEquityMet: minEquityMet,
       minimumTradesMet: minTradesMet,
       status: 'PENDING'
@@ -220,9 +225,10 @@ router.get('/master/commissions/:masterId', async (req, res) => {
 // ==================== FOLLOWER ROUTES ====================
 
 // POST /api/copy/follow - Follow a master trader
+// New flow: User deposits funds -> Auto-create copy trading account -> Funds go to credit
 router.post('/follow', async (req, res) => {
   try {
-    const { followerUserId, masterId, followerAccountId, copyMode, copyValue, maxLotSize, maxDailyLoss } = req.body
+    const { followerUserId, masterId, depositAmount, copyMode, copyValue, maxLotSize, maxDailyLoss } = req.body
 
     // Check if copy trading is enabled
     const settings = await CopySettings.getSettings()
@@ -231,7 +237,7 @@ router.post('/follow', async (req, res) => {
     }
 
     // Validate master
-    const master = await MasterTrader.findById(masterId)
+    const master = await MasterTrader.findById(masterId).populate('tradingAccountId')
     if (!master || master.status !== 'ACTIVE') {
       return res.status(400).json({ message: 'Master trader not available' })
     }
@@ -241,47 +247,112 @@ router.post('/follow', async (req, res) => {
       return res.status(400).json({ message: 'Master has reached maximum followers' })
     }
 
-    // Validate follower account
-    const followerAccount = await TradingAccount.findById(followerAccountId)
-    if (!followerAccount || followerAccount.userId.toString() !== followerUserId) {
-      return res.status(400).json({ message: 'Invalid trading account' })
+    // Validate deposit amount meets minimum requirement
+    const minDeposit = master.minimumFollowerDeposit || 0
+    if (depositAmount < minDeposit) {
+      return res.status(400).json({ 
+        message: `Minimum deposit of $${minDeposit} required to follow this master`,
+        code: 'INSUFFICIENT_DEPOSIT',
+        required: minDeposit,
+        provided: depositAmount
+      })
     }
 
-    if (followerAccount.status !== 'Active') {
-      return res.status(400).json({ message: 'Trading account is not active' })
+    // Get user and wallet
+    const user = await User.findById(followerUserId)
+    if (!user) {
+      return res.status(400).json({ message: 'User not found' })
     }
 
-    // Check if already following
+    let wallet = await Wallet.findOne({ userId: followerUserId })
+    if (!wallet) {
+      wallet = new Wallet({ userId: followerUserId, balance: 0 })
+      await wallet.save()
+    }
+
+    if ((wallet.balance || 0) < depositAmount) {
+      return res.status(400).json({ 
+        message: `Insufficient wallet balance. You have $${wallet.balance || 0}, need $${depositAmount}`,
+        code: 'INSUFFICIENT_WALLET',
+        required: depositAmount,
+        current: wallet.balance || 0
+      })
+    }
+
+    // Check if already following this master
     const existingFollow = await CopyFollower.findOne({
       followerId: followerUserId,
       masterId,
-      followerAccountId,
       status: { $in: ['ACTIVE', 'PAUSED'] }
     })
 
     if (existingFollow) {
-      return res.status(400).json({ message: 'Already following this master with this account' })
+      return res.status(400).json({ message: 'Already following this master' })
     }
 
     // Validate copy settings
     if (!['FIXED_LOT', 'BALANCE_BASED', 'EQUITY_BASED', 'MULTIPLIER', 'LOT_MULTIPLIER', 'AUTO'].includes(copyMode)) {
-      return res.status(400).json({ message: 'Invalid copy mode. Use FIXED_LOT, BALANCE_BASED, EQUITY_BASED, MULTIPLIER, or AUTO' })
+      return res.status(400).json({ message: 'Invalid copy mode' })
     }
 
-    if (copyValue < settings.copyLimits.minCopyLotSize) {
-      return res.status(400).json({ message: `Minimum copy value is ${settings.copyLimits.minCopyLotSize}` })
+    // Get or create a Copy Trading account type
+    let copyAccountType = await AccountType.findOne({ name: 'Copy Trading' })
+    if (!copyAccountType) {
+      copyAccountType = await AccountType.create({
+        name: 'Copy Trading',
+        description: 'Account for copy trading followers',
+        minDeposit: 0,
+        leverage: '1:100',
+        exposureLimit: 0,
+        minSpread: 0,
+        commission: 0,
+        isActive: true,
+        isDemo: false
+      })
     }
+
+    // Deduct from user wallet
+    wallet.balance = (wallet.balance || 0) - depositAmount
+    await wallet.save()
+
+    // Create transaction record for wallet deduction
+    await Transaction.create({
+      userId: followerUserId,
+      type: 'Transfer_To_Account',
+      amount: depositAmount,
+      status: 'Completed',
+      paymentMethod: 'System',
+      adminRemarks: `Copy Trading deposit for following ${master.displayName}`
+    })
+
+    // Create copy trading account for the user
+    const accountId = await TradingAccount.generateAccountId()
+    const copyTradingAccount = await TradingAccount.create({
+      userId: followerUserId,
+      accountTypeId: copyAccountType._id,
+      accountId,
+      pin: '1234', // Default PIN, user can change later
+      balance: 0, // Balance starts at 0 (profits go here)
+      credit: depositAmount, // Deposit goes to credit (non-withdrawable)
+      leverage: '1:100',
+      exposureLimit: 0,
+      status: 'Active',
+      isDemo: false,
+      isCopyTrading: true,
+      copyTradingMasterId: masterId
+    })
 
     // Create follower subscription
     const follower = await CopyFollower.create({
       followerId: followerUserId,
       masterId,
-      followerAccountId,
+      followerAccountId: copyTradingAccount._id,
       copyMode,
-      copyValue,
+      copyValue: copyValue || 0.01,
       maxLotSize: maxLotSize || 10,
       maxDailyLoss: maxDailyLoss || null,
-      status: 'ACTIVE'
+      status: 'ACTIVE',
+      initialDeposit: depositAmount
     })
 
     // Update master stats
@@ -290,6 +361,7 @@ router.post('/follow', async (req, res) => {
     await master.save()
 
     res.status(201).json({
+      success: true,
       message: 'Successfully following master trader',
       follower: {
         _id: follower._id,
@@ -297,6 +369,12 @@ router.post('/follow', async (req, res) => {
         copyMode: follower.copyMode,
         copyValue: follower.copyValue,
         status: follower.status
+      },
+      copyTradingAccount: {
+        _id: copyTradingAccount._id,
+        accountId: copyTradingAccount.accountId,
+        credit: copyTradingAccount.credit,
+        balance: copyTradingAccount.balance
       }
     })
 
@@ -599,6 +677,46 @@ router.put('/admin/approve/:id', async (req, res) => {
     res.json({ message: 'Master approved successfully', master })
   } catch (error) {
     res.status(500).json({ message: 'Error approving master', error: error.message })
+  }
+})
+
+// PUT /api/copy/admin/update-commission/:id - Update master commission settings (admin can change anytime)
+router.put('/admin/update-commission/:id', async (req, res) => {
+  try {
+    const { adminId, approvedCommissionPercentage, adminSharePercentage } = req.body
+
+    const master = await MasterTrader.findById(req.params.id)
+    if (!master) {
+      return res.status(404).json({ success: false, message: 'Master not found' })
+    }
+
+    const previousCommission = master.approvedCommissionPercentage
+    const previousAdminShare = master.adminSharePercentage
+
+    if (approvedCommissionPercentage !== undefined) {
+      master.approvedCommissionPercentage = approvedCommissionPercentage
+    }
+    if (adminSharePercentage !== undefined) {
+      master.adminSharePercentage = adminSharePercentage
+    }
+    
+    master.lastCommissionUpdateBy = adminId
+    master.lastCommissionUpdateAt = new Date()
+    await master.save()
+
+    res.json({ 
+      success: true,
+      message: 'Commission settings updated successfully', 
+      master,
+      changes: {
+        previousCommission,
+        newCommission: master.approvedCommissionPercentage,
+        previousAdminShare,
+        newAdminShare: master.adminSharePercentage
+      }
+    })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error updating commission', error: error.message })
   }
 })
 

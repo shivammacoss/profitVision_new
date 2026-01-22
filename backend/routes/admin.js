@@ -1,8 +1,12 @@
 import express from 'express'
 import bcrypt from 'bcryptjs'
 import User from '../models/User.js'
+import { authenticateAdmin } from '../middleware/auth.js'
 
 const router = express.Router()
+
+// Apply admin authentication to all routes
+router.use(authenticateAdmin)
 
 // GET /api/admin/users - Get all users
 router.get('/users', async (req, res) => {

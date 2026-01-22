@@ -50,6 +50,12 @@ const masterTraderSchema = new mongoose.Schema({
     enum: ['PUBLIC', 'PRIVATE'],
     default: 'PUBLIC'
   },
+  // Minimum deposit required for followers
+  minimumFollowerDeposit: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
   // Statistics (updated periodically)
   stats: {
     totalFollowers: { type: Number, default: 0 },

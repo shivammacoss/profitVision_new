@@ -30,7 +30,12 @@ const AdminCopyTrade = () => {
   const [loading, setLoading] = useState(true)
   const [selectedMaster, setSelectedMaster] = useState(null)
   const [showApproveModal, setShowApproveModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
   const [approveForm, setApproveForm] = useState({
+    approvedCommissionPercentage: 10,
+    adminSharePercentage: 30
+  })
+  const [editForm, setEditForm] = useState({
     approvedCommissionPercentage: 10,
     adminSharePercentage: 30
   })
@@ -120,6 +125,32 @@ const AdminCopyTrade = () => {
     } catch (error) {
       console.error('Error approving master:', error)
       alert('Failed to approve master')
+    }
+  }
+
+  const handleUpdateCommission = async () => {
+    if (!selectedMaster) return
+    try {
+      const res = await fetch(`${API_URL}/copy/admin/update-commission/${selectedMaster._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adminId: adminUser._id,
+          ...editForm
+        })
+      })
+      const data = await res.json()
+      if (data.success) {
+        alert('Commission updated successfully!')
+        setShowEditModal(false)
+        setSelectedMaster(null)
+        fetchMasters()
+      } else {
+        alert(data.message || 'Failed to update commission')
+      }
+    } catch (error) {
+      console.error('Error updating commission:', error)
+      alert('Failed to update commission')
     }
   }
 
@@ -334,7 +365,10 @@ const AdminCopyTrade = () => {
                           </>
                         )}
                         {master.status === 'ACTIVE' && (
-                          <button onClick={() => handleSuspend(master._id)} className="p-2 hover:bg-dark-600 rounded-lg text-gray-400 hover:text-red-500" title="Suspend"><Trash2 size={16} /></button>
+                          <>
+                            <button onClick={() => { setSelectedMaster(master); setEditForm({ approvedCommissionPercentage: master.approvedCommissionPercentage || 10, adminSharePercentage: master.adminSharePercentage || 30 }); setShowEditModal(true) }} className="p-2 hover:bg-dark-600 rounded-lg text-gray-400 hover:text-blue-500" title="Edit Commission"><Edit size={16} /></button>
+                            <button onClick={() => handleSuspend(master._id)} className="p-2 hover:bg-dark-600 rounded-lg text-gray-400 hover:text-red-500" title="Suspend"><Trash2 size={16} /></button>
+                          </>
                         )}
                       </div>
                     </td>
@@ -495,6 +529,57 @@ const AdminCopyTrade = () => {
             <div className="flex gap-3 mt-6">
               <button onClick={() => setShowApproveModal(false)} className="flex-1 bg-dark-700 text-white py-2 rounded-lg">Cancel</button>
               <button onClick={handleApprove} className="flex-1 bg-green-500 text-white py-2 rounded-lg">Approve</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Commission Modal */}
+      {showEditModal && selectedMaster && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-dark-800 rounded-xl p-6 w-full max-w-md border border-gray-700">
+            <h2 className="text-xl font-semibold text-white mb-4">Edit Commission: {selectedMaster.displayName}</h2>
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-4">
+              <p className="text-blue-400 text-sm">You can change the master's commission percentage and admin share at any time. Changes will apply to future commission calculations.</p>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="text-gray-400 text-sm mb-1 block">Master Commission (%)</label>
+                <input 
+                  type="number" 
+                  value={editForm.approvedCommissionPercentage} 
+                  onChange={(e) => setEditForm(prev => ({ ...prev, approvedCommissionPercentage: parseFloat(e.target.value) || 0 }))} 
+                  min="0"
+                  max="50"
+                  step="0.5"
+                  className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white" 
+                />
+                <p className="text-gray-500 text-xs mt-1">Percentage of follower's profit paid as commission</p>
+              </div>
+              <div>
+                <label className="text-gray-400 text-sm mb-1 block">Admin Share (%)</label>
+                <input 
+                  type="number" 
+                  value={editForm.adminSharePercentage} 
+                  onChange={(e) => setEditForm(prev => ({ ...prev, adminSharePercentage: parseFloat(e.target.value) || 0 }))} 
+                  min="0"
+                  max="100"
+                  step="1"
+                  className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white" 
+                />
+                <p className="text-gray-500 text-xs mt-1">Admin's share of the total commission</p>
+              </div>
+              <div className="bg-dark-700 rounded-lg p-3">
+                <p className="text-gray-400 text-sm">Commission Split Preview:</p>
+                <div className="flex justify-between mt-2">
+                  <span className="text-purple-400">Admin gets: {(editForm.approvedCommissionPercentage * editForm.adminSharePercentage / 100).toFixed(2)}%</span>
+                  <span className="text-green-400">Master gets: {(editForm.approvedCommissionPercentage * (100 - editForm.adminSharePercentage) / 100).toFixed(2)}%</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => { setShowEditModal(false); setSelectedMaster(null); }} className="flex-1 bg-dark-700 text-white py-2 rounded-lg hover:bg-dark-600">Cancel</button>
+              <button onClick={handleUpdateCommission} className="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600">Update Commission</button>
             </div>
           </div>
         </div>

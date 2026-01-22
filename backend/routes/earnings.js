@@ -1,5 +1,6 @@
 import express from 'express'
 import Trade from '../models/Trade.js'
+import Transaction from '../models/Transaction.js'
 import mongoose from 'mongoose'
 
 const router = express.Router()
@@ -44,12 +45,46 @@ router.get('/summary', async (req, res) => {
       return result[0]
     }
 
+    // Aggregate IB subscription fees
+    const aggregateIBFees = async (startDate, endDate = now) => {
+      const result = await Transaction.aggregate([
+        {
+          $match: {
+            type: 'IB_Entry_Fee',
+            createdAt: { $gte: startDate, $lte: endDate }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalFees: { $sum: '$amount' },
+            count: { $sum: 1 }
+          }
+        }
+      ])
+      
+      if (result.length === 0) {
+        return { totalFees: 0, count: 0 }
+      }
+      
+      return result[0]
+    }
+
     const [today, thisWeek, thisMonth, thisYear, allTime] = await Promise.all([
       aggregateEarnings(todayStart),
       aggregateEarnings(weekStart),
       aggregateEarnings(monthStart),
       aggregateEarnings(yearStart),
       aggregateEarnings(new Date(0)) // All time
+    ])
+
+    // Get IB subscription fees
+    const [ibFeesToday, ibFeesWeek, ibFeesMonth, ibFeesYear, ibFeesAllTime] = await Promise.all([
+      aggregateIBFees(todayStart),
+      aggregateIBFees(weekStart),
+      aggregateIBFees(monthStart),
+      aggregateIBFees(yearStart),
+      aggregateIBFees(new Date(0))
     ])
 
     res.json({
@@ -59,7 +94,9 @@ router.get('/summary', async (req, res) => {
           commission: today.totalCommission,
           spread: today.totalSpread,
           swap: today.totalSwap,
-          total: today.totalCommission + today.totalSwap,
+          ibSubscriptionFees: ibFeesToday.totalFees,
+          ibSubscriptionCount: ibFeesToday.count,
+          total: today.totalCommission + today.totalSwap + ibFeesToday.totalFees,
           trades: today.tradeCount,
           volume: today.totalVolume
         },
@@ -67,7 +104,9 @@ router.get('/summary', async (req, res) => {
           commission: thisWeek.totalCommission,
           spread: thisWeek.totalSpread,
           swap: thisWeek.totalSwap,
-          total: thisWeek.totalCommission + thisWeek.totalSwap,
+          ibSubscriptionFees: ibFeesWeek.totalFees,
+          ibSubscriptionCount: ibFeesWeek.count,
+          total: thisWeek.totalCommission + thisWeek.totalSwap + ibFeesWeek.totalFees,
           trades: thisWeek.tradeCount,
           volume: thisWeek.totalVolume
         },
@@ -75,7 +114,9 @@ router.get('/summary', async (req, res) => {
           commission: thisMonth.totalCommission,
           spread: thisMonth.totalSpread,
           swap: thisMonth.totalSwap,
-          total: thisMonth.totalCommission + thisMonth.totalSwap,
+          ibSubscriptionFees: ibFeesMonth.totalFees,
+          ibSubscriptionCount: ibFeesMonth.count,
+          total: thisMonth.totalCommission + thisMonth.totalSwap + ibFeesMonth.totalFees,
           trades: thisMonth.tradeCount,
           volume: thisMonth.totalVolume
         },
@@ -83,7 +124,9 @@ router.get('/summary', async (req, res) => {
           commission: thisYear.totalCommission,
           spread: thisYear.totalSpread,
           swap: thisYear.totalSwap,
-          total: thisYear.totalCommission + thisYear.totalSwap,
+          ibSubscriptionFees: ibFeesYear.totalFees,
+          ibSubscriptionCount: ibFeesYear.count,
+          total: thisYear.totalCommission + thisYear.totalSwap + ibFeesYear.totalFees,
           trades: thisYear.tradeCount,
           volume: thisYear.totalVolume
         },
@@ -91,7 +134,9 @@ router.get('/summary', async (req, res) => {
           commission: allTime.totalCommission,
           spread: allTime.totalSpread,
           swap: allTime.totalSwap,
-          total: allTime.totalCommission + allTime.totalSwap,
+          ibSubscriptionFees: ibFeesAllTime.totalFees,
+          ibSubscriptionCount: ibFeesAllTime.count,
+          total: allTime.totalCommission + allTime.totalSwap + ibFeesAllTime.totalFees,
           trades: allTime.tradeCount,
           volume: allTime.totalVolume
         }

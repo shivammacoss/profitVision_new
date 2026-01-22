@@ -24,6 +24,7 @@ import {
   Moon
 } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
+import logo from '../assets/logo.png'
 
 const API_URL = 'http://localhost:5001/api'
 
@@ -483,11 +484,9 @@ const Dashboard = () => {
         onMouseEnter={() => setSidebarExpanded(true)}
         onMouseLeave={() => setSidebarExpanded(false)}
       >
-        {/* Logo - Icon only */}
+        {/* Logo */}
         <div className="p-4 flex items-center justify-center shrink-0">
-          <div className="w-8 h-8 bg-accent-green rounded flex items-center justify-center">
-            <span className="text-black font-bold text-sm">CL</span>
-          </div>
+          <img src={logo} alt="ProfitVisionFX" className="h-24 object-contain" />
         </div>
 
         {/* Menu */}

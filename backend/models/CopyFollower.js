@@ -80,6 +80,11 @@ const copyFollowerSchema = new mongoose.Schema({
   stoppedAt: {
     type: Date,
     default: null
+  },
+  // Initial deposit amount when following
+  initialDeposit: {
+    type: Number,
+    default: 0
   }
 }, { timestamps: true })
 

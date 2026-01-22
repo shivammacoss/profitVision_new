@@ -6,6 +6,7 @@ import {
   ArrowLeft, Home, Sun, Moon
 } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
+import logo from '../assets/logo.png'
 
 const API_URL = 'http://localhost:5001/api'
 
@@ -151,9 +152,7 @@ const InstructionsPage = () => {
           onMouseLeave={() => setSidebarExpanded(false)}
         >
           <div className="p-4 flex items-center justify-center">
-            <div className="w-8 h-8 bg-accent-green rounded flex items-center justify-center">
-              <span className="text-black font-bold text-sm">CL</span>
-            </div>
+            <img src={logo} alt="ProfitVisionFX" className="h-12 object-contain" />
           </div>
           <nav className="flex-1 px-2">
             {menuItems.map((item) => (
@@ -199,7 +198,7 @@ const InstructionsPage = () => {
                   <BookOpen size={isMobile ? 20 : 28} className="text-accent-green" />
                 </div>
                 <div>
-                  <h2 className={`font-bold text-white ${isMobile ? 'text-base' : 'text-xl'}`}>Welcome to CoinLytix</h2>
+                  <h2 className={`font-bold text-white ${isMobile ? 'text-base' : 'text-xl'}`}>Welcome to ProfitVisionFX</h2>
                   <p className={`text-gray-400 ${isMobile ? 'text-xs' : ''}`}>Learn how to use our platform</p>
                 </div>
               </div>

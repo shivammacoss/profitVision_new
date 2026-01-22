@@ -30,6 +30,7 @@ import {
   Moon
 } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
+import logo from '../assets/logo.png'
 
 const API_URL = 'http://localhost:5001/api'
 
@@ -573,9 +574,7 @@ const Account = () => {
           onMouseLeave={() => setSidebarExpanded(false)}
         >
           <div className="p-4 flex items-center justify-center shrink-0">
-            <div className="w-8 h-8 bg-accent-green rounded flex items-center justify-center">
-              <span className="text-black font-bold text-sm">CL</span>
-            </div>
+            <img src={logo} alt="ProfitVisionFX" className="h-12 object-contain" />
           </div>
 
           <nav className="flex-1 px-2 overflow-y-auto">
@@ -883,14 +882,19 @@ const Account = () => {
                       <span className={`text-xs ${account.status === 'Active' ? 'text-green-500' : 'text-red-500'}`}>
                         {account.status === 'Active' ? 'Live' : account.status}
                       </span>
+                      {account.isCopyTrading && (
+                        <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">Copy Trading</span>
+                      )}
                     </div>
                   </div>
 
                   {/* Card Body - Balance & Details */}
                   <div className={`${isMobile ? 'p-3' : 'p-4'}`}>
                     <div className="text-center mb-3">
-                      <p className={`font-bold ${isMobile ? 'text-2xl' : 'text-3xl'} ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>${account.balance.toLocaleString()}</p>
-                      <p className="text-gray-500 text-sm mt-1">Balance</p>
+                      <p className={`font-bold ${isMobile ? 'text-2xl' : 'text-3xl'} ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        ${account.isCopyTrading ? (account.credit || 0).toLocaleString() : account.balance.toLocaleString()}
+                      </p>
+                      <p className="text-gray-500 text-sm mt-1">{account.isCopyTrading ? 'Credit' : 'Balance'}</p>
                     </div>
                     
                     {/* Account Details Grid */}

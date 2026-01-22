@@ -3,6 +3,9 @@ import IBPlan from '../models/IBPlanNew.js'
 import IBCommission from '../models/IBCommissionNew.js'
 import IBWallet from '../models/IBWallet.js'
 import IBLevel from '../models/IBLevel.js'
+import IBSettings from '../models/IBSettings.js'
+import Wallet from '../models/Wallet.js'
+import Transaction from '../models/Transaction.js'
 
 class IBEngine {
   constructor() {
@@ -24,6 +27,85 @@ class IBEngine {
     return this.CONTRACT_SIZES.DEFAULT_FOREX
   }
 
+  // Get unlocked levels for an IB based on their direct referral count
+  async getUnlockedLevelsForIB(ibUserId) {
+    // Get direct referral count for this IB
+    const referralCount = await User.countDocuments({ parentIBId: ibUserId })
+    
+    // Get unlock configuration from settings
+    const unlockedLevels = await IBSettings.getUnlockedLevels(referralCount)
+    
+    return {
+      ...unlockedLevels,
+      referralCount
+    }
+  }
+
+  // Get unlock progress for IB dashboard
+  async getUnlockProgress(ibUserId) {
+    const referralCount = await User.countDocuments({ parentIBId: ibUserId })
+    const settings = await IBSettings.getSettings()
+    
+    const directTiers = settings.directIncomeUnlock?.tiers || [
+      { referralsRequired: 1, levelsUnlocked: 6 },
+      { referralsRequired: 2, levelsUnlocked: 12 },
+      { referralsRequired: 3, levelsUnlocked: 18 }
+    ]
+    
+    const referralTiers = settings.referralIncomeUnlock?.tiers || [
+      { referralsRequired: 1, levelsUnlocked: 3 },
+      { referralsRequired: 2, levelsUnlocked: 6 },
+      { referralsRequired: 3, levelsUnlocked: 11 }
+    ]
+    
+    // Calculate current unlocked levels
+    let directIncomeLevels = 0
+    let currentDirectTier = null
+    let nextDirectTier = directTiers[0]
+    
+    for (let i = 0; i < directTiers.length; i++) {
+      if (referralCount >= directTiers[i].referralsRequired) {
+        directIncomeLevels = directTiers[i].levelsUnlocked
+        currentDirectTier = directTiers[i]
+        nextDirectTier = directTiers[i + 1] || null
+      }
+    }
+    
+    let referralIncomeLevels = 0
+    let currentReferralTier = null
+    let nextReferralTier = referralTiers[0]
+    
+    for (let i = 0; i < referralTiers.length; i++) {
+      if (referralCount >= referralTiers[i].referralsRequired) {
+        referralIncomeLevels = referralTiers[i].levelsUnlocked
+        currentReferralTier = referralTiers[i]
+        nextReferralTier = referralTiers[i + 1] || null
+      }
+    }
+    
+    return {
+      referralCount,
+      directIncome: {
+        unlockedLevels: directIncomeLevels,
+        maxLevels: settings.directIncomeUnlock?.maxLevels || 18,
+        currentTier: currentDirectTier,
+        nextTier: nextDirectTier,
+        referralsNeeded: nextDirectTier ? nextDirectTier.referralsRequired - referralCount : 0,
+        isFullyUnlocked: !nextDirectTier,
+        tiers: directTiers
+      },
+      referralIncome: {
+        unlockedLevels: referralIncomeLevels,
+        maxLevels: settings.referralIncomeUnlock?.maxLevels || 11,
+        currentTier: currentReferralTier,
+        nextTier: nextReferralTier,
+        referralsNeeded: nextReferralTier ? nextReferralTier.referralsRequired - referralCount : 0,
+        isFullyUnlocked: !nextReferralTier,
+        tiers: referralTiers
+      }
+    }
+  }
+
   // Generate unique referral code
   async generateReferralCode() {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -41,7 +123,42 @@ class IBEngine {
     return code
   }
 
-  // Apply to become IB
+  // Get IB entry fee settings
+  async getEntryFeeSettings() {
+    const settings = await IBSettings.getSettings()
+    return {
+      entryFeeEnabled: settings.entryFeeEnabled || false,
+      entryFee: settings.entryFee || 0
+    }
+  }
+
+  // Check if user can pay entry fee
+  async checkEntryFeeEligibility(userId) {
+    const settings = await IBSettings.getSettings()
+    
+    // If entry fee is not enabled or is 0, user is eligible
+    if (!settings.entryFeeEnabled || settings.entryFee <= 0) {
+      return { eligible: true, entryFee: 0, walletBalance: 0, needsDeposit: false }
+    }
+
+    const entryFee = settings.entryFee
+    const wallet = await Wallet.findOne({ userId })
+    const walletBalance = wallet ? wallet.balance : 0
+
+    if (walletBalance >= entryFee) {
+      return { eligible: true, entryFee, walletBalance, needsDeposit: false }
+    } else {
+      return { 
+        eligible: false, 
+        entryFee, 
+        walletBalance, 
+        needsDeposit: true,
+        shortfall: entryFee - walletBalance
+      }
+    }
+  }
+
+  // Apply to become IB (with entry fee)
   async applyForIB(userId) {
     const user = await User.findById(userId)
     if (!user) throw new Error('User not found')
@@ -50,11 +167,39 @@ class IBEngine {
       throw new Error('User is already an IB')
     }
 
+    // Check entry fee eligibility
+    const settings = await IBSettings.getSettings()
+    
+    if (settings.entryFeeEnabled && settings.entryFee > 0) {
+      const wallet = await Wallet.findOne({ userId })
+      const walletBalance = wallet ? wallet.balance : 0
+
+      if (walletBalance < settings.entryFee) {
+        throw new Error(`INSUFFICIENT_BALANCE:${settings.entryFee}:${walletBalance}`)
+      }
+
+      // Deduct entry fee from wallet
+      wallet.balance -= settings.entryFee
+      await wallet.save()
+
+      // Create transaction record for entry fee
+      await Transaction.create({
+        userId,
+        type: 'IB_Entry_Fee',
+        amount: settings.entryFee,
+        status: 'Completed',
+        paymentMethod: 'System',
+        adminRemarks: 'IB Registration Entry Fee'
+      })
+    }
+
     const referralCode = await this.generateReferralCode()
     
     user.isIB = true
-    user.ibStatus = 'PENDING'
+    // Auto-approve if entry fee is paid, otherwise set to PENDING
+    user.ibStatus = (settings.entryFeeEnabled && settings.entryFee > 0) ? 'ACTIVE' : 'PENDING'
     user.referralCode = referralCode
+    user.ibEntryFeePaid = settings.entryFeeEnabled ? settings.entryFee : 0
     
     // If user was referred by an IB, set parent and level
     if (user.referredBy) {
@@ -77,6 +222,11 @@ class IBEngine {
     
     // Create IB wallet
     await IBWallet.getOrCreateWallet(userId)
+
+    // If auto-approved (entry fee paid), assign initial level
+    if (user.ibStatus === 'ACTIVE') {
+      await this.assignInitialLevel(userId)
+    }
     
     return user
   }
@@ -167,8 +317,8 @@ class IBEngine {
   async processTradeCommission(trade) {
     console.log(`Processing IB commission for trade ${trade.tradeId || trade._id}, userId: ${trade.userId}`)
     
-    // Get the IB chain for the trader
-    const ibChain = await this.getIBChain(trade.userId)
+    // Get the IB chain for the trader (up to 18 levels for direct income)
+    const ibChain = await this.getIBChain(trade.userId, 18)
     
     console.log(`IB Chain length: ${ibChain.length}`)
     
@@ -184,6 +334,16 @@ class IBEngine {
       try {
         console.log(`Processing level ${level} for IB ${ibUser.firstName} (${ibUser._id})`)
         
+        // Check IB's unlocked levels based on their referral count
+        const unlockedLevels = await this.getUnlockedLevelsForIB(ibUser._id)
+        console.log(`IB ${ibUser.firstName} has ${unlockedLevels.referralCount} referrals, unlocked ${unlockedLevels.directIncomeLevels} direct income levels`)
+        
+        // Check if this level is unlocked for this IB
+        if (level > unlockedLevels.directIncomeLevels) {
+          console.log(`Level ${level} not unlocked for IB ${ibUser.firstName} (only ${unlockedLevels.directIncomeLevels} levels unlocked)`)
+          continue
+        }
+        
         // Get IB's plan - always fetch fresh from DB
         let plan = await IBPlan.findById(ibUser.ibPlanId)
         if (!plan) {
@@ -197,9 +357,9 @@ class IBEngine {
         console.log(`Plan: ${plan.name}, maxLevels: ${plan.maxLevels}, commissionType: ${plan.commissionType}`)
         console.log(`levelCommissions:`, plan.levelCommissions)
 
-        // Check if level is within plan's max levels
+        // Check if level is within plan's max levels (also respect plan limits)
         if (level > plan.maxLevels) {
-          console.log(`Level ${level} exceeds maxLevels ${plan.maxLevels}`)
+          console.log(`Level ${level} exceeds plan maxLevels ${plan.maxLevels}`)
           continue
         }
 
@@ -470,123 +630,13 @@ class IBEngine {
     }
   }
 
-  // Check and auto-upgrade IB level based on referral count
-  async checkAndUpgradeLevel(ibUserId) {
-    const user = await User.findById(ibUserId).populate('ibLevelId')
-    if (!user || !user.isIB || user.ibStatus !== 'ACTIVE') return null
-    if (!user.autoUpgradeEnabled) return null
-
-    // Get direct referral count
-    const referralCount = await User.countDocuments({ parentIBId: ibUserId })
-    
-    // Get all levels sorted by order
-    const levels = await IBLevel.getAllLevels()
-    if (levels.length === 0) return null
-
-    // Find the highest level the user qualifies for
-    let qualifiedLevel = levels[0] // Start with lowest level
-    for (const level of levels) {
-      if (referralCount >= level.referralTarget) {
-        qualifiedLevel = level
-      }
-    }
-
-    // Check if upgrade is needed
-    const currentLevelOrder = user.ibLevelOrder || 1
-    if (qualifiedLevel.order > currentLevelOrder) {
-      user.ibLevelId = qualifiedLevel._id
-      user.ibLevelOrder = qualifiedLevel.order
-      await user.save()
-      
-      console.log(`[IB Level] User ${user.firstName} upgraded to ${qualifiedLevel.name} (${referralCount} referrals)`)
-      return {
-        upgraded: true,
-        previousLevel: currentLevelOrder,
-        newLevel: qualifiedLevel,
-        referralCount
-      }
-    }
-
-    return { upgraded: false, currentLevel: qualifiedLevel, referralCount }
-  }
-
-  // Get IB level progress for user dashboard
+  // Get IB level progress for user dashboard - now returns unlock progress
   async getIBLevelProgress(ibUserId) {
     const user = await User.findById(ibUserId).populate('ibLevelId')
     if (!user || !user.isIB) throw new Error('IB not found')
 
-    // Get direct referral count
-    const referralCount = await User.countDocuments({ parentIBId: ibUserId })
-    
-    // Get all levels
-    const levels = await IBLevel.getAllLevels()
-    if (levels.length === 0) {
-      // Initialize default levels if none exist
-      await IBLevel.initializeDefaultLevels()
-      const newLevels = await IBLevel.getAllLevels()
-      return this._calculateLevelProgress(user, referralCount, newLevels)
-    }
-
-    return this._calculateLevelProgress(user, referralCount, levels)
-  }
-
-  _calculateLevelProgress(user, referralCount, levels) {
-    // Find current level
-    let currentLevel = levels.find(l => l.order === (user.ibLevelOrder || 1)) || levels[0]
-    
-    // Find next level
-    const nextLevel = levels.find(l => l.order === currentLevel.order + 1)
-    
-    // Calculate progress
-    let progressPercent = 100
-    let referralsNeeded = 0
-    
-    if (nextLevel) {
-      const currentTarget = currentLevel.referralTarget
-      const nextTarget = nextLevel.referralTarget
-      const range = nextTarget - currentTarget
-      const progress = referralCount - currentTarget
-      progressPercent = Math.min(100, Math.max(0, (progress / range) * 100))
-      referralsNeeded = Math.max(0, nextTarget - referralCount)
-    }
-
-    return {
-      currentLevel: {
-        _id: currentLevel._id,
-        name: currentLevel.name,
-        order: currentLevel.order,
-        commissionRate: currentLevel.commissionRate,
-        commissionType: currentLevel.commissionType,
-        color: currentLevel.color,
-        icon: currentLevel.icon,
-        referralTarget: currentLevel.referralTarget,
-        downlineCommission: currentLevel.downlineCommission
-      },
-      nextLevel: nextLevel ? {
-        _id: nextLevel._id,
-        name: nextLevel.name,
-        order: nextLevel.order,
-        commissionRate: nextLevel.commissionRate,
-        referralTarget: nextLevel.referralTarget,
-        color: nextLevel.color
-      } : null,
-      referralCount,
-      referralsNeeded,
-      progressPercent: Math.round(progressPercent),
-      autoUpgradeEnabled: user.autoUpgradeEnabled,
-      allLevels: levels.map(l => ({
-        _id: l._id,
-        name: l.name,
-        order: l.order,
-        commissionRate: l.commissionRate,
-        commissionType: l.commissionType,
-        referralTarget: l.referralTarget,
-        color: l.color,
-        icon: l.icon,
-        isCurrentLevel: l.order === currentLevel.order,
-        isUnlocked: referralCount >= l.referralTarget
-      }))
-    }
+    // Return the new unlock progress system
+    return await this.getUnlockProgress(ibUserId)
   }
 
   // Assign initial level to new IB
@@ -729,8 +779,8 @@ class IBEngine {
   async processReferralCommission(referringIBId, newReferralId) {
     console.log(`Processing Referral Commission for IB ${referringIBId} referring ${newReferralId}`)
     
-    // Get the upline chain of the referring IB
-    const ibChain = await this.getIBChainExtended(referringIBId)
+    // Get the upline chain of the referring IB (up to 11 levels for referral income)
+    const ibChain = await this.getIBChainExtended(referringIBId, 11)
     
     if (ibChain.length === 0) {
       console.log('No upline IB chain found')
@@ -741,10 +791,20 @@ class IBEngine {
 
     for (const { ibUser, level, ibLevel } of ibChain) {
       try {
+        // Check IB's unlocked referral income levels based on their referral count
+        const unlockedLevels = await this.getUnlockedLevelsForIB(ibUser._id)
+        console.log(`IB ${ibUser.firstName} has ${unlockedLevels.referralCount} referrals, unlocked ${unlockedLevels.referralIncomeLevels} referral income levels`)
+        
+        // Check if this level is unlocked for referral income
+        if (level > unlockedLevels.referralIncomeLevels) {
+          console.log(`Level ${level} not unlocked for referral income for IB ${ibUser.firstName} (only ${unlockedLevels.referralIncomeLevels} levels unlocked)`)
+          continue
+        }
+
         const levelConfig = ibLevel || await IBLevel.findById(ibUser.ibLevelId)
         if (!levelConfig) continue
 
-        if (level > (levelConfig.maxDownlineLevels || 5)) continue
+        if (level > (levelConfig.maxDownlineLevels || 11)) continue
 
         // Find referral commission for this level
         const commissionConfig = levelConfig.referralCommission?.find(c => c.level === level)

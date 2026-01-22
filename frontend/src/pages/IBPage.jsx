@@ -6,6 +6,7 @@ import {
   ArrowLeft, Home, Crown, Share2, RefreshCw, Sun, Moon
 } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
+import logo from '../assets/logo.png'
 
 const API_URL = 'http://localhost:5001/api'
 
@@ -24,6 +25,8 @@ const IBPage = () => {
   const [challengeModeEnabled, setChallengeModeEnabled] = useState(false)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
   const [levelProgress, setLevelProgress] = useState(null)
+  const [entryFeeSettings, setEntryFeeSettings] = useState({ entryFeeEnabled: false, entryFee: 0 })
+  const [eligibility, setEligibility] = useState(null)
 
   const user = JSON.parse(localStorage.getItem('user') || '{}')
 
@@ -48,6 +51,7 @@ const IBPage = () => {
   useEffect(() => {
     fetchChallengeStatus()
     fetchIBProfile()
+    fetchEntryFeeSettings()
 
     // Auto-refresh every 15 seconds
     const refreshInterval = setInterval(() => {
@@ -56,6 +60,37 @@ const IBPage = () => {
 
     return () => clearInterval(refreshInterval)
   }, [])
+
+  const fetchEntryFeeSettings = async () => {
+    try {
+      const res = await fetch(`${API_URL}/ib/entry-fee-settings`)
+      const data = await res.json()
+      if (data.success) {
+        setEntryFeeSettings({
+          entryFeeEnabled: data.entryFeeEnabled,
+          entryFee: data.entryFee
+        })
+        // Check eligibility if entry fee is enabled
+        if (data.entryFeeEnabled && data.entryFee > 0) {
+          checkEligibility()
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching entry fee settings:', error)
+    }
+  }
+
+  const checkEligibility = async () => {
+    try {
+      const res = await fetch(`${API_URL}/ib/check-eligibility/${user._id}`)
+      const data = await res.json()
+      if (data.success) {
+        setEligibility(data)
+      }
+    } catch (error) {
+      console.error('Error checking eligibility:', error)
+    }
+  }
 
   const fetchChallengeStatus = async () => {
     try {
@@ -130,6 +165,15 @@ const IBPage = () => {
   }
 
   const handleApply = async () => {
+    // Check if entry fee is required and user doesn't have enough balance
+    if (entryFeeSettings.entryFeeEnabled && entryFeeSettings.entryFee > 0) {
+      if (eligibility && !eligibility.eligible) {
+        alert(`Insufficient wallet balance. You need $${entryFeeSettings.entryFee} to become an IB. Please deposit funds first.`)
+        navigate('/wallet')
+        return
+      }
+    }
+
     setApplying(true)
     try {
       const res = await fetch(`${API_URL}/ib/apply`, {
@@ -138,6 +182,15 @@ const IBPage = () => {
         body: JSON.stringify({ userId: user._id })
       })
       const data = await res.json()
+      
+      // Handle insufficient balance error from backend
+      if (data.code === 'INSUFFICIENT_BALANCE') {
+        alert(`Insufficient wallet balance. You need $${data.entryFee} to become an IB. Your current balance is $${data.walletBalance}. Please deposit $${data.shortfall.toFixed(2)} more.`)
+        navigate('/wallet')
+        setApplying(false)
+        return
+      }
+      
       if (data.success || data.ibUser || data.user) {
         // Set the profile with PENDING status immediately
         const userData = data.ibUser || data.user || {}
@@ -146,7 +199,10 @@ const IBPage = () => {
           status: userData.ibStatus || 'PENDING',
           ibStatus: userData.ibStatus || 'PENDING'
         })
-        alert('IB application submitted successfully!')
+        const feeMsg = entryFeeSettings.entryFeeEnabled && entryFeeSettings.entryFee > 0 
+          ? ` Entry fee of $${entryFeeSettings.entryFee} has been deducted from your wallet.` 
+          : ''
+        alert(`IB application submitted successfully!${feeMsg}`)
         // Refresh profile to get latest data
         setTimeout(() => fetchIBProfile(), 500)
       } else {
@@ -248,9 +304,7 @@ const IBPage = () => {
           onMouseLeave={() => setSidebarExpanded(false)}
         >
           <div className="p-4 flex items-center justify-center">
-            <div className="w-8 h-8 bg-accent-green rounded flex items-center justify-center">
-              <span className="text-black font-bold text-sm">CL</span>
-            </div>
+            <img src={logo} alt="ProfitVisionFX" className="h-12 object-contain" />
           </div>
           <nav className="flex-1 px-2">
             {menuItems.map((item) => (
@@ -300,8 +354,39 @@ const IBPage = () => {
               <p className="text-gray-400 mb-4 text-sm">
                 Earn commissions by referring traders. Get up to 5 levels of referral commissions!
               </p>
-              <div className={`bg-dark-800 rounded-xl ${isMobile ? 'p-4' : 'p-6'} mb-4 text-left`}>
-                <h3 className="text-white font-semibold mb-3 text-sm">Benefits:</h3>
+              
+              {/* Entry Fee Notice */}
+              {entryFeeSettings.entryFeeEnabled && entryFeeSettings.entryFee > 0 && (
+                <div className={`${isDarkMode ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-yellow-50 border-yellow-200'} border rounded-xl p-4 mb-4`}>
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <DollarSign size={20} className="text-yellow-500" />
+                    <span className="text-yellow-500 font-semibold">Entry Fee: ${entryFeeSettings.entryFee}</span>
+                  </div>
+                  {eligibility && !eligibility.eligible ? (
+                    <div>
+                      <p className="text-red-400 text-sm mb-2">
+                        Insufficient balance. You need ${eligibility.shortfall?.toFixed(2)} more.
+                      </p>
+                      <p className="text-gray-400 text-xs">
+                        Your wallet: ${eligibility.walletBalance?.toFixed(2) || '0.00'}
+                      </p>
+                      <button
+                        onClick={() => navigate('/wallet')}
+                        className="mt-3 bg-yellow-500 text-black px-6 py-2 rounded-lg font-semibold hover:bg-yellow-400 text-sm"
+                      >
+                        Deposit Now
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-gray-400 text-xs">
+                      This fee will be deducted from your wallet upon application.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div className={`${isDarkMode ? 'bg-dark-800' : 'bg-gray-100'} rounded-xl ${isMobile ? 'p-4' : 'p-6'} mb-4 text-left`}>
+                <h3 className={`${isDarkMode ? 'text-white' : 'text-gray-900'} font-semibold mb-3 text-sm`}>Benefits:</h3>
                 <ul className="space-y-2 text-gray-400 text-sm">
                   <li className="flex items-center gap-2">
                     <ChevronRight size={14} className="text-accent-green flex-shrink-0" />
@@ -323,10 +408,10 @@ const IBPage = () => {
               </div>
               <button
                 onClick={handleApply}
-                disabled={applying}
+                disabled={applying || (entryFeeSettings.entryFeeEnabled && eligibility && !eligibility.eligible)}
                 className="bg-accent-green text-black px-8 py-3 rounded-lg font-semibold hover:bg-accent-green/90 disabled:opacity-50"
               >
-                {applying ? 'Applying...' : 'Apply Now'}
+                {applying ? 'Applying...' : entryFeeSettings.entryFeeEnabled && entryFeeSettings.entryFee > 0 ? `Apply Now ($${entryFeeSettings.entryFee})` : 'Apply Now'}
               </button>
             </div>
           ) : (ibProfile.status === 'PENDING' || ibProfile.ibStatus === 'PENDING') ? (
@@ -442,90 +527,136 @@ const IBPage = () => {
                 </div>
               </div>
 
-              {/* Commission Levels Section */}
+              {/* Unlock Progress Section */}
               {levelProgress && (
                 <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl ${isMobile ? 'p-4' : 'p-5'} border mb-4`}>
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
                       <Award size={20} className="text-accent-green" />
-                      <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Commission Levels</h3>
+                      <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Level Unlock Progress</h3>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                      levelProgress.autoUpgradeEnabled 
-                        ? 'bg-accent-green/20 text-accent-green' 
-                        : 'bg-gray-700 text-gray-400'
-                    }`}>
-                      {levelProgress.autoUpgradeEnabled ? 'Auto-Upgrade Enabled' : 'Auto-Upgrade Disabled'}
+                    <span className="px-3 py-1 rounded-full text-xs font-medium bg-purple-500/20 text-purple-400">
+                      {levelProgress.referralCount} Direct Referrals
                     </span>
                   </div>
 
-                  {/* Progress Bar */}
-                  {levelProgress.nextLevel && (
-                    <div className="mb-6">
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-gray-400 text-sm">
-                          Progress to <span className="text-white font-medium">{levelProgress.nextLevel.name}</span>
-                        </p>
-                        <p className="text-accent-green font-medium">{levelProgress.progressPercent}%</p>
+                  {/* Two Column Layout for Direct Income and Referral Income */}
+                  <div className={`grid ${isMobile ? 'grid-cols-1 gap-4' : 'grid-cols-2 gap-6'}`}>
+                    {/* Direct Income (Trade Commission) */}
+                    <div className={`${isDarkMode ? 'bg-dark-700' : 'bg-gray-50'} rounded-xl p-4`}>
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <h4 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Direct Income</h4>
+                          <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Trade Commission Levels</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-accent-green font-bold text-lg">{levelProgress.directIncome?.unlockedLevels || 0}</p>
+                          <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>of {levelProgress.directIncome?.maxLevels || 18} levels</p>
+                        </div>
                       </div>
-                      <div className={`h-2 rounded-full overflow-hidden ${isDarkMode ? 'bg-dark-700' : 'bg-gray-200'}`}>
+                      
+                      {/* Progress Bar */}
+                      <div className={`h-3 rounded-full overflow-hidden ${isDarkMode ? 'bg-dark-600' : 'bg-gray-200'} mb-3`}>
                         <div 
-                          className="h-full rounded-full transition-all duration-500"
-                          style={{ 
-                            width: `${levelProgress.progressPercent}%`,
-                            background: `linear-gradient(90deg, ${levelProgress.currentLevel.color}, ${levelProgress.nextLevel.color})`
-                          }}
+                          className="h-full rounded-full bg-gradient-to-r from-accent-green to-emerald-400 transition-all duration-500"
+                          style={{ width: `${((levelProgress.directIncome?.unlockedLevels || 0) / (levelProgress.directIncome?.maxLevels || 18)) * 100}%` }}
                         />
                       </div>
-                      <p className="text-gray-500 text-xs mt-2">
-                        {levelProgress.referralsNeeded} more referrals needed for {levelProgress.nextLevel.name} ({levelProgress.nextLevel.referralTarget} total required)
-                      </p>
-                    </div>
-                  )}
 
-                  {/* Level Cards */}
-                  <div className={`grid ${isMobile ? 'grid-cols-2 gap-2' : 'grid-cols-5 gap-3'}`}>
-                    {levelProgress.allLevels?.map((level) => (
-                      <div 
-                        key={level._id}
-                        className={`relative rounded-xl p-3 border-2 transition-all ${
-                          level.isCurrentLevel 
-                            ? 'border-accent-green bg-accent-green/10' 
-                            : level.isUnlocked 
-                              ? 'border-gray-700 bg-dark-700' 
-                              : 'border-gray-800 bg-dark-900 opacity-60'
-                        }`}
-                      >
-                        {level.isCurrentLevel && (
-                          <span className="absolute -top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 bg-accent-green text-black text-xs font-bold rounded">
-                            Current
-                          </span>
-                        )}
-                        <div className="flex items-center gap-2 mb-2">
-                          <div 
-                            className="w-8 h-8 rounded-lg flex items-center justify-center"
-                            style={{ backgroundColor: `${level.color}20` }}
-                          >
-                            {level.icon === 'crown' ? <Crown size={16} style={{ color: level.color }} /> :
-                             level.icon === 'trophy' ? <Trophy size={16} style={{ color: level.color }} /> :
-                             <Award size={16} style={{ color: level.color }} />}
+                      {/* Tier Progress */}
+                      <div className="space-y-2">
+                        {levelProgress.directIncome?.tiers?.map((tier, idx) => (
+                          <div key={idx} className={`flex items-center justify-between p-2 rounded-lg ${
+                            levelProgress.referralCount >= tier.referralsRequired 
+                              ? 'bg-accent-green/10 border border-accent-green/30' 
+                              : isDarkMode ? 'bg-dark-600' : 'bg-gray-100'
+                          }`}>
+                            <div className="flex items-center gap-2">
+                              <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                                levelProgress.referralCount >= tier.referralsRequired 
+                                  ? 'bg-accent-green text-black' 
+                                  : isDarkMode ? 'bg-dark-500 text-gray-500' : 'bg-gray-300 text-gray-500'
+                              }`}>
+                                {levelProgress.referralCount >= tier.referralsRequired ? '✓' : idx + 1}
+                              </div>
+                              <span className={`text-sm ${levelProgress.referralCount >= tier.referralsRequired ? 'text-accent-green' : isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                {tier.referralsRequired} Referral{tier.referralsRequired > 1 ? 's' : ''}
+                              </span>
+                            </div>
+                            <span className={`text-sm font-medium ${levelProgress.referralCount >= tier.referralsRequired ? 'text-accent-green' : isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                              {tier.levelsUnlocked} Levels
+                            </span>
                           </div>
-                          <span className="text-white font-medium text-sm">{level.name}</span>
-                        </div>
-                        <p className="text-white font-bold text-lg mb-1">
-                          ${level.commissionRate}
-                          <span className="text-gray-500 text-xs font-normal">/lot</span>
-                        </p>
-                        <p className="text-gray-500 text-xs">
-                          {level.referralTarget === 0 ? 'Default' : `${level.referralTarget}+ referrals`}
-                        </p>
-                        {!level.isCurrentLevel && !level.isUnlocked && (
-                          <button className="w-full mt-2 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded-lg transition-colors">
-                            Need {level.referralTarget - levelProgress.referralCount} more
-                          </button>
-                        )}
+                        ))}
                       </div>
-                    ))}
+
+                      {!levelProgress.directIncome?.isFullyUnlocked && (
+                        <p className={`text-xs mt-3 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>
+                          Need {levelProgress.directIncome?.referralsNeeded} more referral{levelProgress.directIncome?.referralsNeeded > 1 ? 's' : ''} to unlock next tier
+                        </p>
+                      )}
+                      {levelProgress.directIncome?.isFullyUnlocked && (
+                        <p className="text-xs mt-3 text-accent-green font-medium">✓ All levels unlocked!</p>
+                      )}
+                    </div>
+
+                    {/* Referral Income */}
+                    <div className={`${isDarkMode ? 'bg-dark-700' : 'bg-gray-50'} rounded-xl p-4`}>
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <h4 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Referral Income</h4>
+                          <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Downline Referral Bonus</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-blue-400 font-bold text-lg">{levelProgress.referralIncome?.unlockedLevels || 0}</p>
+                          <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>of {levelProgress.referralIncome?.maxLevels || 11} levels</p>
+                        </div>
+                      </div>
+                      
+                      {/* Progress Bar */}
+                      <div className={`h-3 rounded-full overflow-hidden ${isDarkMode ? 'bg-dark-600' : 'bg-gray-200'} mb-3`}>
+                        <div 
+                          className="h-full rounded-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-500"
+                          style={{ width: `${((levelProgress.referralIncome?.unlockedLevels || 0) / (levelProgress.referralIncome?.maxLevels || 11)) * 100}%` }}
+                        />
+                      </div>
+
+                      {/* Tier Progress */}
+                      <div className="space-y-2">
+                        {levelProgress.referralIncome?.tiers?.map((tier, idx) => (
+                          <div key={idx} className={`flex items-center justify-between p-2 rounded-lg ${
+                            levelProgress.referralCount >= tier.referralsRequired 
+                              ? 'bg-blue-500/10 border border-blue-500/30' 
+                              : isDarkMode ? 'bg-dark-600' : 'bg-gray-100'
+                          }`}>
+                            <div className="flex items-center gap-2">
+                              <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                                levelProgress.referralCount >= tier.referralsRequired 
+                                  ? 'bg-blue-500 text-white' 
+                                  : isDarkMode ? 'bg-dark-500 text-gray-500' : 'bg-gray-300 text-gray-500'
+                              }`}>
+                                {levelProgress.referralCount >= tier.referralsRequired ? '✓' : idx + 1}
+                              </div>
+                              <span className={`text-sm ${levelProgress.referralCount >= tier.referralsRequired ? 'text-blue-400' : isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                {tier.referralsRequired} Referral{tier.referralsRequired > 1 ? 's' : ''}
+                              </span>
+                            </div>
+                            <span className={`text-sm font-medium ${levelProgress.referralCount >= tier.referralsRequired ? 'text-blue-400' : isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                              {tier.levelsUnlocked} Levels
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {!levelProgress.referralIncome?.isFullyUnlocked && (
+                        <p className={`text-xs mt-3 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>
+                          Need {levelProgress.referralIncome?.referralsNeeded} more referral{levelProgress.referralIncome?.referralsNeeded > 1 ? 's' : ''} to unlock next tier
+                        </p>
+                      )}
+                      {levelProgress.referralIncome?.isFullyUnlocked && (
+                        <p className="text-xs mt-3 text-blue-400 font-medium">✓ All levels unlocked!</p>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}

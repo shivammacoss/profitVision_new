@@ -46,7 +46,7 @@ export const ThemeProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode')
-    return saved !== null ? JSON.parse(saved) : true // Default to dark mode
+    return saved !== null ? JSON.parse(saved) : false // Default to light mode
   })
 
   const fetchTheme = async () => {
@@ -102,6 +102,29 @@ export const ThemeProvider = ({ children }) => {
     Object.entries(modeColors).forEach(([key, value]) => {
       root.style.setProperty(`--${key}`, value)
     })
+    
+    // Also update the theme CSS variables used by admin pages
+    if (isDarkMode) {
+      root.style.setProperty('--theme-bgPrimary', '#000000')
+      root.style.setProperty('--theme-bgSecondary', '#0D0D0D')
+      root.style.setProperty('--theme-bgCard', '#1A1A1A')
+      root.style.setProperty('--theme-bgHover', '#262626')
+      root.style.setProperty('--theme-textPrimary', '#FFFFFF')
+      root.style.setProperty('--theme-textSecondary', '#9CA3AF')
+      root.style.setProperty('--theme-textMuted', '#6B7280')
+      root.style.setProperty('--theme-border', '#374151')
+      root.style.setProperty('--theme-borderLight', '#4B5563')
+    } else {
+      root.style.setProperty('--theme-bgPrimary', '#F8FAFC')
+      root.style.setProperty('--theme-bgSecondary', '#FFFFFF')
+      root.style.setProperty('--theme-bgCard', '#F1F5F9')
+      root.style.setProperty('--theme-bgHover', '#E2E8F0')
+      root.style.setProperty('--theme-textPrimary', '#0F172A')
+      root.style.setProperty('--theme-textSecondary', '#334155')
+      root.style.setProperty('--theme-textMuted', '#64748B')
+      root.style.setProperty('--theme-border', '#CBD5E1')
+      root.style.setProperty('--theme-borderLight', '#E2E8F0')
+    }
     
     // Toggle dark class on html element
     if (isDarkMode) {

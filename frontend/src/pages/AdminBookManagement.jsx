@@ -19,10 +19,12 @@ import {
   Activity
 } from 'lucide-react'
 import priceStreamService from '../services/priceStream'
+import { useTheme } from '../context/ThemeContext'
 
 const API_URL = 'http://localhost:5001/api'
 
 const AdminBookManagement = () => {
+  const { isDarkMode } = useTheme()
   const [activeTab, setActiveTab] = useState('book-management')
   const [aBookSubTab, setABookSubTab] = useState('positions')
   const [users, setUsers] = useState([])

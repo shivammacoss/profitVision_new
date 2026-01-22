@@ -10,6 +10,7 @@ import {
 import metaApiService from '../services/metaApi'
 import priceStreamService from '../services/priceStream'
 import { useTheme } from '../context/ThemeContext'
+import logo from '../assets/logo.png'
 
 const API_URL = 'http://localhost:5001/api'
 
@@ -554,9 +555,12 @@ const MobileTradingApp = () => {
     <div className={`p-4 pb-20 ${colors.bgMain} min-h-screen`}>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <div>
-          <p className={`${colors.textMuted} text-xs`}>Welcome back,</p>
-          <h1 className={`${colors.textPrimary} text-lg font-bold`}>{user?.firstName || 'Trader'}</h1>
+        <div className="flex items-center gap-3">
+          <img src={logo} alt="ProfitVisionFX" className="h-24 object-contain" />
+          <div>
+            <p className={`${colors.textMuted} text-xs`}>Welcome back,</p>
+            <h1 className={`${colors.textPrimary} text-lg font-bold`}>{user?.firstName || 'Trader'}</h1>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={toggleDarkMode} className={`p-2 ${colors.bgCard} ${colors.shadow} rounded-full`}>

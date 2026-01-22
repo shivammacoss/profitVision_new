@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { X, Mail, Lock, Eye, EyeOff } from 'lucide-react'
+import logo from '../assets/logo.png'
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api'
 
 const AdminLogin = () => {
   const navigate = useNavigate()
@@ -22,13 +25,24 @@ const AdminLogin = () => {
     setLoading(true)
     setError('')
     
-    // Simple admin credentials check (in production, use proper backend auth)
-    if (formData.email === 'admin@admin.com' && formData.password === 'admin123') {
-      localStorage.setItem('adminToken', 'admin-authenticated')
-      localStorage.setItem('adminUser', JSON.stringify({ email: formData.email, role: 'admin' }))
-      navigate('/admin/dashboard')
-    } else {
-      setError('Invalid admin credentials')
+    try {
+      const response = await fetch(`${API_URL}/super-admin/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        localStorage.setItem('adminToken', data.token)
+        localStorage.setItem('adminUser', JSON.stringify(data.admin))
+        navigate('/admin/dashboard')
+      } else {
+        setError(data.message || 'Invalid admin credentials')
+      }
+    } catch (err) {
+      setError('Connection error. Please try again.')
     }
     setLoading(false)
   }
@@ -48,6 +62,11 @@ const AdminLogin = () => {
         >
           <X size={16} className="text-gray-400" />
         </button>
+
+        {/* Logo */}
+        <div className="flex justify-center mb-6">
+          <img src={logo} alt="ProfitVisionFX" className="h-32 object-contain" />
+        </div>
 
         {/* Admin Badge */}
         <div className="flex items-center gap-2 mb-6">

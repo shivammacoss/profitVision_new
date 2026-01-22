@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { X, Mail, Check, AlertCircle } from 'lucide-react'
+import logo from '../assets/logo.png'
 
 const API_URL = 'http://localhost:5001/api'
 
@@ -57,6 +58,11 @@ const ForgotPassword = () => {
         <Link to="/user/login" className="absolute top-4 right-4 w-8 h-8 bg-dark-600 rounded-full flex items-center justify-center hover:bg-dark-500 transition-colors">
           <X size={16} className="text-gray-400" />
         </Link>
+
+        {/* Logo */}
+        <div className="flex justify-center mb-6">
+          <img src={logo} alt="ProfitVisionFX" className="h-32 object-contain" />
+        </div>
 
         {success ? (
           <div className="text-center py-8">

@@ -6,6 +6,7 @@ import {
   ArrowLeft, Home, Sun, Moon
 } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
+import logo from '../assets/logo.png'
 
 const API_URL = 'http://localhost:5001/api'
 
@@ -26,9 +27,11 @@ const CopyTradePage = () => {
   const [selectedMaster, setSelectedMaster] = useState(null)
   const [copyMode, setCopyMode] = useState('FIXED_LOT')
   const [copyValue, setCopyValue] = useState('0.01')
+  const [depositAmount, setDepositAmount] = useState('')
   const [accounts, setAccounts] = useState([])
   const [selectedAccount, setSelectedAccount] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
+  const [walletBalance, setWalletBalance] = useState(0)
   const [challengeModeEnabled, setChallengeModeEnabled] = useState(false)
   
   // Master trader states
@@ -38,7 +41,8 @@ const CopyTradePage = () => {
     displayName: '',
     description: '',
     tradingAccountId: '',
-    requestedCommissionPercentage: 10
+    requestedCommissionPercentage: 10,
+    minimumFollowerDeposit: 0
   })
   const [applyingMaster, setApplyingMaster] = useState(false)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
@@ -77,6 +81,7 @@ const CopyTradePage = () => {
     fetchMyCopyTrades()
     fetchAccounts()
     fetchMyMasterProfile()
+    fetchWalletBalance()
   }, [])
 
   // Fetch my followers and commissions when master profile is loaded
@@ -202,6 +207,16 @@ const CopyTradePage = () => {
     }
   }
 
+  const fetchWalletBalance = async () => {
+    try {
+      const res = await fetch(`${API_URL}/wallet/${user._id}`)
+      const data = await res.json()
+      setWalletBalance(data.wallet?.balance || 0)
+    } catch (error) {
+      console.error('Error fetching wallet balance:', error)
+    }
+  }
+
   const fetchMyMasterProfile = async () => {
     try {
       const res = await fetch(`${API_URL}/copy/master/my-profile/${user._id}`)
@@ -260,7 +275,20 @@ const CopyTradePage = () => {
   }
 
   const handleFollow = async () => {
-    if (!selectedMaster || !selectedAccount) return
+    if (!selectedMaster) return
+
+    const deposit = parseFloat(depositAmount) || 0
+    const minDeposit = selectedMaster.minimumFollowerDeposit || 0
+
+    if (deposit < minDeposit) {
+      alert(`Minimum deposit of $${minDeposit} required to follow this master`)
+      return
+    }
+
+    if (deposit > walletBalance) {
+      alert(`Insufficient wallet balance. You have $${walletBalance}, need $${deposit}`)
+      return
+    }
 
     try {
       const res = await fetch(`${API_URL}/copy/follow`, {
@@ -269,19 +297,28 @@ const CopyTradePage = () => {
         body: JSON.stringify({
           followerUserId: user._id,
           masterId: selectedMaster._id,
-          followerAccountId: selectedAccount,
+          depositAmount: deposit,
           copyMode,
           copyValue: parseFloat(copyValue)
         })
       })
 
       const data = await res.json()
-      if (data.follower) {
-        alert('Successfully following master!')
+      if (data.success) {
+        alert(`Successfully following ${selectedMaster.displayName}! A copy trading account has been created with $${deposit} credit.`)
         setShowFollowModal(false)
+        setDepositAmount('')
         fetchMySubscriptions()
+        fetchWalletBalance()
+        fetchAccounts()
       } else {
-        alert(data.message || 'Failed to follow')
+        if (data.code === 'INSUFFICIENT_WALLET') {
+          alert(`Insufficient wallet balance. You have $${data.current}, need $${data.required}`)
+        } else if (data.code === 'INSUFFICIENT_DEPOSIT') {
+          alert(`Minimum deposit of $${data.required} required. You entered $${data.provided}`)
+        } else {
+          alert(data.message || 'Failed to follow')
+        }
       }
     } catch (error) {
       console.error('Error following master:', error)
@@ -412,9 +449,7 @@ const CopyTradePage = () => {
           onMouseLeave={() => setSidebarExpanded(false)}
         >
           <div className="p-4 flex items-center justify-center">
-            <div className="w-8 h-8 bg-accent-green rounded flex items-center justify-center">
-              <span className="text-black font-bold text-sm">CL</span>
-            </div>
+            <img src={logo} alt="ProfitVisionFX" className="h-12 object-contain" />
           </div>
           <nav className="flex-1 px-2">
             {menuItems.map((item) => (
@@ -598,6 +633,13 @@ const CopyTradePage = () => {
                             <p className="text-accent-green font-semibold">${master.stats?.totalProfitGenerated?.toFixed(2) || '0.00'}</p>
                           </div>
                         </div>
+                        {master.minimumFollowerDeposit > 0 && (
+                          <div className="mb-3 px-3 py-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                            <p className="text-yellow-500 text-xs font-medium">
+                              Min. Deposit Required: ${master.minimumFollowerDeposit}
+                            </p>
+                          </div>
+                        )}
                         {isFollowing ? (
                           <button
                             onClick={() => setActiveTab('subscriptions')}
@@ -947,34 +989,53 @@ const CopyTradePage = () => {
 
       {/* Follow Modal */}
       {showFollowModal && selectedMaster && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-dark-800 rounded-xl p-6 w-full max-w-md border border-gray-700">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-800 rounded-xl p-6 w-full max-w-md border border-gray-700 max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-semibold text-white mb-4">Follow {selectedMaster.displayName}</h2>
             
             <div className="space-y-4">
-              <div>
-                <label className="text-gray-400 text-sm mb-1 block">Trading Account</label>
-                <select
-                  value={selectedAccount}
-                  onChange={(e) => setSelectedAccount(e.target.value)}
-                  className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
-                >
-                  {accounts.map(acc => (
-                    <option key={acc._id} value={acc._id}>{acc.accountId} - ${acc.balance?.toFixed(2)}</option>
-                  ))}
-                </select>
+              {/* Wallet Balance Display */}
+              <div className="bg-dark-700 rounded-lg p-4 border border-gray-600">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-400 text-sm">Your Wallet Balance</span>
+                  <span className="text-white font-bold text-lg">${walletBalance.toFixed(2)}</span>
+                </div>
               </div>
 
+              {/* Deposit Amount Input */}
+              <div>
+                <label className="text-gray-400 text-sm mb-1 block">Deposit Amount *</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                  <input
+                    type="number"
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                    min={selectedMaster.minimumFollowerDeposit || 0}
+                    placeholder={`Min: $${selectedMaster.minimumFollowerDeposit || 0}`}
+                    className="w-full pl-8 pr-4 py-3 bg-dark-700 border border-gray-600 rounded-lg text-white text-lg focus:outline-none focus:border-accent-green"
+                  />
+                </div>
+                <p className="text-gray-500 text-xs mt-1">
+                  This amount will be deducted from your wallet and added as credit to your copy trading account
+                </p>
+                {selectedMaster.minimumFollowerDeposit > 0 && (
+                  <p className="text-yellow-500 text-xs mt-1">
+                    Minimum deposit required: ${selectedMaster.minimumFollowerDeposit}
+                  </p>
+                )}
+              </div>
+
+              {/* Copy Mode */}
               <div>
                 <label className="text-gray-400 text-sm mb-1 block">Copy Mode</label>
                 <select
                   value={copyMode}
                   onChange={(e) => {
                     setCopyMode(e.target.value)
-                    // Set appropriate default value based on mode
                     if (e.target.value === 'FIXED_LOT') setCopyValue('0.01')
                     else if (e.target.value === 'MULTIPLIER') setCopyValue('1')
-                    else setCopyValue('10') // Max lot size for balance/equity based
+                    else setCopyValue('10')
                   }}
                   className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
                 >
@@ -985,12 +1046,13 @@ const CopyTradePage = () => {
                 </select>
                 <p className="text-gray-500 text-xs mt-1">
                   {copyMode === 'FIXED_LOT' && 'Use a fixed lot size for every copied trade'}
-                  {copyMode === 'BALANCE_BASED' && 'Lot = Master Lot × (Your Balance / Master Balance)'}
+                  {copyMode === 'BALANCE_BASED' && 'Lot = Master Lot × (Your Credit / Master Balance)'}
                   {copyMode === 'EQUITY_BASED' && 'Lot = Master Lot × (Your Equity / Master Equity)'}
                   {copyMode === 'MULTIPLIER' && 'Lot = Master Lot × Your Multiplier'}
                 </p>
               </div>
 
+              {/* Copy Value */}
               <div>
                 <label className="text-gray-400 text-sm mb-1 block">
                   {copyMode === 'FIXED_LOT' ? 'Lot Size' : 
@@ -1004,32 +1066,38 @@ const CopyTradePage = () => {
                   step={copyMode === 'MULTIPLIER' ? '0.1' : '0.01'}
                   className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
                 />
-                <p className="text-gray-500 text-xs mt-1">
-                  {copyMode === 'FIXED_LOT' && 'Each copied trade will use this fixed lot size'}
-                  {copyMode === 'BALANCE_BASED' && 'Maximum lot size limit (e.g., Master $1000 trades 1 lot, you have $500 → you get 0.5 lot)'}
-                  {copyMode === 'EQUITY_BASED' && 'Maximum lot size limit (e.g., Master $1000 equity trades 1 lot, you have $1500 → you get 1.5 lot)'}
-                  {copyMode === 'MULTIPLIER' && 'Multiply master lot by this value (e.g., 2 = double the lot size)'}
-                </p>
               </div>
 
+              {/* Commission Info */}
               <div className="bg-dark-700 rounded-lg p-3">
                 <p className="text-gray-400 text-sm">Commission: <span className="text-white">{selectedMaster.totalCommissionPercentage || selectedMaster.approvedCommissionPercentage}%</span> of daily profit</p>
-                <p className="text-gray-500 text-xs mt-1">({selectedMaster.masterCommissionPercentage || selectedMaster.approvedCommissionPercentage}% to master + platform fee)</p>
+              </div>
+
+              {/* Info Box */}
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+                <p className="text-blue-400 text-sm font-medium mb-2">How it works:</p>
+                <ul className="text-blue-400/80 text-xs space-y-1">
+                  <li>• A new Copy Trading account will be created for you</li>
+                  <li>• Your deposit goes to Credit (non-withdrawable)</li>
+                  <li>• Profits from copied trades go to Balance (withdrawable)</li>
+                  <li>• Losses and commissions are deducted from Credit</li>
+                </ul>
               </div>
             </div>
 
             <div className="flex gap-3 mt-6">
               <button
-                onClick={() => setShowFollowModal(false)}
+                onClick={() => { setShowFollowModal(false); setDepositAmount(''); }}
                 className="flex-1 bg-dark-700 text-white py-2 rounded-lg hover:bg-dark-600"
               >
                 Cancel
               </button>
               <button
                 onClick={handleFollow}
-                className="flex-1 bg-accent-green text-black py-2 rounded-lg font-medium hover:bg-accent-green/90"
+                disabled={!depositAmount || parseFloat(depositAmount) < (selectedMaster.minimumFollowerDeposit || 0)}
+                className="flex-1 bg-accent-green text-black py-2 rounded-lg font-medium hover:bg-accent-green/90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Start Following
+                Deposit & Follow
               </button>
             </div>
           </div>
@@ -1099,6 +1167,18 @@ const CopyTradePage = () => {
                   className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
                 />
                 <p className="text-gray-500 text-xs mt-1">Commission you'll earn from followers' daily profits (0-50%)</p>
+              </div>
+
+              <div>
+                <label className="text-gray-400 text-sm mb-1 block">Minimum Follower Deposit ($)</label>
+                <input
+                  type="number"
+                  value={masterForm.minimumFollowerDeposit}
+                  onChange={(e) => setMasterForm(prev => ({ ...prev, minimumFollowerDeposit: parseFloat(e.target.value) || 0 }))}
+                  min="0"
+                  className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
+                />
+                <p className="text-gray-500 text-xs mt-1">Minimum balance required for followers to copy you (0 = no minimum)</p>
               </div>
 
               <div className="bg-dark-700 rounded-lg p-4 space-y-2">

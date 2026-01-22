@@ -58,6 +58,15 @@ const tradingAccountSchema = new mongoose.Schema({
   isDemo: {
     type: Boolean,
     default: false
+  },
+  isCopyTrading: {
+    type: Boolean,
+    default: false
+  },
+  copyTradingMasterId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'MasterTrader',
+    default: null
   }
 }, { timestamps: true })
 

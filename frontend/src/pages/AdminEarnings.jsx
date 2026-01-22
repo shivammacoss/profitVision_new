@@ -180,7 +180,7 @@ const AdminEarnings = () => {
           </div>
 
           {/* Breakdown Cards */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
             {/* Commission Breakdown */}
             <div className="bg-dark-800 rounded-xl border border-gray-800 p-5">
               <h3 className="text-white font-semibold mb-4">Commission Earnings</h3>
@@ -223,6 +223,33 @@ const AdminEarnings = () => {
                 <div className="flex justify-between border-t border-gray-700 pt-3">
                   <span className="text-gray-400">All Time</span>
                   <span className="text-blue-500 font-mono font-bold">{formatCurrency(summary?.allTime?.swap)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* IB Subscription Fees */}
+            <div className="bg-dark-800 rounded-xl border border-gray-800 p-5">
+              <h3 className="text-white font-semibold mb-4">IB Subscription Fees</h3>
+              <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-gray-400">Today</span>
+                  <span className="text-white font-mono">{formatCurrency(summary?.today?.ibSubscriptionFees)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">This Week</span>
+                  <span className="text-white font-mono">{formatCurrency(summary?.thisWeek?.ibSubscriptionFees)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-400">This Month</span>
+                  <span className="text-white font-mono">{formatCurrency(summary?.thisMonth?.ibSubscriptionFees)}</span>
+                </div>
+                <div className="flex justify-between border-t border-gray-700 pt-3">
+                  <span className="text-gray-400">All Time</span>
+                  <span className="text-yellow-500 font-mono font-bold">{formatCurrency(summary?.allTime?.ibSubscriptionFees)}</span>
+                </div>
+                <div className="flex justify-between text-xs">
+                  <span className="text-gray-500">Total IBs</span>
+                  <span className="text-gray-400">{summary?.allTime?.ibSubscriptionCount || 0}</span>
                 </div>
               </div>
             </div>

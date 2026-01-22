@@ -12,7 +12,8 @@ import {
   X,
   Clock,
   Building2,
-  Smartphone
+  Smartphone,
+  DollarSign
 } from 'lucide-react'
 
 const API_URL = 'http://localhost:5001/api'
@@ -21,7 +22,7 @@ const AdminFundManagement = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState('all')
   const [transactions, setTransactions] = useState([])
-  const [stats, setStats] = useState({ deposits: 0, withdrawals: 0, pending: 0, net: 0 })
+  const [stats, setStats] = useState({ deposits: 0, withdrawals: 0, ibEntryFees: 0, pending: 0, net: 0 })
   const [loading, setLoading] = useState(true)
   const [selectedTxn, setSelectedTxn] = useState(null)
   const [userDetails, setUserDetails] = useState(null)
@@ -39,7 +40,11 @@ const AdminFundManagement = () => {
       if (data.transactions) {
         let filtered = data.transactions
         if (filterType !== 'all') {
-          filtered = data.transactions.filter(t => t.type?.toLowerCase() === filterType)
+          if (filterType === 'ib_entry_fee') {
+            filtered = data.transactions.filter(t => t.type === 'IB_Entry_Fee')
+          } else {
+            filtered = data.transactions.filter(t => t.type?.toLowerCase() === filterType)
+          }
         }
         setTransactions(filtered)
         
@@ -48,13 +53,16 @@ const AdminFundManagement = () => {
           .reduce((sum, t) => sum + (t.amount || 0), 0)
         const withdrawals = data.transactions.filter(t => t.type?.toUpperCase() === 'WITHDRAWAL' && t.status?.toUpperCase() === 'APPROVED')
           .reduce((sum, t) => sum + (t.amount || 0), 0)
+        const ibEntryFees = data.transactions.filter(t => t.type === 'IB_Entry_Fee')
+          .reduce((sum, t) => sum + (t.amount || 0), 0)
         const pending = data.transactions.filter(t => t.status?.toUpperCase() === 'PENDING').length
         
         setStats({
           deposits,
           withdrawals,
+          ibEntryFees,
           pending,
-          net: deposits - withdrawals
+          net: deposits - withdrawals + ibEntryFees
         })
       }
     } catch (error) {
@@ -200,6 +208,7 @@ const AdminFundManagement = () => {
               <option value="all">All Types</option>
               <option value="deposit">Deposits</option>
               <option value="withdrawal">Withdrawals</option>
+              <option value="ib_entry_fee">IB Entry Fees</option>
             </select>
           </div>
         </div>

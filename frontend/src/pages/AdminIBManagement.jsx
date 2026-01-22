@@ -37,6 +37,10 @@ const AdminIBManagement = () => {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState({ type: '', text: '' })
   
+  // Entry Fee states
+  const [entryFee, setEntryFee] = useState(0)
+  const [entryFeeEnabled, setEntryFeeEnabled] = useState(false)
+  
   // Referral Transfer states
   const [allUsers, setAllUsers] = useState([])
   const [selectedUsers, setSelectedUsers] = useState([])
@@ -50,7 +54,42 @@ const AdminIBManagement = () => {
     fetchApplications()
     fetchAllUsers()
     fetchReferralPlans()
+    fetchEntryFeeSettings()
   }, [])
+
+  const fetchEntryFeeSettings = async () => {
+    try {
+      const res = await fetch(`${API_URL}/ib/admin/entry-fee-settings`)
+      const data = await res.json()
+      if (data.success) {
+        setEntryFee(data.entryFee || 0)
+        setEntryFeeEnabled(data.entryFeeEnabled || false)
+      }
+    } catch (error) {
+      console.error('Error fetching entry fee settings:', error)
+    }
+  }
+
+  const saveEntryFeeSettings = async () => {
+    setSaving(true)
+    try {
+      const res = await fetch(`${API_URL}/ib/admin/entry-fee-settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entryFee, entryFeeEnabled })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setMessage({ type: 'success', text: 'Entry fee settings saved!' })
+      } else {
+        setMessage({ type: 'error', text: data.message || 'Failed to save' })
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Error saving settings' })
+    }
+    setSaving(false)
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000)
+  }
 
   const fetchReferralPlans = async () => {
     try {
@@ -123,24 +162,37 @@ const AdminIBManagement = () => {
 
   const handleApprove = async (userId) => {
     try {
-      const res = await fetch(`${API_URL}/ib/admin/approve/${userId}`, { method: 'POST' })
+      const res = await fetch(`${API_URL}/ib/admin/approve/${userId}`, { 
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      })
       const data = await res.json()
       if (data.success) {
         fetchApplications()
         fetchIBs()
         fetchDashboard()
+      } else {
+        alert(data.message || 'Failed to approve IB')
       }
     } catch (error) {
       console.error('Error approving IB:', error)
+      alert('Error approving IB')
     }
   }
 
   const handleReject = async (userId) => {
     try {
-      const res = await fetch(`${API_URL}/ib/admin/reject/${userId}`, { method: 'POST' })
+      const res = await fetch(`${API_URL}/ib/admin/reject/${userId}`, { 
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      })
       const data = await res.json()
       if (data.success) {
         fetchApplications()
+      } else {
+        alert(data.message || 'Failed to reject IB')
       }
     } catch (error) {
       console.error('Error rejecting IB:', error)
@@ -150,7 +202,11 @@ const AdminIBManagement = () => {
   const handleBlock = async (userId) => {
     if (!confirm('Are you sure you want to block this IB?')) return
     try {
-      const res = await fetch(`${API_URL}/ib/admin/block/${userId}`, { method: 'POST' })
+      const res = await fetch(`${API_URL}/ib/admin/block/${userId}`, { 
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      })
       const data = await res.json()
       if (data.success) {
         fetchIBs()
@@ -356,6 +412,7 @@ const AdminIBManagement = () => {
         {[
           { id: 'ibs', label: 'Active IBs', count: dashboard?.ibs?.active },
           { id: 'applications', label: 'Applications', count: applications.length },
+          { id: 'settings', label: 'Entry Fee Settings', icon: Settings },
           { id: 'referral-income', label: 'Referral Income Plan', icon: Layers },
           { id: 'joining-income', label: 'Direct Joining Plan', icon: DollarSign },
           { id: 'transfer', label: 'Referral Transfer', icon: ArrowRightLeft }
@@ -512,6 +569,74 @@ const AdminIBManagement = () => {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Entry Fee Settings Tab */}
+      {activeTab === 'settings' && (
+        <div className="bg-dark-800 rounded-xl p-6 border border-gray-800">
+          <div className="mb-6">
+            <h2 className="text-xl font-bold text-white">IB Entry Fee Settings</h2>
+            <p className="text-gray-400 text-sm mt-1">
+              Configure the registration fee required to become an IB
+            </p>
+          </div>
+
+          <div className="space-y-6">
+            {/* Enable/Disable Toggle */}
+            <div className="flex items-center justify-between p-4 bg-dark-700 rounded-lg">
+              <div>
+                <p className="text-white font-medium">Enable Entry Fee</p>
+                <p className="text-gray-500 text-sm">Require users to pay a fee to become an IB</p>
+              </div>
+              <button
+                onClick={() => setEntryFeeEnabled(!entryFeeEnabled)}
+                className={`w-14 h-7 rounded-full transition-colors relative ${
+                  entryFeeEnabled ? 'bg-accent-green' : 'bg-gray-600'
+                }`}
+              >
+                <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-transform ${
+                  entryFeeEnabled ? 'translate-x-8' : 'translate-x-1'
+                }`} />
+              </button>
+            </div>
+
+            {/* Entry Fee Amount */}
+            <div className="p-4 bg-dark-700 rounded-lg">
+              <label className="block text-white font-medium mb-2">Entry Fee Amount (USD)</label>
+              <div className="flex items-center gap-3">
+                <div className="relative flex-1">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={entryFee}
+                    onChange={(e) => setEntryFee(parseFloat(e.target.value) || 0)}
+                    disabled={!entryFeeEnabled}
+                    className="w-full pl-8 pr-4 py-3 bg-dark-600 border border-gray-600 rounded-lg text-white text-lg focus:outline-none focus:border-accent-green disabled:opacity-50"
+                  />
+                </div>
+              </div>
+              <p className="text-gray-500 text-sm mt-2">
+                {entryFeeEnabled 
+                  ? `Users will need to have $${entryFee} in their wallet to apply as IB. The fee will be deducted upon application.`
+                  : 'Entry fee is currently disabled. Users can apply for free.'}
+              </p>
+            </div>
+
+            {/* Save Button */}
+            <div className="flex justify-end">
+              <button
+                onClick={saveEntryFeeSettings}
+                disabled={saving}
+                className="flex items-center gap-2 px-6 py-3 bg-accent-green text-black font-medium rounded-lg hover:bg-accent-green/90 disabled:opacity-50"
+              >
+                {saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
+                Save Settings
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

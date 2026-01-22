@@ -47,6 +47,12 @@ body {
   color: var(--theme-textPrimary, #ffffff);
 }
 
+.light body,
+html.light body {
+  background-color: #F8FAFC;
+  color: #0F172A;
+}
+
 /* Theme utility classes */
 .theme-primary { color: var(--theme-primary); }
 .theme-secondary { color: var(--theme-secondary); }
@@ -89,6 +95,24 @@ body {
 /* Override border colors */
 .border-gray-800 { border-color: var(--theme-border) !important; }
 .border-gray-700 { border-color: var(--theme-borderLight) !important; }
+
+/* Override text colors for light mode */
+.light .text-white { color: var(--theme-textPrimary) !important; }
+.light .text-gray-400 { color: var(--theme-textSecondary) !important; }
+.light .text-gray-500 { color: var(--theme-textMuted) !important; }
+.light .placeholder-gray-500::placeholder { color: var(--theme-textMuted) !important; }
+
+/* Light mode specific overrides */
+.light .bg-dark-900 { background-color: #F8FAFC !important; }
+.light .bg-dark-800 { background-color: #FFFFFF !important; }
+.light .bg-dark-700 { background-color: #F1F5F9 !important; }
+.light .bg-dark-600 { background-color: #E2E8F0 !important; }
+.light .border-gray-800 { border-color: #CBD5E1 !important; }
+.light .border-gray-700 { border-color: #E2E8F0 !important; }
+
+/* Light mode scrollbar */
+.light ::-webkit-scrollbar-track { background: #F1F5F9; }
+.light ::-webkit-scrollbar-thumb { background: #CBD5E1; }
 
 /* Sidebar active state */
 .sidebar-active { 

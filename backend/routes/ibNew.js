@@ -11,6 +11,29 @@ const router = express.Router()
 
 // ==================== USER ROUTES ====================
 
+// GET /api/ib/entry-fee-settings - Get IB entry fee settings
+router.get('/entry-fee-settings', async (req, res) => {
+  try {
+    const settings = await ibEngine.getEntryFeeSettings()
+    res.json({ success: true, ...settings })
+  } catch (error) {
+    console.error('Error getting entry fee settings:', error)
+    res.status(500).json({ success: false, message: error.message })
+  }
+})
+
+// GET /api/ib/check-eligibility/:userId - Check if user can pay entry fee
+router.get('/check-eligibility/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params
+    const eligibility = await ibEngine.checkEntryFeeEligibility(userId)
+    res.json({ success: true, ...eligibility })
+  } catch (error) {
+    console.error('Error checking eligibility:', error)
+    res.status(500).json({ success: false, message: error.message })
+  }
+})
+
 // POST /api/ib/apply - Apply to become an IB
 router.post('/apply', async (req, res) => {
   try {
@@ -34,6 +57,20 @@ router.post('/apply', async (req, res) => {
     })
   } catch (error) {
     console.error('Error applying for IB:', error)
+    
+    // Handle insufficient balance error
+    if (error.message.startsWith('INSUFFICIENT_BALANCE:')) {
+      const parts = error.message.split(':')
+      return res.status(400).json({ 
+        success: false, 
+        code: 'INSUFFICIENT_BALANCE',
+        message: 'Insufficient wallet balance for IB entry fee',
+        entryFee: parseFloat(parts[1]),
+        walletBalance: parseFloat(parts[2]),
+        shortfall: parseFloat(parts[1]) - parseFloat(parts[2])
+      })
+    }
+    
     res.status(400).json({ success: false, message: error.message })
   }
 })
@@ -75,17 +112,12 @@ router.get('/my-profile/:userId', async (req, res) => {
     const wallet = await IBWallet.getOrCreateWallet(userId)
     const stats = await ibEngine.getIBStats(userId)
     
-    // Get level progress
+    // Get unlock progress (new system based on referral count)
     let levelProgress = null
     try {
       levelProgress = await ibEngine.getIBLevelProgress(userId)
     } catch (e) {
       console.error('Error getting level progress:', e)
-    }
-
-    // Check for auto-upgrade
-    if (user.autoUpgradeEnabled) {
-      await ibEngine.checkAndUpgradeLevel(userId)
     }
 
     res.json({
@@ -537,14 +569,15 @@ router.post('/admin/plans', async (req, res) => {
 
     // Convert levelCommissions object to levels array for IBPlanNew.js compatibility
     const levels = []
-    const lc = levelCommissions || { level1: 5, level2: 3, level3: 2, level4: 1, level5: 0.5 }
-    for (let i = 1; i <= (maxLevels || 3); i++) {
+    const targetMaxLevels = maxLevels || 18
+    const lc = levelCommissions || {}
+    for (let i = 1; i <= targetMaxLevels; i++) {
       levels.push({ level: i, rate: lc[`level${i}`] || 0 })
     }
 
     const plan = await IBPlan.create({
       name,
-      maxLevels: maxLevels || 3,
+      maxLevels: targetMaxLevels,
       commissionType: commissionType || 'PER_LOT',
       levels,
       source: commissionSources || { spread: true, tradeCommission: true, swap: false }
@@ -582,8 +615,22 @@ router.put('/admin/plans/:planId', async (req, res) => {
     if (description !== undefined) plan.description = description
     if (maxLevels) plan.maxLevels = maxLevels
     if (commissionType) plan.commissionType = commissionType
-    if (levelCommissions) plan.levelCommissions = levelCommissions
-    if (commissionSources) plan.commissionSources = commissionSources
+    
+    // Convert levelCommissions object to levels array for IBPlanNew.js compatibility
+    if (levelCommissions) {
+      const levels = []
+      const targetMaxLevels = maxLevels || plan.maxLevels || 18
+      for (let i = 1; i <= targetMaxLevels; i++) {
+        if (levelCommissions[`level${i}`] !== undefined) {
+          levels.push({ level: i, rate: levelCommissions[`level${i}`] })
+        }
+      }
+      if (levels.length > 0) {
+        plan.levels = levels
+      }
+    }
+    
+    if (commissionSources) plan.source = commissionSources
     if (minWithdrawalAmount !== undefined) plan.minWithdrawalAmount = minWithdrawalAmount
     if (isActive !== undefined) plan.isActive = isActive
     if (isDefault !== undefined) plan.isDefault = isDefault
@@ -927,6 +974,45 @@ router.post('/admin/init-levels', async (req, res) => {
     res.json({ success: true, message: 'Default levels initialized', levels })
   } catch (error) {
     console.error('Error initializing levels:', error)
+    res.status(500).json({ success: false, message: error.message })
+  }
+})
+
+// GET /api/ib/admin/entry-fee-settings - Get entry fee settings (admin)
+router.get('/admin/entry-fee-settings', async (req, res) => {
+  try {
+    const settings = await ibEngine.getEntryFeeSettings()
+    res.json({ success: true, ...settings })
+  } catch (error) {
+    console.error('Error getting entry fee settings:', error)
+    res.status(500).json({ success: false, message: error.message })
+  }
+})
+
+// PUT /api/ib/admin/entry-fee-settings - Update entry fee settings (admin)
+router.put('/admin/entry-fee-settings', async (req, res) => {
+  try {
+    const { entryFee, entryFeeEnabled } = req.body
+    const IBSettings = (await import('../models/IBSettings.js')).default
+    
+    let settings = await IBSettings.findOne({ settingsType: 'GLOBAL' })
+    if (!settings) {
+      settings = await IBSettings.create({ settingsType: 'GLOBAL' })
+    }
+    
+    if (entryFee !== undefined) settings.entryFee = parseFloat(entryFee) || 0
+    if (entryFeeEnabled !== undefined) settings.entryFeeEnabled = entryFeeEnabled
+    
+    await settings.save()
+    
+    res.json({ 
+      success: true, 
+      message: 'Entry fee settings updated',
+      entryFee: settings.entryFee,
+      entryFeeEnabled: settings.entryFeeEnabled
+    })
+  } catch (error) {
+    console.error('Error updating entry fee settings:', error)
     res.status(500).json({ success: false, message: error.message })
   }
 })
