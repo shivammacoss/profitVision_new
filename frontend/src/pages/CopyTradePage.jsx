@@ -41,7 +41,6 @@ const CopyTradePage = () => {
     displayName: '',
     description: '',
     tradingAccountId: '',
-    requestedCommissionPercentage: 10,
     minimumFollowerDeposit: 0
   })
   const [applyingMaster, setApplyingMaster] = useState(false)
@@ -721,6 +720,20 @@ const CopyTradePage = () => {
                           >
                             <X size={16} className="text-red-500" />
                           </button>
+                          <button
+                            onClick={() => {
+                              const accountId = sub.followerAccountId?._id || sub.followerAccountId
+                              if (accountId) {
+                                navigate(`/trading/${accountId}`)
+                              } else {
+                                alert('Copy trading account not found')
+                              }
+                            }}
+                            className="px-3 py-1.5 bg-accent-green text-black rounded-lg text-xs font-medium hover:bg-accent-green/90"
+                            title="View Open Positions"
+                          >
+                            View Trades
+                          </button>
                         </div>
                       </div>
                       <div className={`grid grid-cols-2 sm:grid-cols-5 gap-3 mt-4 pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
@@ -1156,17 +1169,21 @@ const CopyTradePage = () => {
                 <p className="text-gray-500 text-xs mt-1">Trades from this account will be copied to followers</p>
               </div>
 
-              <div>
-                <label className="text-gray-500 text-sm mb-1 block">Requested Commission (%)</label>
-                <input
-                  type="number"
-                  value={masterForm.requestedCommissionPercentage}
-                  onChange={(e) => setMasterForm(prev => ({ ...prev, requestedCommissionPercentage: parseFloat(e.target.value) || 0 }))}
-                  min="0"
-                  max="50"
-                  className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-3 py-2`}
-                />
-                <p className="text-gray-500 text-xs mt-1">Commission you'll earn from followers' daily profits (0-50%)</p>
+              {/* Commission Info - Fixed 50/50 Split */}
+              <div className={`${isDarkMode ? 'bg-green-500/10 border-green-500/30' : 'bg-green-50 border-green-200'} rounded-lg p-4 border`}>
+                <p className={`${isDarkMode ? 'text-white' : 'text-gray-900'} text-sm font-medium mb-2`}>Commission Structure (Fixed)</p>
+                <div className="flex items-center justify-between">
+                  <div className="text-center flex-1">
+                    <p className="text-green-500 text-lg font-bold">50%</p>
+                    <p className="text-gray-500 text-xs">You (Master)</p>
+                  </div>
+                  <div className="text-gray-500 text-xl">|</div>
+                  <div className="text-center flex-1">
+                    <p className="text-blue-500 text-lg font-bold">50%</p>
+                    <p className="text-gray-500 text-xs">Follower Keeps</p>
+                  </div>
+                </div>
+                <p className="text-gray-500 text-xs mt-2 text-center">Commission is automatically split 50/50 on profitable trades</p>
               </div>
 
               <div>

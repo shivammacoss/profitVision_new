@@ -39,8 +39,7 @@ const CopyTradeScreen = ({ navigation }) => {
   const [masterForm, setMasterForm] = useState({
     displayName: '',
     description: '',
-    tradingAccountId: '',
-    requestedCommissionPercentage: '10'
+    tradingAccountId: ''
   });
   const [applyingMaster, setApplyingMaster] = useState(false);
   
@@ -190,8 +189,7 @@ const CopyTradeScreen = ({ navigation }) => {
           userId: user._id,
           displayName: masterForm.displayName,
           description: masterForm.description,
-          tradingAccountId: accountId,
-          requestedCommissionPercentage: parseFloat(masterForm.requestedCommissionPercentage) || 10
+          tradingAccountId: accountId
         })
       });
 
@@ -599,6 +597,19 @@ const CopyTradeScreen = ({ navigation }) => {
                     <TouchableOpacity style={styles.unfollowBtn} onPress={() => handleUnfollow(sub._id)}>
                       <Ionicons name="close" size={18} color="#ef4444" />
                     </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={styles.viewTradesBtn} 
+                      onPress={() => {
+                        const accountId = sub.followerAccountId?._id || sub.followerAccountId;
+                        if (accountId) {
+                          navigation.navigate('Trading', { accountId });
+                        } else {
+                          Alert.alert('Error', 'Copy trading account not found');
+                        }
+                      }}
+                    >
+                      <Text style={styles.viewTradesBtnText}>View Trades</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
               ))
@@ -817,16 +828,22 @@ const CopyTradeScreen = ({ navigation }) => {
               ))}
             </ScrollView>
 
-            <Text style={styles.inputLabel}>Requested Commission (%)</Text>
-            <TextInput
-              style={styles.input}
-              value={masterForm.requestedCommissionPercentage}
-              onChangeText={(text) => setMasterForm(prev => ({ ...prev, requestedCommissionPercentage: text }))}
-              placeholder="10"
-              placeholderTextColor="#666"
-              keyboardType="numeric"
-            />
-            <Text style={styles.inputHint}>Commission you'll earn from followers' profits</Text>
+            {/* Commission Info - Fixed 50/50 Split */}
+            <View style={styles.commissionInfoBox}>
+              <Text style={styles.commissionInfoTitle}>Commission Structure (Fixed)</Text>
+              <View style={styles.commissionSplit}>
+                <View style={styles.commissionItem}>
+                  <Text style={styles.commissionPercent}>50%</Text>
+                  <Text style={styles.commissionLabel}>You (Master)</Text>
+                </View>
+                <Text style={styles.commissionDivider}>|</Text>
+                <View style={styles.commissionItem}>
+                  <Text style={[styles.commissionPercent, { color: '#3B82F6' }]}>50%</Text>
+                  <Text style={styles.commissionLabel}>Follower Keeps</Text>
+                </View>
+              </View>
+              <Text style={styles.commissionNote}>Commission is automatically split 50/50 on profitable trades</Text>
+            </View>
 
             <TouchableOpacity 
               style={[styles.submitBtn, applyingMaster && styles.submitBtnDisabled]} 
@@ -1007,6 +1024,8 @@ const styles = StyleSheet.create({
   editBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#3b82f620', justifyContent: 'center', alignItems: 'center' },
   pauseBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#eab30820', justifyContent: 'center', alignItems: 'center' },
   unfollowBtn: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#ef444420', justifyContent: 'center', alignItems: 'center' },
+  viewTradesBtn: { paddingHorizontal: 12, height: 36, borderRadius: 10, backgroundColor: '#d4af37', justifyContent: 'center', alignItems: 'center' },
+  viewTradesBtnText: { color: '#000', fontSize: 12, fontWeight: '600' },
   
   // Trade Card
   tradeCard: { backgroundColor: '#111', borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: '#222' },
@@ -1059,6 +1078,16 @@ const styles = StyleSheet.create({
   submitBtn: { backgroundColor: '#d4af37', padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 24 },
   submitBtnDisabled: { opacity: 0.6 },
   submitBtnText: { color: '#000', fontSize: 16, fontWeight: 'bold' },
+  
+  // Commission Info Box (Fixed 50/50 Split)
+  commissionInfoBox: { backgroundColor: '#22c55e15', borderRadius: 12, padding: 16, marginTop: 16, borderWidth: 1, borderColor: '#22c55e30' },
+  commissionInfoTitle: { color: '#fff', fontSize: 14, fontWeight: '600', marginBottom: 12, textAlign: 'center' },
+  commissionSplit: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+  commissionItem: { flex: 1, alignItems: 'center' },
+  commissionPercent: { color: '#22c55e', fontSize: 24, fontWeight: 'bold' },
+  commissionLabel: { color: '#888', fontSize: 11, marginTop: 4 },
+  commissionDivider: { color: '#444', fontSize: 20, marginHorizontal: 16 },
+  commissionNote: { color: '#888', fontSize: 11, textAlign: 'center', marginTop: 12 },
 });
 
 export default CopyTradeScreen;

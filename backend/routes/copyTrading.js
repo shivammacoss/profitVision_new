@@ -18,9 +18,13 @@ const router = express.Router()
 // ==================== MASTER TRADER ROUTES ====================
 
 // POST /api/copy/master/apply - Apply to become a master trader
+// Commission is FIXED at 50% for master (50% of profit goes to master, 50% stays with follower)
 router.post('/master/apply', async (req, res) => {
   try {
-    const { userId, tradingAccountId, displayName, description, requestedCommissionPercentage, minimumFollowerDeposit } = req.body
+    const { userId, tradingAccountId, displayName, description, minimumFollowerDeposit } = req.body
+    
+    // FIXED COMMISSION: 50% to master, 50% stays with follower
+    const FIXED_COMMISSION_PERCENTAGE = 50
 
     // Check if copy trading is enabled
     const settings = await CopySettings.getSettings()
@@ -34,14 +38,6 @@ router.post('/master/apply', async (req, res) => {
       return res.status(400).json({ 
         message: 'You already have a master trader application',
         status: existingMaster.status
-      })
-    }
-
-    // Validate commission percentage
-    if (requestedCommissionPercentage < settings.commissionSettings.minCommissionPercentage ||
-        requestedCommissionPercentage > settings.commissionSettings.maxCommissionPercentage) {
-      return res.status(400).json({ 
-        message: `Commission must be between ${settings.commissionSettings.minCommissionPercentage}% and ${settings.commissionSettings.maxCommissionPercentage}%`
       })
     }
 
@@ -61,13 +57,13 @@ router.post('/master/apply', async (req, res) => {
     })
     const minTradesMet = tradeCount >= settings.masterRequirements.minTotalTrades
 
-    // Create master application
+    // Create master application with FIXED 50% commission
     const master = await MasterTrader.create({
       userId,
       tradingAccountId,
       displayName,
       description,
-      requestedCommissionPercentage,
+      requestedCommissionPercentage: FIXED_COMMISSION_PERCENTAGE,
       minimumFollowerDeposit: minimumFollowerDeposit || 0,
       minimumEquityMet: minEquityMet,
       minimumTradesMet: minTradesMet,
@@ -80,7 +76,7 @@ router.post('/master/apply', async (req, res) => {
         _id: master._id,
         displayName: master.displayName,
         status: master.status,
-        requestedCommissionPercentage: master.requestedCommissionPercentage
+        commissionPercentage: FIXED_COMMISSION_PERCENTAGE
       }
     })
 
@@ -653,9 +649,14 @@ router.get('/admin/applications', async (req, res) => {
 })
 
 // PUT /api/copy/admin/approve/:id - Approve master application
+// Commission is FIXED at 50% - admin cannot change it
 router.put('/admin/approve/:id', async (req, res) => {
   try {
-    const { adminId, approvedCommissionPercentage, visibility, adminSharePercentage } = req.body
+    const { adminId, visibility } = req.body
+    
+    // FIXED COMMISSION: 50% to master, 0% admin share (follower keeps 50%)
+    const FIXED_COMMISSION_PERCENTAGE = 50
+    const FIXED_ADMIN_SHARE = 0 // Admin takes nothing, follower keeps their 50%
 
     const master = await MasterTrader.findById(req.params.id)
     if (!master) {
@@ -667,57 +668,40 @@ router.put('/admin/approve/:id', async (req, res) => {
     }
 
     master.status = 'ACTIVE'
-    master.approvedCommissionPercentage = approvedCommissionPercentage || master.requestedCommissionPercentage
+    master.approvedCommissionPercentage = FIXED_COMMISSION_PERCENTAGE // Always 50%
     master.visibility = visibility || 'PUBLIC'
-    master.adminSharePercentage = adminSharePercentage || 30
+    master.adminSharePercentage = FIXED_ADMIN_SHARE // Admin takes 0%, follower keeps 50%
     master.approvedBy = adminId
     master.approvedAt = new Date()
     await master.save()
 
-    res.json({ message: 'Master approved successfully', master })
+    res.json({ 
+      message: 'Master approved successfully with fixed 50/50 commission split', 
+      master,
+      commissionInfo: {
+        masterShare: '50%',
+        followerKeeps: '50%',
+        adminShare: '0%'
+      }
+    })
   } catch (error) {
     res.status(500).json({ message: 'Error approving master', error: error.message })
   }
 })
 
-// PUT /api/copy/admin/update-commission/:id - Update master commission settings (admin can change anytime)
+// PUT /api/copy/admin/update-commission/:id - DISABLED: Commission is now fixed at 50/50
+// This route is kept for backward compatibility but will return an error
 router.put('/admin/update-commission/:id', async (req, res) => {
-  try {
-    const { adminId, approvedCommissionPercentage, adminSharePercentage } = req.body
-
-    const master = await MasterTrader.findById(req.params.id)
-    if (!master) {
-      return res.status(404).json({ success: false, message: 'Master not found' })
+  // Commission is FIXED at 50% master / 50% follower - cannot be changed
+  return res.status(400).json({ 
+    success: false, 
+    message: 'Commission cannot be modified. It is fixed at 50% for master and 50% for follower.',
+    commissionInfo: {
+      masterShare: '50%',
+      followerKeeps: '50%',
+      note: 'This is a fixed rule and cannot be changed'
     }
-
-    const previousCommission = master.approvedCommissionPercentage
-    const previousAdminShare = master.adminSharePercentage
-
-    if (approvedCommissionPercentage !== undefined) {
-      master.approvedCommissionPercentage = approvedCommissionPercentage
-    }
-    if (adminSharePercentage !== undefined) {
-      master.adminSharePercentage = adminSharePercentage
-    }
-    
-    master.lastCommissionUpdateBy = adminId
-    master.lastCommissionUpdateAt = new Date()
-    await master.save()
-
-    res.json({ 
-      success: true,
-      message: 'Commission settings updated successfully', 
-      master,
-      changes: {
-        previousCommission,
-        newCommission: master.approvedCommissionPercentage,
-        previousAdminShare,
-        newAdminShare: master.adminSharePercentage
-      }
-    })
-  } catch (error) {
-    res.status(500).json({ success: false, message: 'Error updating commission', error: error.message })
-  }
+  })
 })
 
 // PUT /api/copy/admin/reject/:id - Reject master application

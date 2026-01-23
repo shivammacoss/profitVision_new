@@ -171,17 +171,28 @@ router.post('/open', async (req, res) => {
     // Process copy trading in background (non-blocking)
     setImmediate(async () => {
       try {
+        console.log(`[CopyTrade] Checking if account ${tradingAccountId} is a master trader...`)
         const master = await MasterTrader.findOne({ 
           tradingAccountId, 
           status: 'ACTIVE' 
         })
         
         if (master) {
+          console.log(`[CopyTrade] Found active master: ${master.displayName} (${master._id}), copying trade ${trade.tradeId}...`)
           const copyResults = await copyTradingEngine.copyTradeToFollowers(trade, master._id)
-          console.log(`[Background] Copied trade to ${copyResults.filter(r => r.status === 'SUCCESS').length} followers`)
+          const successCount = copyResults.filter(r => r.status === 'SUCCESS').length
+          const failedCount = copyResults.filter(r => r.status === 'FAILED').length
+          console.log(`[CopyTrade] Copy complete: ${successCount} success, ${failedCount} failed out of ${copyResults.length} followers`)
+          
+          // Log any failures for debugging
+          copyResults.filter(r => r.status === 'FAILED').forEach(r => {
+            console.log(`[CopyTrade] Failed for follower ${r.followerId}: ${r.reason}`)
+          })
+        } else {
+          console.log(`[CopyTrade] Account ${tradingAccountId} is not an active master trader`)
         }
       } catch (copyError) {
-        console.error('[Background] Error copying trade to followers:', copyError)
+        console.error('[CopyTrade] Error copying trade to followers:', copyError)
       }
     })
   } catch (error) {
