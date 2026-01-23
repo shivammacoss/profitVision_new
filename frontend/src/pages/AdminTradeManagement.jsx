@@ -62,6 +62,13 @@ const AdminTradeManagement = () => {
   const [totalTrades, setTotalTrades] = useState(0)
   const tradesPerPage = 20
 
+  const adminToken = localStorage.getItem('adminToken')
+  
+  const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${adminToken}`
+  })
+
   useEffect(() => {
     fetchTrades()
     fetchUsers()
@@ -163,7 +170,9 @@ const AdminTradeManagement = () => {
 
   const fetchUsers = async () => {
     try {
-      const res = await fetch(`${API_URL}/admin/users`)
+      const res = await fetch(`${API_URL}/admin/users`, {
+        headers: getAuthHeaders()
+      })
       const data = await res.json()
       if (data.users) setUsers(data.users)
     } catch (error) {
@@ -230,7 +239,7 @@ const AdminTradeManagement = () => {
     try {
       const res = await fetch(`${API_URL}/admin/trade/create`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           ...createForm,
           quantity: parseFloat(createForm.quantity),
@@ -262,7 +271,7 @@ const AdminTradeManagement = () => {
     try {
       const res = await fetch(`${API_URL}/admin/trade/edit/${selectedTrade._id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           openPrice: parseFloat(editForm.openPrice),
           closePrice: editForm.closePrice ? parseFloat(editForm.closePrice) : null,
@@ -298,7 +307,7 @@ const AdminTradeManagement = () => {
 
       const res = await fetch(`${API_URL}/admin/trade/close/${selectedTrade._id}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ 
           closePrice: closeFormPrice || null,
           marketPrice: marketPrice 
@@ -372,7 +381,9 @@ const AdminTradeManagement = () => {
     try {
       const offset = (currentPage - 1) * tradesPerPage
       const statusParam = filterStatus !== 'all' ? `&status=${filterStatus.toUpperCase()}` : ''
-      const res = await fetch(`${API_URL}/admin/trade/all?limit=${tradesPerPage}&offset=${offset}${statusParam}`)
+      const res = await fetch(`${API_URL}/admin/trade/all?limit=${tradesPerPage}&offset=${offset}${statusParam}`, {
+        headers: getAuthHeaders()
+      })
       const data = await res.json()
       if (data.trades) {
         setTrades(data.trades)

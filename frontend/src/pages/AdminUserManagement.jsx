@@ -61,6 +61,12 @@ const AdminUserManagement = () => {
   const [userWalletBalance, setUserWalletBalance] = useState(0)
   
   const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}')
+  const adminToken = localStorage.getItem('adminToken')
+
+  const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${adminToken}`
+  })
 
   useEffect(() => {
     fetchUsers()
@@ -70,7 +76,9 @@ const AdminUserManagement = () => {
   const fetchUsers = async () => {
     setLoading(true)
     try {
-      const response = await fetch(`${API_URL}/admin/users`)
+      const response = await fetch(`${API_URL}/admin/users`, {
+        headers: getAuthHeaders()
+      })
       if (response.ok) {
         const data = await response.json()
         setUsers(data.users || [])
@@ -83,7 +91,9 @@ const AdminUserManagement = () => {
 
   const fetchPasswordResetRequests = async () => {
     try {
-      const response = await fetch(`${API_URL}/admin/password-reset-requests`)
+      const response = await fetch(`${API_URL}/admin/password-reset-requests`, {
+        headers: getAuthHeaders()
+      })
       if (response.ok) {
         const data = await response.json()
         setPasswordResetRequests(data.requests || [])
@@ -104,7 +114,7 @@ const AdminUserManagement = () => {
     try {
       const response = await fetch(`${API_URL}/admin/password-reset-requests/${requestId}/process`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           action,
           newPassword: resetPassword,
