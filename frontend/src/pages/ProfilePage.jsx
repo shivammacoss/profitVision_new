@@ -490,14 +490,14 @@ const ProfilePage = () => {
                 </div>
 
                 <div>
-                  <label className={`text-sm mb-2 block flex items-center gap-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <label className={`text-sm mb-2 flex items-center gap-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     <Mail size={14} /> Email
                   </label>
                   <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>{profile.email}</p>
                 </div>
 
                 <div>
-                  <label className={`text-sm mb-2 block flex items-center gap-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <label className={`text-sm mb-2 flex items-center gap-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                     <Phone size={14} /> Phone
                   </label>
                   {editing ? (
