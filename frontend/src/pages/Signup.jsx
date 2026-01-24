@@ -50,12 +50,16 @@ const Signup = () => {
   const [activeTab, setActiveTab] = useState('signup')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
   const [showCountryDropdown, setShowCountryDropdown] = useState(false)
   const [countrySearch, setCountrySearch] = useState('')
   const [selectedCountry, setSelectedCountry] = useState(countries[0])
   const dropdownRef = useRef(null)
   const [showPassword, setShowPassword] = useState(false)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+  const [step, setStep] = useState('form') // 'form' or 'otp'
+  const [otp, setOtp] = useState('')
+  const [resendTimer, setResendTimer] = useState(0)
   const [formData, setFormData] = useState({
     firstName: '',
     email: '',
@@ -70,6 +74,14 @@ const Signup = () => {
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
   }, [])
+
+  // Resend timer countdown
+  useEffect(() => {
+    if (resendTimer > 0) {
+      const timer = setTimeout(() => setResendTimer(resendTimer - 1), 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [resendTimer])
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -98,32 +110,64 @@ const Signup = () => {
     setError('')
   }
 
-  // Direct signup without OTP
-  const handleSubmit = async (e) => {
+  // Step 1: Send OTP
+  const handleSendOTP = async (e) => {
     e.preventDefault()
     setLoading(true)
     setError('')
+    setSuccess('')
     
     try {
-      const signupData = {
-        ...formData,
-        referralCode: referralCode || undefined
-      }
-      
-      const response = await fetch(`${API_URL}/auth/signup`, {
+      const response = await fetch(`${API_URL}/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(signupData)
+        body: JSON.stringify({
+          ...formData,
+          referralCode: referralCode || undefined
+        })
       })
       
       const data = await response.json()
       
       if (!response.ok) {
-        throw new Error(data.message || 'Registration failed')
+        throw new Error(data.message || 'Failed to send OTP')
+      }
+      
+      setSuccess('OTP sent to your email!')
+      setStep('otp')
+      setResendTimer(60) // 60 seconds cooldown
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Step 2: Verify OTP and complete registration
+  const handleVerifyOTP = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    
+    try {
+      const response = await fetch(`${API_URL}/auth/verify-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: formData.email,
+          otp: otp
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'OTP verification failed')
       }
       
       localStorage.setItem('token', data.token)
       localStorage.setItem('user', JSON.stringify(data.user))
+      localStorage.setItem('isNewUser', 'true')
       
       // Also call register-referral API for backward compatibility
       if (referralCode && data.user?._id) {
@@ -146,6 +190,38 @@ const Signup = () => {
       } else {
         navigate('/dashboard')
       }
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Resend OTP
+  const handleResendOTP = async () => {
+    if (resendTimer > 0) return
+    
+    setLoading(true)
+    setError('')
+    
+    try {
+      const response = await fetch(`${API_URL}/auth/send-otp`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...formData,
+          referralCode: referralCode || undefined
+        })
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to resend OTP')
+      }
+      
+      setSuccess('OTP resent to your email!')
+      setResendTimer(60)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -187,21 +263,23 @@ const Signup = () => {
         </div>
 
         {/* Title */}
-        <h1 className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-6`}>Create an account</h1>
+        <h1 className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-6`}>
+          {step === 'form' ? 'Create an account' : 'Verify Email'}
+        </h1>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Name field */}
+        {step === 'form' ? (
+          <>
+            <form onSubmit={handleSendOTP} className="space-y-4">
               <input
                 type="text"
                 name="firstName"
                 placeholder="Enter your name"
                 value={formData.firstName}
                 onChange={handleChange}
+                required
                 className={`w-full ${isDarkMode ? 'bg-dark-600 border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'} border rounded-lg px-4 py-3 placeholder-gray-500 focus:outline-none focus:border-gray-600 transition-colors`}
               />
 
-              {/* Email field */}
               <div className="relative">
                 <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
                 <input
@@ -210,11 +288,11 @@ const Signup = () => {
                   placeholder="Enter your email"
                   value={formData.email}
                   onChange={handleChange}
+                  required
                   className={`w-full ${isDarkMode ? 'bg-dark-600 border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'} border rounded-lg pl-11 pr-4 py-3 placeholder-gray-500 focus:outline-none focus:border-gray-600 transition-colors`}
                 />
               </div>
 
-              {/* Phone field with country selector */}
               <div className="flex relative" ref={dropdownRef}>
                 <button
                   type="button"
@@ -226,10 +304,8 @@ const Signup = () => {
                   <ChevronDown size={14} className="text-gray-500" />
                 </button>
                 
-                {/* Country Dropdown */}
                 {showCountryDropdown && (
                   <div className={`absolute top-full left-0 mt-1 w-64 sm:w-72 ${isDarkMode ? 'bg-dark-600 border-gray-700' : 'bg-white border-gray-200'} border rounded-lg shadow-xl z-50 max-h-64 overflow-hidden`}>
-                    {/* Search */}
                     <div className={`p-2 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
                       <div className="relative">
                         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
@@ -242,7 +318,6 @@ const Signup = () => {
                         />
                       </div>
                     </div>
-                    {/* Country List */}
                     <div className="max-h-48 overflow-y-auto">
                       {filteredCountries.map((country, index) => (
                         <button
@@ -273,7 +348,6 @@ const Signup = () => {
                 />
               </div>
 
-              {/* Password field */}
               <div className="relative">
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -281,6 +355,7 @@ const Signup = () => {
                   placeholder="Create password"
                   value={formData.password}
                   onChange={handleChange}
+                  required
                   className={`w-full ${isDarkMode ? 'bg-dark-600 border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'} border rounded-lg px-4 py-3 pr-12 placeholder-gray-500 focus:outline-none focus:border-gray-600 transition-colors`}
                 />
                 <button
@@ -292,26 +367,68 @@ const Signup = () => {
                 </button>
               </div>
 
-              {/* Error message */}
-              {error && (
-                <p className="text-red-500 text-sm">{error}</p>
-              )}
+              {error && <p className="text-red-500 text-sm">{error}</p>}
+              {success && <p className="text-green-500 text-sm">{success}</p>}
 
-              {/* Submit button */}
               <button
                 type="submit"
                 disabled={loading}
                 className="w-full bg-white text-black font-medium py-3 rounded-lg hover:bg-gray-100 transition-colors mt-2 disabled:opacity-50"
               >
-                {loading ? 'Creating Account...' : 'Create Account'}
+                {loading ? 'Sending OTP...' : 'Continue'}
               </button>
             </form>
 
-            {/* Terms */}
             <p className="text-center text-gray-500 text-sm mt-6">
               By creating an account, you agree to our{' '}
               <a href="#" className={`${isDarkMode ? 'text-white' : 'text-gray-900'} hover:underline`}>Terms & Service</a>
             </p>
+          </>
+        ) : (
+          <form onSubmit={handleVerifyOTP} className="space-y-4">
+            <p className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} text-sm mb-4`}>
+              We've sent a 6-digit OTP to <strong className={isDarkMode ? 'text-white' : 'text-gray-900'}>{formData.email}</strong>
+            </p>
+
+            <input
+              type="text"
+              placeholder="Enter 6-digit OTP"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              maxLength={6}
+              className={`w-full ${isDarkMode ? 'bg-dark-600 border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'} border rounded-lg px-4 py-3 text-center text-2xl tracking-widest placeholder-gray-500 focus:outline-none focus:border-gray-600 transition-colors`}
+            />
+
+            {error && <p className="text-red-500 text-sm">{error}</p>}
+            {success && <p className="text-green-500 text-sm">{success}</p>}
+
+            <button
+              type="submit"
+              disabled={loading || otp.length !== 6}
+              className="w-full bg-white text-black font-medium py-3 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
+            >
+              {loading ? 'Verifying...' : 'Verify & Create Account'}
+            </button>
+
+            <div className="flex items-center justify-between text-sm">
+              <button
+                type="button"
+                onClick={() => { setStep('form'); setOtp(''); setError(''); }}
+                className={`${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
+              >
+                ← Back
+              </button>
+              <button
+                type="button"
+                onClick={handleResendOTP}
+                disabled={resendTimer > 0 || loading}
+                className={`${resendTimer > 0 ? 'text-gray-500' : isDarkMode ? 'text-white hover:underline' : 'text-gray-900 hover:underline'}`}
+              >
+                {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend OTP'}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   )

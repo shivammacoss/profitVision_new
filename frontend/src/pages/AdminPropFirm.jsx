@@ -252,7 +252,7 @@ const AdminPropFirm = () => {
   const getStatusColor = (status) => {
     const s = status?.toUpperCase()
     switch (s) {
-      case 'ACTIVE': return 'bg-blue-500/20 text-blue-500'
+      case 'ACTIVE': return 'bg-red-500/20 text-blue-500'
       case 'PASSED': return 'bg-green-500/20 text-green-500'
       case 'FUNDED': return 'bg-purple-500/20 text-purple-500'
       case 'FAILED': return 'bg-red-500/20 text-red-500'
@@ -485,7 +485,7 @@ const AdminPropFirm = () => {
                     </div>
                     <div className="w-full bg-dark-600 rounded-full h-2">
                       <div 
-                        className={`h-2 rounded-full ${p.status === 'FAILED' ? 'bg-red-500' : p.status === 'PASSED' ? 'bg-green-500' : 'bg-blue-500'}`}
+                        className={`h-2 rounded-full ${p.status === 'FAILED' ? 'bg-red-500' : p.status === 'PASSED' ? 'bg-green-500' : 'bg-red-500'}`}
                         style={{ width: `${Math.min(((p.currentBalance - p.initialBalance) / p.initialBalance * 100) + 50, 100)}%` }}
                       />
                     </div>

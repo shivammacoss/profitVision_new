@@ -352,6 +352,36 @@ router.post('/user-banks', async (req, res) => {
   }
 })
 
+// PUT /api/payment-methods/user-banks/:id - Update user bank account
+router.put('/user-banks/:id', async (req, res) => {
+  try {
+    const { type, bankName, accountNumber, accountHolderName, ifscCode, branchName, upiId } = req.body
+    
+    const account = await UserBankAccount.findById(req.params.id)
+    if (!account) {
+      return res.status(404).json({ message: 'Bank account not found' })
+    }
+
+    // Update fields
+    account.type = type || account.type
+    account.bankName = bankName || account.bankName
+    account.accountNumber = accountNumber || account.accountNumber
+    account.accountHolderName = accountHolderName || account.accountHolderName
+    account.ifscCode = ifscCode || account.ifscCode
+    account.branchName = branchName || account.branchName
+    account.upiId = upiId || account.upiId
+    
+    // Reset status to Pending after edit (requires re-approval)
+    account.status = 'Pending'
+    account.rejectionReason = ''
+    
+    await account.save()
+    res.json({ success: true, message: 'Bank account updated and submitted for re-approval', account })
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating bank account', error: error.message })
+  }
+})
+
 // DELETE /api/payment-methods/user-banks/:id - Delete user bank account
 router.delete('/user-banks/:id', async (req, res) => {
   try {

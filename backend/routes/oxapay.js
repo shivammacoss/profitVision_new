@@ -95,9 +95,10 @@ router.post('/create-deposit', async (req, res) => {
       walletId: wallet._id,
       type: 'Deposit',
       amount: parseFloat(amount),
-      paymentMethod: 'Crypto',
+      paymentMethod: 'Crypto (OxaPay)',
       transactionRef: invoice.trackId,
-      status: 'Pending'
+      status: 'Pending',
+      remarks: `OxaPay Invoice - Order: ${orderId}`
     })
     await transaction.save()
 

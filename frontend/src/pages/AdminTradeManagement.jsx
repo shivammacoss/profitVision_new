@@ -546,7 +546,7 @@ const AdminTradeManagement = () => {
                   <div className="flex gap-2 pt-3 border-t border-gray-600">
                     <button
                       onClick={() => openEditModal(trade)}
-                      className="flex-1 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-500 rounded-lg text-sm font-medium flex items-center justify-center gap-1"
+                      className="flex-1 py-2 bg-red-500/20 hover:bg-red-500/30 text-blue-500 rounded-lg text-sm font-medium flex items-center justify-center gap-1"
                     >
                       <Edit size={14} /> Edit
                     </button>
@@ -614,7 +614,7 @@ const AdminTradeManagement = () => {
                         <div className="flex items-center gap-1">
                           <button 
                             onClick={() => openEditModal(trade)}
-                            className="p-2 hover:bg-blue-500/20 rounded-lg transition-colors text-gray-400 hover:text-blue-500" 
+                            className="p-2 hover:bg-red-500/20 rounded-lg transition-colors text-gray-400 hover:text-blue-500" 
                             title="Edit Trade"
                           >
                             <Edit size={16} />
@@ -981,7 +981,7 @@ const AdminTradeManagement = () => {
                     const finalPnl = pnl - (selectedTrade.commission || 0) - (selectedTrade.swap || 0)
                     setEditForm(prev => ({ ...prev, realizedPnl: Math.round(finalPnl * 100) / 100 }))
                   }}
-                  className="w-full mt-3 px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm font-medium cursor-pointer flex items-center justify-center gap-2"
+                  className="w-full mt-3 px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm font-medium cursor-pointer flex items-center justify-center gap-2"
                 >
                   <RefreshCw size={16} />
                   Calculate P&L from Close Price
@@ -1001,7 +1001,7 @@ const AdminTradeManagement = () => {
                 </button>
                 <button
                   onClick={handleEditTrade}
-                  className="flex-1 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
+                  className="flex-1 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg"
                 >
                   Save Changes
                 </button>

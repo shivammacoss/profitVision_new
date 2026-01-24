@@ -81,6 +81,7 @@ const BrandedSignup = () => {
       
       localStorage.setItem('token', data.token)
       localStorage.setItem('user', JSON.stringify(data.user))
+      localStorage.setItem('isNewUser', 'true')
       navigate('/dashboard')
     } catch (err) {
       setError(err.message)

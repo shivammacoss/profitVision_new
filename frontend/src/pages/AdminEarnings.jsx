@@ -103,7 +103,7 @@ const AdminEarnings = () => {
           </p>
           {subtitle && <p className="text-gray-500 text-xs mt-1">{subtitle}</p>}
         </div>
-        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${color?.includes('green') ? 'bg-green-500/20' : 'bg-blue-500/20'}`}>
+        <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${color?.includes('green') ? 'bg-green-500/20' : 'bg-red-500/20'}`}>
           <Icon size={20} className={color?.includes('green') ? 'text-green-500' : 'text-blue-500'} />
         </div>
       </div>
@@ -282,19 +282,19 @@ const AdminEarnings = () => {
           <div className="flex gap-2 mb-4 border-b border-gray-800 pb-2">
             <button
               onClick={() => setActiveTab('daily')}
-              className={`px-4 py-2 rounded-lg text-sm ${activeTab === 'daily' ? 'bg-blue-500 text-white' : 'text-gray-400 hover:text-white'}`}
+              className={`px-4 py-2 rounded-lg text-sm ${activeTab === 'daily' ? 'bg-red-500 text-white' : 'text-gray-400 hover:text-white'}`}
             >
               Daily Breakdown
             </button>
             <button
               onClick={() => setActiveTab('users')}
-              className={`px-4 py-2 rounded-lg text-sm ${activeTab === 'users' ? 'bg-blue-500 text-white' : 'text-gray-400 hover:text-white'}`}
+              className={`px-4 py-2 rounded-lg text-sm ${activeTab === 'users' ? 'bg-red-500 text-white' : 'text-gray-400 hover:text-white'}`}
             >
               By User
             </button>
             <button
               onClick={() => setActiveTab('symbols')}
-              className={`px-4 py-2 rounded-lg text-sm ${activeTab === 'symbols' ? 'bg-blue-500 text-white' : 'text-gray-400 hover:text-white'}`}
+              className={`px-4 py-2 rounded-lg text-sm ${activeTab === 'symbols' ? 'bg-red-500 text-white' : 'text-gray-400 hover:text-white'}`}
             >
               By Symbol
             </button>

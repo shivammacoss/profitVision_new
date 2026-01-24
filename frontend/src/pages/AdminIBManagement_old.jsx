@@ -488,7 +488,7 @@ const AdminIBManagement = () => {
             onClick={() => setActiveTab(tab.id)}
             className={`px-4 py-2 rounded-lg whitespace-nowrap flex items-center gap-2 ${
               activeTab === tab.id 
-                ? 'bg-blue-500 text-white' 
+                ? 'bg-red-500 text-white' 
                 : 'bg-dark-800 text-gray-400 hover:text-white'
             }`}
           >
@@ -552,7 +552,7 @@ const AdminIBManagement = () => {
                     <tr key={ib._id} className="border-b border-gray-800 hover:bg-dark-700/50">
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
+                          <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
                             <span className="text-blue-500 font-medium">{ib.firstName?.charAt(0) || '?'}</span>
                           </div>
                           <div>
@@ -665,7 +665,7 @@ const AdminIBManagement = () => {
             </div>
             <button
               onClick={() => { setEditingLevel(null); setShowLevelModal(true); }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+              className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
             >
               <Plus size={16} /> Add Level
             </button>
@@ -680,7 +680,7 @@ const AdminIBManagement = () => {
                   await fetch(`${API_URL}/ib/admin/init-levels`, { method: 'POST' })
                   fetchIBLevels()
                 }}
-                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                className="mt-4 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
               >
                 Initialize Default Levels
               </button>
@@ -781,7 +781,7 @@ const AdminIBManagement = () => {
             <h2 className="text-white font-semibold text-lg">Commission Plans</h2>
             <button
               onClick={() => { setEditingPlan(null); setShowPlanModal(true); }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+              className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
             >
               <Plus size={16} /> Add Plan
             </button>
@@ -794,7 +794,7 @@ const AdminIBManagement = () => {
                   <div>
                     <p className="text-white font-medium flex items-center gap-2">
                       {plan.name}
-                      {plan.isDefault && <span className="px-2 py-0.5 bg-blue-500/20 text-blue-500 text-xs rounded">Default</span>}
+                      {plan.isDefault && <span className="px-2 py-0.5 bg-red-500/20 text-blue-500 text-xs rounded">Default</span>}
                     </p>
                     <p className="text-gray-500 text-sm">{plan.description}</p>
                   </div>
@@ -956,7 +956,7 @@ const AdminIBManagement = () => {
                 <div className="flex gap-2">
                   <button
                     onClick={selectAllUsers}
-                    className="px-3 py-1.5 bg-blue-500/20 text-blue-500 rounded-lg text-sm hover:bg-blue-500/30"
+                    className="px-3 py-1.5 bg-red-500/20 text-blue-500 rounded-lg text-sm hover:bg-red-500/30"
                   >
                     Select All
                   </button>
@@ -1189,7 +1189,7 @@ const PlanModal = ({ plan, onSave, onClose }) => {
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+              className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
             >
               {plan ? 'Update' : 'Create'}
             </button>
@@ -1347,7 +1347,7 @@ const LevelModal = ({ level, onSave, onClose, existingOrders }) => {
                   onClick={() => setActiveCommissionTab(tab.key)}
                   className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
                     activeCommissionTab === tab.key 
-                      ? 'bg-blue-500/20 text-blue-400 border-b-2 border-blue-500' 
+                      ? 'bg-red-500/20 text-blue-400 border-b-2 border-blue-500' 
                       : 'text-gray-400 hover:text-white hover:bg-dark-600'
                   }`}
                 >
@@ -1497,7 +1497,7 @@ const LevelModal = ({ level, onSave, onClose, existingOrders }) => {
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+              className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
             >
               {level ? 'Update Level' : 'Create Level'}
             </button>
@@ -1525,7 +1525,7 @@ const IBDetailsModal = ({ ib, plans, ibCommission, setIbCommission, ibPlan, setI
         <div className="p-5 space-y-4">
           {/* IB Info */}
           <div className="flex items-center gap-4 bg-dark-700 rounded-lg p-4">
-            <div className="w-14 h-14 bg-blue-500/20 rounded-full flex items-center justify-center">
+            <div className="w-14 h-14 bg-red-500/20 rounded-full flex items-center justify-center">
               <span className="text-blue-500 font-bold text-xl">{ib.firstName?.charAt(0) || '?'}</span>
             </div>
             <div>
@@ -1623,7 +1623,7 @@ const IBDetailsModal = ({ ib, plans, ibCommission, setIbCommission, ibPlan, setI
           <button
             onClick={onSave}
             disabled={saving}
-            className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+            className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50"
           >
             {saving ? 'Saving...' : 'Save Changes'}
           </button>

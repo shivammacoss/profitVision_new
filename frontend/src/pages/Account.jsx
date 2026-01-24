@@ -741,7 +741,7 @@ const Account = () => {
                             account.status === 'FUNDED' ? 'bg-purple-500/20 text-purple-500' : 
                             account.status === 'PASSED' ? 'bg-green-500/20 text-green-500' : 
                             account.status === 'FAILED' ? 'bg-red-500/20 text-red-500' :
-                            account.status === 'EXPIRED' ? 'bg-orange-500/20 text-orange-500' : 'bg-blue-500/20 text-blue-500'
+                            account.status === 'EXPIRED' ? 'bg-orange-500/20 text-orange-500' : 'bg-red-500/20 text-blue-500'
                           }`}>
                             {account.status}
                           </span>
@@ -818,7 +818,7 @@ const Account = () => {
                   <div className={`${isMobile ? 'p-3' : 'p-4'} border-b ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
-                        <div className={`${isMobile ? 'w-8 h-8' : 'w-10 h-10'} bg-blue-500/20 rounded-lg flex items-center justify-center`}>
+                        <div className={`${isMobile ? 'w-8 h-8' : 'w-10 h-10'} bg-red-500/20 rounded-lg flex items-center justify-center`}>
                           <TrendingUp size={isMobile ? 16 : 20} className="text-blue-500" />
                         </div>
                         <div>
@@ -883,7 +883,7 @@ const Account = () => {
                         {account.status === 'Active' ? 'Live' : account.status}
                       </span>
                       {account.isCopyTrading && (
-                        <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full">Copy Trading</span>
+                        <span className="text-xs bg-red-500/20 text-blue-400 px-2 py-0.5 rounded-full">Copy Trading</span>
                       )}
                     </div>
                   </div>
@@ -1047,7 +1047,7 @@ const Account = () => {
                         <div className="flex items-center gap-3 mb-3">
                           <span className="text-2xl">{icon}</span>
                           <span className={`${isDarkMode ? 'text-white' : 'text-gray-900'} font-bold text-lg`}>{type.name}</span>
-                          <div className={`w-4 h-4 rounded-full border-2 ml-auto ${isSelected ? (isDarkMode ? 'border-white bg-white' : 'border-blue-500 bg-blue-500') : 'border-gray-400'}`}>
+                          <div className={`w-4 h-4 rounded-full border-2 ml-auto ${isSelected ? (isDarkMode ? 'border-white bg-white' : 'border-blue-500 bg-red-500') : 'border-gray-400'}`}>
                             {isSelected && <div className="w-full h-full rounded-full" />}
                           </div>
                         </div>
@@ -1226,7 +1226,7 @@ const Account = () => {
 
             <div className="p-3 bg-dark-700 rounded-lg mb-4">
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 bg-blue-500/20 rounded flex items-center justify-center">
+                <div className="w-8 h-8 bg-red-500/20 rounded flex items-center justify-center">
                   <TrendingUp size={16} className="text-blue-500" />
                 </div>
                 <div>
@@ -1318,7 +1318,7 @@ const Account = () => {
 
             <div className="p-3 bg-dark-700 rounded-lg mb-4">
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-8 h-8 bg-blue-500/20 rounded flex items-center justify-center">
+                <div className="w-8 h-8 bg-red-500/20 rounded flex items-center justify-center">
                   <TrendingUp size={16} className="text-blue-500" />
                 </div>
                 <div>
@@ -1426,7 +1426,7 @@ const Account = () => {
                       onClick={() => setTargetAccount(acc)}
                       className={`w-full p-3 rounded-lg border flex items-center justify-between ${
                         targetAccount?._id === acc._id
-                          ? 'border-blue-500 bg-blue-500/10'
+                          ? 'border-blue-500 bg-red-500/10'
                           : 'border-gray-700 bg-dark-700 hover:border-gray-600'
                       }`}
                     >
@@ -1484,7 +1484,7 @@ const Account = () => {
               <button
                 onClick={handleAccountToAccountTransfer}
                 disabled={!targetAccount}
-                className="flex-1 bg-blue-500 text-white font-medium py-3 rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 bg-red-500 text-white font-medium py-3 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Transfer
               </button>

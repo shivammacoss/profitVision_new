@@ -453,7 +453,7 @@ const IBPage = () => {
                 </div>
                 <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl ${isMobile ? 'p-3' : 'p-5'} border`}>
                   <div className="flex items-center gap-2 mb-2">
-                    <div className={`${isMobile ? 'w-8 h-8' : 'w-10 h-10'} bg-blue-500/20 rounded-lg flex items-center justify-center`}>
+                    <div className={`${isMobile ? 'w-8 h-8' : 'w-10 h-10'} bg-red-500/20 rounded-lg flex items-center justify-center`}>
                       <TrendingUp size={isMobile ? 16 : 20} className="text-blue-500" />
                     </div>
                   </div>
@@ -626,13 +626,13 @@ const IBPage = () => {
                         {levelProgress.referralIncome?.tiers?.map((tier, idx) => (
                           <div key={idx} className={`flex items-center justify-between p-2 rounded-lg ${
                             levelProgress.referralCount >= tier.referralsRequired 
-                              ? 'bg-blue-500/10 border border-blue-500/30' 
+                              ? 'bg-red-500/10 border border-blue-500/30' 
                               : isDarkMode ? 'bg-dark-600' : 'bg-gray-100'
                           }`}>
                             <div className="flex items-center gap-2">
                               <div className={`w-5 h-5 rounded-full flex items-center justify-center ${
                                 levelProgress.referralCount >= tier.referralsRequired 
-                                  ? 'bg-blue-500 text-white' 
+                                  ? 'bg-red-500 text-white' 
                                   : isDarkMode ? 'bg-dark-500 text-gray-500' : 'bg-gray-300 text-gray-500'
                               }`}>
                                 {levelProgress.referralCount >= tier.referralsRequired ? '✓' : idx + 1}

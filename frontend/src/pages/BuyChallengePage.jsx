@@ -120,7 +120,7 @@ export default function BuyChallengePage() {
 
   const getStepColor = (steps) => {
     if (steps === 0) return 'bg-green-500'
-    if (steps === 1) return 'bg-blue-500'
+    if (steps === 1) return 'bg-red-500'
     return 'bg-purple-500'
   }
 

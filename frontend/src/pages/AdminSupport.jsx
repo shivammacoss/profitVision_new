@@ -133,7 +133,7 @@ const AdminSupport = () => {
       case 'URGENT': return 'bg-red-500/20 text-red-500'
       case 'HIGH': return 'bg-orange-500/20 text-orange-500'
       case 'MEDIUM': return 'bg-yellow-500/20 text-yellow-500'
-      case 'LOW': return 'bg-blue-500/20 text-blue-500'
+      case 'LOW': return 'bg-red-500/20 text-blue-500'
       default: return 'bg-gray-500/20 text-gray-400'
     }
   }
@@ -259,7 +259,7 @@ const AdminSupport = () => {
               <div className="flex gap-2 pt-3 border-t border-gray-600">
                 <button 
                   onClick={() => openTicketChat(ticket.ticketId)}
-                  className="flex-1 flex items-center justify-center gap-1 py-2 bg-blue-500/20 text-blue-500 rounded-lg text-sm"
+                  className="flex-1 flex items-center justify-center gap-1 py-2 bg-red-500/20 text-blue-500 rounded-lg text-sm"
                 >
                   <Eye size={14} /> View
                 </button>

@@ -45,6 +45,7 @@ const ProfilePage = () => {
     upiId: ''
   })
   const [bankLoading, setBankLoading] = useState(false)
+  const [editingBankAccount, setEditingBankAccount] = useState(null)
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768)
@@ -69,7 +70,7 @@ const ProfilePage = () => {
     }
   }
 
-  // Submit bank account for approval
+  // Submit bank account for approval (create or update)
   const handleBankSubmit = async () => {
     if (bankFormType === 'Bank Transfer') {
       if (!bankForm.bankName || !bankForm.accountNumber || !bankForm.accountHolderName || !bankForm.ifscCode) {
@@ -85,8 +86,13 @@ const ProfilePage = () => {
 
     setBankLoading(true)
     try {
-      const res = await fetch(`${API_URL}/payment-methods/user-banks`, {
-        method: 'POST',
+      const url = editingBankAccount 
+        ? `${API_URL}/payment-methods/user-banks/${editingBankAccount._id}`
+        : `${API_URL}/payment-methods/user-banks`
+      const method = editingBankAccount ? 'PUT' : 'POST'
+      
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: storedUser._id,
@@ -96,8 +102,9 @@ const ProfilePage = () => {
       })
       const data = await res.json()
       if (data.success) {
-        alert('Bank account submitted for approval!')
+        alert(editingBankAccount ? 'Bank account updated!' : 'Bank account submitted for approval!')
         setShowBankForm(false)
+        setEditingBankAccount(null)
         setBankForm({
           bankName: '',
           accountNumber: '',
@@ -115,6 +122,21 @@ const ProfilePage = () => {
       alert('Failed to submit bank account')
     }
     setBankLoading(false)
+  }
+
+  // Edit bank account
+  const handleEditBankAccount = (account) => {
+    setEditingBankAccount(account)
+    setBankFormType(account.type)
+    setBankForm({
+      bankName: account.bankName || '',
+      accountNumber: account.accountNumber || '',
+      accountHolderName: account.accountHolderName || '',
+      ifscCode: account.ifscCode || '',
+      branchName: account.branchName || '',
+      upiId: account.upiId || ''
+    })
+    setShowBankForm(true)
   }
 
   // Delete bank account
@@ -426,7 +448,7 @@ const ProfilePage = () => {
                             ? 'Rejected'
                             : 'Not Submitted'}
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-500/20 text-blue-500">
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/20 text-blue-500">
                       Since {new Date(storedUser.createdAt).toLocaleDateString()}
                     </span>
                   </div>
@@ -490,211 +512,50 @@ const ProfilePage = () => {
                   )}
                 </div>
 
-                <div>
-                  <label className={`text-sm mb-2 block flex items-center gap-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    <Calendar size={14} /> Date of Birth
-                  </label>
-                  {editing ? (
-                    <input
-                      type="date"
-                      value={profile.dateOfBirth}
-                      onChange={(e) => setProfile({...profile, dateOfBirth: e.target.value})}
-                      className={`w-full rounded-lg px-4 py-2 border ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'}`}
-                    />
-                  ) : (
-                    <p className="text-white">{profile.dateOfBirth || '-'}</p>
-                  )}
                 </div>
-
-                <div>
-                  <label className="text-gray-400 text-sm mb-2 block flex items-center gap-2">
-                    <MapPin size={14} /> Country
-                  </label>
-                  {editing ? (
-                    <input
-                      type="text"
-                      value={profile.country}
-                      onChange={(e) => setProfile({...profile, country: e.target.value})}
-                      className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-4 py-2`}
-                    />
-                  ) : (
-                    <p className="text-white">{profile.country || '-'}</p>
-                  )}
-                </div>
-
-                <div className="col-span-2">
-                  <label className="text-gray-400 text-sm mb-2 block flex items-center gap-2">
-                    <MapPin size={14} /> Address
-                  </label>
-                  {editing ? (
-                    <input
-                      type="text"
-                      value={profile.address}
-                      onChange={(e) => setProfile({...profile, address: e.target.value})}
-                      className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-4 py-2`}
-                    />
-                  ) : (
-                    <p className="text-white">{profile.address || '-'}</p>
-                  )}
-                </div>
-              </div>
             </div>
 
-            {/* Bank Details Section */}
+            {/* Add Bank Account for Withdrawal Section */}
             <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-6 border mt-6`}>
-              <h3 className={`font-semibold mb-6 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                <Building2 size={18} /> Bank Details (For Withdrawals)
-              </h3>
-              
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <label className="text-gray-400 text-sm mb-2 block">Bank Name</label>
-                  {editing ? (
-                    <input
-                      type="text"
-                      value={profile.bankDetails?.bankName || ''}
-                      onChange={(e) => setProfile({
-                        ...profile, 
-                        bankDetails: {...profile.bankDetails, bankName: e.target.value}
-                      })}
-                      placeholder="e.g., HDFC Bank"
-                      className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-4 py-2`}
-                    />
-                  ) : (
-                    <p className="text-white">{profile.bankDetails?.bankName || '-'}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="text-gray-400 text-sm mb-2 block">Account Holder Name</label>
-                  {editing ? (
-                    <input
-                      type="text"
-                      value={profile.bankDetails?.accountHolderName || ''}
-                      onChange={(e) => setProfile({
-                        ...profile, 
-                        bankDetails: {...profile.bankDetails, accountHolderName: e.target.value}
-                      })}
-                      placeholder="Name as per bank account"
-                      className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-4 py-2`}
-                    />
-                  ) : (
-                    <p className="text-white">{profile.bankDetails?.accountHolderName || '-'}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="text-gray-400 text-sm mb-2 block">Account Number</label>
-                  {editing ? (
-                    <input
-                      type="text"
-                      value={profile.bankDetails?.accountNumber || ''}
-                      onChange={(e) => setProfile({
-                        ...profile, 
-                        bankDetails: {...profile.bankDetails, accountNumber: e.target.value}
-                      })}
-                      placeholder="Enter account number"
-                      className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-4 py-2`}
-                    />
-                  ) : (
-                    <p className="text-white">{profile.bankDetails?.accountNumber || '-'}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="text-gray-400 text-sm mb-2 block">IFSC Code</label>
-                  {editing ? (
-                    <input
-                      type="text"
-                      value={profile.bankDetails?.ifscCode || ''}
-                      onChange={(e) => setProfile({
-                        ...profile, 
-                        bankDetails: {...profile.bankDetails, ifscCode: e.target.value.toUpperCase()}
-                      })}
-                      placeholder="e.g., HDFC0001234"
-                      className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-4 py-2 uppercase`}
-                    />
-                  ) : (
-                    <p className="text-white">{profile.bankDetails?.ifscCode || '-'}</p>
-                  )}
-                </div>
-
-                <div className="col-span-2">
-                  <label className="text-gray-400 text-sm mb-2 block">Branch Name</label>
-                  {editing ? (
-                    <input
-                      type="text"
-                      value={profile.bankDetails?.branchName || ''}
-                      onChange={(e) => setProfile({
-                        ...profile, 
-                        bankDetails: {...profile.bankDetails, branchName: e.target.value}
-                      })}
-                      placeholder="e.g., Mumbai Main Branch"
-                      className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-4 py-2`}
-                    />
-                  ) : (
-                    <p className="text-white">{profile.bankDetails?.branchName || '-'}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* UPI Section */}
-            <div className="bg-dark-800 rounded-xl p-6 border border-gray-800 mt-6">
-              <h3 className="text-white font-semibold mb-6 flex items-center gap-2">
-                <Smartphone size={18} /> UPI Details
-              </h3>
-              
-              <div>
-                <label className="text-gray-400 text-sm mb-2 block">UPI ID</label>
-                {editing ? (
-                  <input
-                    type="text"
-                    value={profile.upiId || ''}
-                    onChange={(e) => setProfile({...profile, upiId: e.target.value})}
-                    placeholder="e.g., yourname@upi"
-                    className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-4 py-2`}
-                  />
-                ) : (
-                  <p className="text-white">{profile.upiId || '-'}</p>
-                )}
-              </div>
-
-              {!editing && (!profile.bankDetails?.accountNumber && !profile.upiId) && (
-                <div className="mt-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                  <p className="text-yellow-500 text-sm">
-                    ⚠️ Please add your bank details or UPI ID to receive withdrawals. Click "Edit Profile" to add.
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {/* Withdrawal Accounts Section */}
-            <div className="bg-dark-800 rounded-xl p-6 border border-gray-800 mt-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-white font-semibold flex items-center gap-2">
-                  <CreditCard size={18} /> Withdrawal Accounts
+                <h3 className={`font-semibold flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                  <CreditCard size={18} /> Add Bank Account for Withdrawal
                 </h3>
-                <button
-                  onClick={() => setShowBankForm(true)}
-                  className="px-3 py-1.5 bg-green-500/20 text-green-500 rounded-lg text-sm hover:bg-green-500/30"
-                >
-                  + Add Account
-                </button>
               </div>
-
-              <p className="text-gray-500 text-sm mb-4">
+              
+              <p className={`text-sm mb-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>
                 Add bank accounts or UPI IDs for withdrawals. Accounts require admin approval before use.
               </p>
 
+              <div className="flex gap-3 mb-6">
+                <button
+                  onClick={() => {
+                    setBankFormType('Bank Transfer')
+                    setShowBankForm(true)
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-colors ${isDarkMode ? 'bg-dark-700 border-gray-700 text-white hover:bg-dark-600' : 'bg-gray-100 border-gray-300 text-gray-900 hover:bg-gray-200'}`}
+                >
+                  <Building2 size={18} className="text-green-500" /> Add Bank Account
+                </button>
+                <button
+                  onClick={() => {
+                    setBankFormType('UPI')
+                    setShowBankForm(true)
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border transition-colors ${isDarkMode ? 'bg-dark-700 border-gray-700 text-white hover:bg-dark-600' : 'bg-gray-100 border-gray-300 text-gray-900 hover:bg-gray-200'}`}
+                >
+                  <Smartphone size={18} className="text-purple-500" /> Add UPI
+                </button>
+              </div>
+
               {userBankAccounts.length === 0 ? (
-                <div className="p-4 bg-dark-700 rounded-lg text-center">
+                <div className={`p-4 rounded-lg text-center ${isDarkMode ? 'bg-dark-700' : 'bg-gray-100'}`}>
                   <p className="text-gray-500">No withdrawal accounts added yet</p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {userBankAccounts.map((acc) => (
-                    <div key={acc._id} className="p-4 bg-dark-700 rounded-lg border border-gray-700">
+                    <div key={acc._id} className={`p-4 rounded-lg border ${isDarkMode ? 'bg-dark-700 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-3">
                           {acc.type === 'Bank Transfer' ? (
@@ -704,7 +565,7 @@ const ProfilePage = () => {
                           )}
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="text-white font-medium">
+                              <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                                 {acc.type === 'Bank Transfer' ? acc.bankName : 'UPI'}
                               </span>
                               <span className={`px-2 py-0.5 rounded text-xs ${
@@ -727,14 +588,24 @@ const ProfilePage = () => {
                             )}
                           </div>
                         </div>
-                        {acc.status !== 'Approved' && (
+                        <div className="flex items-center gap-2">
                           <button
-                            onClick={() => handleDeleteBankAccount(acc._id)}
-                            className="text-gray-500 hover:text-red-500"
+                            onClick={() => handleEditBankAccount(acc)}
+                            className="text-gray-500 hover:text-blue-500"
+                            title="Edit"
                           >
-                            <X size={16} />
+                            <Edit2 size={16} />
                           </button>
-                        )}
+                          {acc.status !== 'Approved' && (
+                            <button
+                              onClick={() => handleDeleteBankAccount(acc._id)}
+                              className="text-gray-500 hover:text-red-500"
+                              title="Delete"
+                            >
+                              <X size={16} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -747,8 +618,8 @@ const ProfilePage = () => {
               <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
                 <div className="bg-dark-800 rounded-xl w-full max-w-md border border-gray-700">
                   <div className="p-4 border-b border-gray-700 flex items-center justify-between">
-                    <h3 className="text-white font-semibold">Add Withdrawal Account</h3>
-                    <button onClick={() => setShowBankForm(false)} className="text-gray-400 hover:text-white">
+                    <h3 className="text-white font-semibold">{editingBankAccount ? 'Edit Withdrawal Account' : 'Add Withdrawal Account'}</h3>
+                    <button onClick={() => { setShowBankForm(false); setEditingBankAccount(null); setBankForm({ bankName: '', accountNumber: '', accountHolderName: '', ifscCode: '', branchName: '', upiId: '' }) }} className="text-gray-400 hover:text-white">
                       <X size={20} />
                     </button>
                   </div>
@@ -759,7 +630,7 @@ const ProfilePage = () => {
                         onClick={() => setBankFormType('Bank Transfer')}
                         className={`p-3 rounded-lg border flex items-center justify-center gap-2 ${
                           bankFormType === 'Bank Transfer'
-                            ? 'border-blue-500 bg-blue-500/20 text-blue-500'
+                            ? 'border-green-500 bg-green-500/20 text-green-500'
                             : 'border-gray-700 text-gray-400'
                         }`}
                       >
@@ -1074,35 +945,6 @@ const ProfilePage = () => {
               )}
             </div>
 
-            {/* Security Section */}
-            <div className="bg-dark-800 rounded-xl p-6 border border-gray-800 mt-6">
-              <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
-                <Shield size={18} /> Security
-              </h3>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between py-3 border-b border-gray-700">
-                  <div>
-                    <p className="text-white">Password</p>
-                    <p className="text-gray-500 text-sm">Last changed: Never</p>
-                  </div>
-                  <button className="text-accent-green hover:underline text-sm">Change Password</button>
-                </div>
-                <div className="flex items-center justify-between py-3 border-b border-gray-700">
-                  <div>
-                    <p className="text-white">Two-Factor Authentication</p>
-                    <p className="text-gray-500 text-sm">Add an extra layer of security</p>
-                  </div>
-                  <button className="text-accent-green hover:underline text-sm">Enable</button>
-                </div>
-                <div className="flex items-center justify-between py-3">
-                  <div>
-                    <p className="text-white">Login History</p>
-                    <p className="text-gray-500 text-sm">View recent login activity</p>
-                  </div>
-                  <button className="text-accent-green hover:underline text-sm">View</button>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </main>

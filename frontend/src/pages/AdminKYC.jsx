@@ -201,7 +201,7 @@ const AdminKYC = () => {
               <div key={req._id} className="bg-dark-700 rounded-xl p-4 border border-gray-700">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
+                    <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
                       <User size={18} className="text-blue-500" />
                     </div>
                     <div>
@@ -227,7 +227,7 @@ const AdminKYC = () => {
                 <div className="flex gap-2 pt-3 border-t border-gray-600">
                   <button 
                     onClick={() => viewKycDetails(req)}
-                    className="flex-1 flex items-center justify-center gap-1 py-2 bg-blue-500/20 text-blue-500 rounded-lg text-sm"
+                    className="flex-1 flex items-center justify-center gap-1 py-2 bg-red-500/20 text-blue-500 rounded-lg text-sm"
                   >
                     <Eye size={14} /> View
                   </button>
@@ -275,7 +275,7 @@ const AdminKYC = () => {
                   <tr key={req._id} className="border-b border-gray-800 hover:bg-dark-700/50">
                     <td className="py-4 px-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
+                        <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
                           <User size={18} className="text-blue-500" />
                         </div>
                         <div>
@@ -342,7 +342,7 @@ const AdminKYC = () => {
             <div className="p-6 space-y-6">
               {/* User Info */}
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center">
+                <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center">
                   <User size={24} className="text-blue-500" />
                 </div>
                 <div>

@@ -393,7 +393,7 @@ const AdminBankSettings = () => {
           onClick={() => setActiveTab('methods')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
             activeTab === 'methods' 
-              ? 'bg-blue-500 text-white' 
+              ? 'bg-red-500 text-white' 
               : 'bg-dark-800 text-gray-400 hover:text-white'
           }`}
         >
@@ -403,7 +403,7 @@ const AdminBankSettings = () => {
           onClick={() => setActiveTab('requests')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
             activeTab === 'requests' 
-              ? 'bg-blue-500 text-white' 
+              ? 'bg-red-500 text-white' 
               : 'bg-dark-800 text-gray-400 hover:text-white'
           }`}
         >
@@ -453,7 +453,7 @@ const AdminBankSettings = () => {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                          req.type === 'Bank Transfer' ? 'bg-blue-500/20 text-blue-500' : 'bg-purple-500/20 text-purple-500'
+                          req.type === 'Bank Transfer' ? 'bg-red-500/20 text-blue-500' : 'bg-purple-500/20 text-purple-500'
                         }`}>
                           {req.type}
                         </span>
@@ -546,7 +546,7 @@ const AdminBankSettings = () => {
             </button>
             <button 
               onClick={() => { resetForm(); setEditingMethod(null); setShowAddModal(true) }}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
             >
               <Plus size={16} />
               Add Payment Method
@@ -563,7 +563,7 @@ const AdminBankSettings = () => {
           <div className="bg-dark-800 rounded-xl border border-gray-800 overflow-hidden mb-6">
             <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-800">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center">
                   <Building2 size={20} className="text-blue-500" />
                 </div>
                 <div>
@@ -750,7 +750,7 @@ const AdminBankSettings = () => {
               <div className="flex flex-wrap gap-2">
                 <button 
                   onClick={addAllCurrencies}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-blue-500/20 text-blue-500 rounded-lg hover:bg-blue-500/30 text-sm"
+                  className="flex items-center gap-1 px-3 py-1.5 bg-red-500/20 text-blue-500 rounded-lg hover:bg-red-500/30 text-sm"
                 >
                   <Globe size={14} />
                   Add All Currencies
@@ -779,7 +779,7 @@ const AdminBankSettings = () => {
                   <p className="text-gray-500 mb-4">No currencies configured yet</p>
                   <button 
                     onClick={addAllCurrencies}
-                    className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
                   >
                     Add All Common Currencies with Live Rates
                   </button>
@@ -975,7 +975,7 @@ const AdminBankSettings = () => {
                       onClick={() => setForm({ ...form, type })}
                       className={`p-3 rounded-lg border text-sm font-medium ${
                         form.type === type 
-                          ? 'border-blue-500 bg-blue-500 text-white' 
+                          ? 'border-blue-500 bg-red-500 text-white' 
                           : 'border-gray-300 text-gray-700 hover:border-gray-400'
                       }`}
                     >
@@ -1103,7 +1103,7 @@ const AdminBankSettings = () => {
                 </button>
                 <button
                   onClick={handleSave}
-                  className="flex-1 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium"
+                  className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium"
                 >
                   {editingMethod ? 'Update' : 'Create'}
                 </button>

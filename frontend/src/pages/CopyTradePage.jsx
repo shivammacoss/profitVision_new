@@ -701,7 +701,7 @@ const CopyTradePage = () => {
                           </span>
                           <button
                             onClick={() => handleEditSubscription(sub)}
-                            className="p-2 bg-dark-700 rounded-lg hover:bg-blue-500/20"
+                            className="p-2 bg-dark-700 rounded-lg hover:bg-red-500/20"
                             title="Edit Settings"
                           >
                             <Star size={16} className="text-blue-500" />
@@ -808,7 +808,7 @@ const CopyTradePage = () => {
                           </td>
                           <td className="px-4 py-3">
                             <span className={`px-2 py-1 rounded text-xs ${
-                              trade.status === 'OPEN' ? 'bg-blue-500/20 text-blue-500' :
+                              trade.status === 'OPEN' ? 'bg-red-500/20 text-blue-500' :
                               trade.status === 'CLOSED' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'
                             }`}>
                               {trade.status}
@@ -838,7 +838,7 @@ const CopyTradePage = () => {
                     <div key={follower._id} className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-5 border`}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-blue-500/20 rounded-full flex items-center justify-center">
+                          <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center">
                             <span className="text-blue-500 font-bold">{follower.followerId?.firstName?.charAt(0) || 'U'}</span>
                           </div>
                           <div>
@@ -970,7 +970,7 @@ const CopyTradePage = () => {
                             <td className="px-4 py-3">
                               <span className={`px-2 py-1 rounded text-xs ${
                                 comm.status === 'DEDUCTED' ? 'bg-green-500/20 text-green-500' :
-                                comm.status === 'SETTLED' ? 'bg-blue-500/20 text-blue-500' :
+                                comm.status === 'SETTLED' ? 'bg-red-500/20 text-blue-500' :
                                 comm.status === 'FAILED' ? 'bg-red-500/20 text-red-500' : 'bg-yellow-500/20 text-yellow-500'
                               }`}>
                                 {comm.status}
@@ -1098,7 +1098,7 @@ const CopyTradePage = () => {
               </div>
 
               {/* Info Box */}
-              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+              <div className="bg-red-500/10 border border-blue-500/30 rounded-lg p-3">
                 <p className="text-blue-500 text-sm font-medium mb-2">How it works:</p>
                 <ul className="text-blue-500/80 text-xs space-y-1">
                   <li>• A new Copy Trading account will be created for you</li>
@@ -1316,7 +1316,7 @@ const CopyTradePage = () => {
               </button>
               <button
                 onClick={handleSaveSubscription}
-                className="flex-1 bg-blue-500 text-white py-2 rounded-lg font-medium hover:bg-blue-600"
+                className="flex-1 bg-red-500 text-white py-2 rounded-lg font-medium hover:bg-red-600"
               >
                 Save Changes
               </button>

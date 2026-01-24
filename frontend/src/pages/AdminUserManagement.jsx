@@ -670,7 +670,7 @@ const AdminUserManagement = () => {
                 <div className="grid grid-cols-2 gap-2 pt-2">
                   <button 
                     onClick={() => setModalType('password')}
-                    className="flex items-center justify-center gap-2 p-3 bg-blue-500/20 text-blue-500 rounded-lg hover:bg-blue-500/30 transition-colors"
+                    className="flex items-center justify-center gap-2 p-3 bg-red-500/20 text-blue-500 rounded-lg hover:bg-red-500/30 transition-colors"
                   >
                     <Lock size={16} />
                     <span className="text-sm">Change Password</span>
@@ -835,7 +835,7 @@ const AdminUserManagement = () => {
                   <button 
                     onClick={handleChangePassword}
                     disabled={actionLoading}
-                    className="flex-1 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
+                    className="flex-1 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
                   >
                     {actionLoading ? 'Updating...' : 'Update Password'}
                   </button>
@@ -1410,7 +1410,7 @@ const AdminUserManagement = () => {
         <button
           onClick={() => setActiveTab('users')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-            activeTab === 'users' ? 'bg-blue-500 text-white' : 'bg-dark-700 text-gray-400 hover:text-white'
+            activeTab === 'users' ? 'bg-red-500 text-white' : 'bg-dark-700 text-gray-400 hover:text-white'
           }`}
         >
           Users ({users.length})
@@ -1418,7 +1418,7 @@ const AdminUserManagement = () => {
         <button
           onClick={() => setActiveTab('password-reset')}
           className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${
-            activeTab === 'password-reset' ? 'bg-blue-500 text-white' : 'bg-dark-700 text-gray-400 hover:text-white'
+            activeTab === 'password-reset' ? 'bg-red-500 text-white' : 'bg-dark-700 text-gray-400 hover:text-white'
           }`}
         >
           <Key size={16} />
@@ -1458,7 +1458,7 @@ const AdminUserManagement = () => {
                 <div key={request._id} className="p-4 bg-dark-700 rounded-xl border border-gray-700">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
+                      <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
                         <User size={20} className="text-blue-500" />
                       </div>
                       <div>
@@ -1530,7 +1530,7 @@ const AdminUserManagement = () => {
                       ) : (
                         <button
                           onClick={() => setSelectedResetRequest(request._id)}
-                          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
+                          className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm"
                         >
                           Process Request
                         </button>
@@ -1635,7 +1635,7 @@ const AdminUserManagement = () => {
                 <div className="flex gap-2 mt-4 pt-3 border-t border-gray-600">
                   <button 
                     onClick={() => openModal('view', user)}
-                    className="flex-1 flex items-center justify-center gap-1 py-2 bg-blue-500/20 text-blue-500 rounded-lg text-sm hover:bg-blue-500/30 transition-colors"
+                    className="flex-1 flex items-center justify-center gap-1 py-2 bg-red-500/20 text-blue-500 rounded-lg text-sm hover:bg-red-500/30 transition-colors"
                   >
                     <Eye size={14} />
                     View

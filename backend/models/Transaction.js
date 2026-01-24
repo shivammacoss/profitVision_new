@@ -59,6 +59,18 @@ const transactionSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  // For withdrawals - bank account details
+  bankAccountId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'UserBankAccount'
+  },
+  bankDetails: {
+    bankName: { type: String, default: '' },
+    accountNumber: { type: String, default: '' },
+    accountHolderName: { type: String, default: '' },
+    ifscCode: { type: String, default: '' },
+    upiId: { type: String, default: '' }
+  },
   status: {
     type: String,
     enum: ['Pending', 'Approved', 'Rejected', 'Completed'],

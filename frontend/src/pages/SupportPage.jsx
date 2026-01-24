@@ -397,7 +397,7 @@ const SupportPage = () => {
               <div className="flex items-center gap-3">
                 <span className={`px-2 py-1 rounded text-xs ${
                   selectedTicket.status === 'OPEN' ? 'bg-yellow-500/20 text-yellow-500' :
-                  selectedTicket.status === 'IN_PROGRESS' ? 'bg-blue-500/20 text-blue-500' :
+                  selectedTicket.status === 'IN_PROGRESS' ? 'bg-red-500/20 text-blue-500' :
                   selectedTicket.status === 'WAITING_USER' ? 'bg-orange-500/20 text-orange-500' :
                   selectedTicket.status === 'RESOLVED' ? 'bg-green-500/20 text-green-500' :
                   'bg-gray-500/20 text-gray-500'

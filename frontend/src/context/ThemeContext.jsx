@@ -76,9 +76,11 @@ export const ThemeProvider = ({ children }) => {
     })
 
     // Also set some commonly used Tailwind-compatible classes
-    root.style.setProperty('--color-primary', colors.primary || '#3B82F6')
+    root.style.setProperty('--color-primary', colors.primary || '#EF4444')
     root.style.setProperty('--color-secondary', colors.secondary || '#10B981')
     root.style.setProperty('--color-accent', colors.accent || '#F59E0B')
+    root.style.setProperty('--color-button', colors.buttonColor || '#EF4444')
+    root.style.setProperty('--color-button-hover', colors.buttonHoverColor || '#DC2626')
     root.style.setProperty('--color-bg-primary', colors.bgPrimary || '#000000')
     root.style.setProperty('--color-bg-secondary', colors.bgSecondary || '#0D0D0D')
     root.style.setProperty('--color-bg-card', colors.bgCard || '#1A1A1A')
@@ -140,6 +142,11 @@ export const ThemeProvider = ({ children }) => {
   }, [isDarkMode])
 
   useEffect(() => {
+    // Set default button colors immediately
+    const root = document.documentElement
+    root.style.setProperty('--color-button', '#EF4444')
+    root.style.setProperty('--color-button-hover', '#DC2626')
+    
     fetchTheme()
     
     // Refresh theme every 30 seconds to catch admin changes

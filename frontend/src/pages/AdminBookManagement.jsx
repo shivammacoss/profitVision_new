@@ -255,7 +255,7 @@ const AdminBookManagement = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-dark-800 rounded-xl p-4 border border-gray-800">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-500/20 rounded-lg">
+            <div className="p-2 bg-red-500/20 rounded-lg">
               <Users className="w-5 h-5 text-blue-400" />
             </div>
             <div>
@@ -334,7 +334,7 @@ const AdminBookManagement = () => {
           <span className="text-gray-400">{selectedUsers.length} users selected</span>
           <button
             onClick={() => bulkUpdateBookType('A')}
-            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+            className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition-colors"
           >
             Move to A-Book
           </button>
@@ -416,7 +416,7 @@ const AdminBookManagement = () => {
                     <td className="px-4 py-3 text-center">
                       <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                         user.bookType === 'A' 
-                          ? 'bg-blue-500/20 text-blue-400' 
+                          ? 'bg-red-500/20 text-blue-400' 
                           : 'bg-green-500/20 text-green-400'
                       }`}>
                         {user.bookType || 'B'}-Book
@@ -427,7 +427,7 @@ const AdminBookManagement = () => {
                         onClick={() => toggleUserBookType(user._id, user.bookType || 'B')}
                         className={`p-2 rounded-lg transition-colors ${
                           user.bookType === 'A'
-                            ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
+                            ? 'bg-red-500/20 text-blue-400 hover:bg-red-500/30'
                             : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
                         }`}
                         title={`Switch to ${user.bookType === 'A' ? 'B' : 'A'}-Book`}
@@ -509,7 +509,7 @@ const AdminBookManagement = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-dark-800 rounded-xl p-4 border border-gray-800">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-500/20 rounded-lg">
+            <div className="p-2 bg-red-500/20 rounded-lg">
               <Activity className="w-5 h-5 text-blue-400" />
             </div>
             <div>
@@ -613,7 +613,7 @@ const AdminBookManagement = () => {
                       <td className="px-3 py-2 text-white font-medium">{pos.symbol}</td>
                       <td className="px-3 py-2 text-center">
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                          pos.side === 'BUY' ? 'bg-blue-500/20 text-blue-400' : 'bg-red-500/20 text-red-400'
+                          pos.side === 'BUY' ? 'bg-red-500/20 text-blue-400' : 'bg-red-500/20 text-red-400'
                         }`}>
                           {pos.side}
                         </span>
@@ -674,7 +674,7 @@ const AdminBookManagement = () => {
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className="bg-dark-800 rounded-xl p-4 border border-gray-800">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-blue-500/20 rounded-lg">
+            <div className="p-2 bg-red-500/20 rounded-lg">
               <Clock className="w-5 h-5 text-blue-400" />
             </div>
             <div>
@@ -685,7 +685,7 @@ const AdminBookManagement = () => {
         </div>
         <div className="bg-dark-800 rounded-xl p-4 border border-gray-800">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${(historySummary.totalPnl || 0) >= 0 ? 'bg-blue-500/20' : 'bg-red-500/20'}`}>
+            <div className={`p-2 rounded-lg ${(historySummary.totalPnl || 0) >= 0 ? 'bg-red-500/20' : 'bg-red-500/20'}`}>
               <DollarSign className={`w-5 h-5 ${(historySummary.totalPnl || 0) >= 0 ? 'text-blue-400' : 'text-red-400'}`} />
             </div>
             <div>
@@ -785,7 +785,7 @@ const AdminBookManagement = () => {
                     <td className="px-3 py-2 text-white font-medium">{trade.symbol}</td>
                     <td className="px-3 py-2 text-center">
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                        trade.side === 'BUY' ? 'bg-blue-500/20 text-blue-400' : 'bg-red-500/20 text-red-400'
+                        trade.side === 'BUY' ? 'bg-red-500/20 text-blue-400' : 'bg-red-500/20 text-red-400'
                       }`}>
                         {trade.side}
                       </span>

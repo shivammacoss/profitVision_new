@@ -476,7 +476,7 @@ const AdminCopyTrade = () => {
                         <td className="py-4 px-4">
                           <span className={`px-2 py-1 rounded-full text-xs ${
                             comm.status === 'DEDUCTED' ? 'bg-green-500/20 text-green-500' :
-                            comm.status === 'SETTLED' ? 'bg-blue-500/20 text-blue-500' :
+                            comm.status === 'SETTLED' ? 'bg-red-500/20 text-blue-500' :
                             comm.status === 'FAILED' ? 'bg-red-500/20 text-red-500' : 'bg-yellow-500/20 text-yellow-500'
                           }`}>
                             {comm.status}
@@ -555,7 +555,7 @@ const AdminCopyTrade = () => {
                   </div>
                 </div>
               </div>
-              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+              <div className="bg-red-500/10 border border-blue-500/30 rounded-lg p-3">
                 <p className="text-blue-400 text-sm">Commission is fixed at 50/50 split. This cannot be changed.</p>
               </div>
             </div>

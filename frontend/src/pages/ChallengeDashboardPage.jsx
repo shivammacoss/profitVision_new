@@ -56,7 +56,7 @@ export default function ChallengeDashboardPage() {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'ACTIVE': return 'bg-blue-500/20 text-blue-500'
+      case 'ACTIVE': return 'bg-red-500/20 text-blue-500'
       case 'PASSED': return 'bg-green-500/20 text-green-500'
       case 'FUNDED': return 'bg-purple-500/20 text-purple-500'
       case 'FAILED': return 'bg-red-500/20 text-red-500'
@@ -357,7 +357,7 @@ export default function ChallengeDashboardPage() {
                   </div>
                   {dashboard.rules.allowedSymbols?.length > 0 && (
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center">
                         <Activity size={16} className="text-blue-500" />
                       </div>
                       <div>

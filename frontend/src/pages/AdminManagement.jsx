@@ -274,7 +274,7 @@ const AdminManagement = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <div className="bg-dark-800 rounded-xl p-5 border border-gray-800">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center">
               <Shield size={20} className="text-blue-500" />
             </div>
             <div>
@@ -359,7 +359,7 @@ const AdminManagement = () => {
                 <div key={admin._id} className="bg-dark-700 rounded-xl p-4 border border-gray-700">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                      <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
                         <span className="text-blue-500 font-bold">{admin.firstName?.charAt(0)}</span>
                       </div>
                       <div>
@@ -415,7 +415,7 @@ const AdminManagement = () => {
                     </button>
                     <button 
                       onClick={() => { setSelectedAdmin({...admin}); setShowEditModal(true) }}
-                      className="flex items-center justify-center gap-1 py-2 bg-blue-500/20 text-blue-500 rounded-lg text-xs"
+                      className="flex items-center justify-center gap-1 py-2 bg-red-500/20 text-blue-500 rounded-lg text-xs"
                     >
                       <Edit size={14} />
                     </button>
@@ -449,7 +449,7 @@ const AdminManagement = () => {
                     <tr key={admin._id} className="border-b border-gray-800 hover:bg-dark-700/50">
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
+                          <div className="w-10 h-10 rounded-full bg-red-500/20 flex items-center justify-center">
                             <span className="text-blue-500 font-bold">{admin.firstName?.charAt(0)}</span>
                           </div>
                           <div>
@@ -734,7 +734,7 @@ const AdminManagement = () => {
               </button>
               <button
                 onClick={handleUpdateAdmin}
-                className="flex-1 py-2 bg-blue-500 text-white rounded-lg font-medium hover:bg-blue-600"
+                className="flex-1 py-2 bg-red-500 text-white rounded-lg font-medium hover:bg-red-600"
               >
                 Save Changes
               </button>

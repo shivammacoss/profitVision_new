@@ -1265,7 +1265,7 @@ const TradingPage = () => {
                     onClick={() => setActiveCategory(cat)}
                     className={`px-2 py-1 rounded text-xs font-medium transition-colors shrink-0 ${
                       activeCategory === cat 
-                        ? 'bg-blue-600 text-white' 
+                        ? 'bg-red-600 text-white' 
                         : 'text-gray-400 hover:text-white'
                     }`}
                   >
@@ -1353,7 +1353,7 @@ const TradingPage = () => {
                 onClick={() => handleTabClick(tab.symbol)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded cursor-pointer transition-colors ${
                   activeTab === tab.symbol 
-                    ? 'bg-blue-600 text-white' 
+                    ? 'bg-red-600 text-white' 
                     : isDarkMode ? 'bg-[#1a1a1a] text-gray-400 hover:bg-[#252525] hover:text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-900'
                 }`}
               >
@@ -1408,7 +1408,7 @@ const TradingPage = () => {
                 <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>One Click</span>
                 <button
                   onClick={() => setOneClickTrading(!oneClickTrading)}
-                  className={`w-10 h-5 rounded-full relative transition-colors ${oneClickTrading ? 'bg-blue-600' : (isDarkMode ? 'bg-gray-600' : 'bg-gray-400')}`}
+                  className={`w-10 h-5 rounded-full relative transition-colors ${oneClickTrading ? 'bg-red-600' : (isDarkMode ? 'bg-gray-600' : 'bg-gray-400')}`}
                 >
                   <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${oneClickTrading ? 'left-5' : 'left-0.5'}`} />
                 </button>
@@ -1436,7 +1436,7 @@ const TradingPage = () => {
                     <button 
                       onClick={() => executeMarketOrder('BUY')}
                       disabled={isExecutingTrade}
-                      className="w-8 h-8 rounded-full bg-blue-500 text-white text-sm font-bold hover:bg-blue-600 transition-colors disabled:opacity-50"
+                      className="w-8 h-8 rounded-full bg-red-500 text-white text-sm font-bold hover:bg-red-600 transition-colors disabled:opacity-50"
                     >
                       B
                     </button>
@@ -1511,7 +1511,7 @@ const TradingPage = () => {
                             <div className="flex items-center gap-1">
                               <button 
                                 onClick={() => openModifyModal(trade)}
-                                className="p-1.5 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 transition-colors"
+                                className="p-1.5 bg-red-500/20 text-blue-400 rounded hover:bg-red-500/30 transition-colors"
                                 title="Modify SL/TP"
                               >
                                 <Pencil size={12} />
@@ -1704,7 +1704,7 @@ const TradingPage = () => {
                     <button 
                       onClick={() => executeMarketOrder('BUY')}
                       disabled={isExecutingTrade}
-                      className="flex-1 rounded py-3 text-center transition-colors bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="flex-1 rounded py-3 text-center transition-colors bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <div className="text-white text-[10px] font-medium">BUY</div>
                       <div className="text-white font-mono text-lg font-bold">
@@ -1733,7 +1733,7 @@ const TradingPage = () => {
                       onClick={() => setSelectedSide('BUY')}
                       className={`flex-1 rounded py-1.5 text-center text-xs transition-colors ${
                         selectedSide === 'BUY' 
-                          ? 'bg-blue-500/20 border border-blue-500 text-blue-400' 
+                          ? 'bg-red-500/20 border border-blue-500 text-blue-400' 
                           : isDarkMode ? 'bg-[#1a1a1a] border border-gray-600 text-gray-400 hover:border-blue-500/50' : 'bg-gray-50 border border-gray-300 text-gray-600 hover:border-blue-500/50'
                       }`}
                     >
@@ -1893,7 +1893,7 @@ const TradingPage = () => {
                     disabled={isExecutingTrade}
                     className={`w-full py-3 rounded font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                       selectedSide === 'BUY' 
-                        ? 'bg-blue-600/20 border border-blue-600 hover:bg-blue-600/30 text-blue-400'
+                        ? 'bg-red-600/20 border border-blue-600 hover:bg-red-600/30 text-blue-400'
                         : 'bg-red-600/20 border border-red-600 hover:bg-red-600/30 text-red-400'
                     }`}
                   >
@@ -1918,10 +1918,10 @@ const TradingPage = () => {
                           className={`py-2 rounded text-xs font-medium transition-colors ${
                             pendingOrderType === type
                               ? type.includes('BUY') 
-                                ? 'bg-blue-600 text-white' 
+                                ? 'bg-red-600 text-white' 
                                 : 'bg-red-600 text-white'
                               : type.includes('BUY')
-                                ? isDarkMode ? 'bg-[#1a1a1a] border border-blue-500/30 text-blue-400 hover:bg-blue-500/10' : 'bg-gray-50 border border-blue-500/30 text-blue-600 hover:bg-blue-500/10'
+                                ? isDarkMode ? 'bg-[#1a1a1a] border border-blue-500/30 text-blue-400 hover:bg-red-500/10' : 'bg-gray-50 border border-blue-500/30 text-blue-600 hover:bg-red-500/10'
                                 : isDarkMode ? 'bg-[#1a1a1a] border border-red-500/30 text-red-400 hover:bg-red-500/10' : 'bg-gray-50 border border-red-500/30 text-red-600 hover:bg-red-500/10'
                           }`}
                         >
@@ -2059,7 +2059,7 @@ const TradingPage = () => {
                   <button 
                     onClick={executePendingOrder}
                     disabled={isExecutingTrade}
-                    className="w-full bg-blue-600/20 border border-blue-600 hover:bg-blue-600/30 text-blue-400 py-3 rounded font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-red-600/20 border border-blue-600 hover:bg-red-600/30 text-blue-400 py-3 rounded font-medium text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isExecutingTrade ? 'Placing...' : `Place ${pendingOrderType}`}
                   </button>

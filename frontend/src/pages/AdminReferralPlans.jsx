@@ -186,7 +186,7 @@ const AdminReferralPlans = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={addReferralLevel}
-              className="flex items-center gap-2 px-3 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors"
+              className="flex items-center gap-2 px-3 py-2 bg-red-500/20 text-blue-400 rounded-lg hover:bg-red-500/30 transition-colors"
             >
               <Plus className="w-4 h-4" />
               Add Level
@@ -251,7 +251,7 @@ const AdminReferralPlans = () => {
         </p>
         <div className="flex flex-wrap gap-2">
           {referralPlan?.levels.map((level) => (
-            <div key={level.level} className="px-3 py-2 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+            <div key={level.level} className="px-3 py-2 bg-red-500/10 border border-blue-500/30 rounded-lg">
               <span className="text-blue-400 font-medium">L{level.level}:</span>
               <span className="text-white ml-2">${level.amount}</span>
             </div>
@@ -277,7 +277,7 @@ const AdminReferralPlans = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={addJoiningLevel}
-              className="flex items-center gap-2 px-3 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors"
+              className="flex items-center gap-2 px-3 py-2 bg-red-500/20 text-blue-400 rounded-lg hover:bg-red-500/30 transition-colors"
             >
               <Plus className="w-4 h-4" />
               Add Level
@@ -396,7 +396,7 @@ const AdminReferralPlans = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <div className="bg-dark-800 rounded-xl p-4 border border-gray-800">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-500/20 rounded-lg">
+                <div className="p-2 bg-red-500/20 rounded-lg">
                   <TrendingUp className="w-5 h-5 text-blue-400" />
                 </div>
                 <div>

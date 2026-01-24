@@ -389,7 +389,7 @@ const ChatBot = () => {
                     {msg.showHumanOption && !waitingForHuman && (
                       <button
                         onClick={connectToHuman}
-                        className="mt-2 flex items-center gap-2 px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg transition-colors"
+                        className="mt-2 flex items-center gap-2 px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-sm rounded-lg transition-colors"
                       >
                         <Headphones size={16} />
                         Connect to Human Support
@@ -432,7 +432,7 @@ const ChatBot = () => {
                     onClick={() => handleQuickAction(action)}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                       action.id === 'human'
-                        ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
+                        ? 'bg-red-500/20 text-blue-400 hover:bg-red-500/30'
                         : isDarkMode 
                           ? 'bg-dark-700 text-gray-300 hover:bg-dark-600' 
                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'

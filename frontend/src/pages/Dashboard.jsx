@@ -110,6 +110,11 @@ const Dashboard = () => {
       fetchUserAccounts()
       fetchKycStatus()
     }
+    // Clear isNewUser flag after showing welcome message
+    const timer = setTimeout(() => {
+      localStorage.removeItem('isNewUser')
+    }, 3000)
+    return () => clearTimeout(timer)
   }, [user._id])
 
   const fetchKycStatus = async () => {
@@ -199,43 +204,19 @@ const Dashboard = () => {
     }
   }
 
-  // Fetch crypto news
+  // Fetch crypto news - using static data to avoid API errors
   useEffect(() => {
-    const fetchNews = async () => {
-      setNewsLoading(true)
-      try {
-        // Using CoinGecko's free API for crypto news (no API key needed)
-        const response = await fetch('https://api.coingecko.com/api/v3/news')
-        if (response.ok) {
-          const data = await response.json()
-          setNews(data.data?.slice(0, 6) || [])
-        } else {
-          // Fallback sample news if API fails
-          setNews([
-            { title: 'Bitcoin Surges Past $100K Milestone', description: 'BTC reaches new all-time high amid institutional buying', updated_at: Date.now(), url: '#' },
-            { title: 'Ethereum 2.0 Staking Rewards Increase', description: 'ETH staking yields hit 5.2% APY', updated_at: Date.now() - 3600000, url: '#' },
-            { title: 'SEC Approves New Crypto ETFs', description: 'Multiple spot crypto ETFs get regulatory approval', updated_at: Date.now() - 7200000, url: '#' },
-            { title: 'DeFi Total Value Locked Hits $200B', description: 'Decentralized finance continues rapid growth', updated_at: Date.now() - 10800000, url: '#' },
-            { title: 'Major Bank Launches Crypto Custody', description: 'Traditional finance embraces digital assets', updated_at: Date.now() - 14400000, url: '#' },
-            { title: 'NFT Market Shows Recovery Signs', description: 'Trading volume up 40% month-over-month', updated_at: Date.now() - 18000000, url: '#' },
-          ])
-        }
-      } catch (error) {
-        // Fallback sample news
-        setNews([
-          { title: 'Bitcoin Surges Past $100K Milestone', description: 'BTC reaches new all-time high amid institutional buying', updated_at: Date.now(), url: '#' },
-          { title: 'Ethereum 2.0 Staking Rewards Increase', description: 'ETH staking yields hit 5.2% APY', updated_at: Date.now() - 3600000, url: '#' },
-          { title: 'SEC Approves New Crypto ETFs', description: 'Multiple spot crypto ETFs get regulatory approval', updated_at: Date.now() - 7200000, url: '#' },
-          { title: 'DeFi Total Value Locked Hits $200B', description: 'Decentralized finance continues rapid growth', updated_at: Date.now() - 10800000, url: '#' },
-          { title: 'Major Bank Launches Crypto Custody', description: 'Traditional finance embraces digital assets', updated_at: Date.now() - 14400000, url: '#' },
-          { title: 'NFT Market Shows Recovery Signs', description: 'Trading volume up 40% month-over-month', updated_at: Date.now() - 18000000, url: '#' },
-        ])
-      }
-      setNewsLoading(false)
-    }
-    fetchNews()
-    const interval = setInterval(fetchNews, 300000) // Refresh every 5 minutes
-    return () => clearInterval(interval)
+    setNewsLoading(true)
+    // Static news data (APIs require paid keys)
+    setNews([
+      { title: 'Bitcoin Surges Past $100K Milestone', description: 'BTC reaches new all-time high amid institutional buying', updated_at: Date.now(), url: '#' },
+      { title: 'Ethereum 2.0 Staking Rewards Increase', description: 'ETH staking yields hit 5.2% APY', updated_at: Date.now() - 3600000, url: '#' },
+      { title: 'SEC Approves New Crypto ETFs', description: 'Multiple spot crypto ETFs get regulatory approval', updated_at: Date.now() - 7200000, url: '#' },
+      { title: 'DeFi Total Value Locked Hits $200B', description: 'Decentralized finance continues rapid growth', updated_at: Date.now() - 10800000, url: '#' },
+      { title: 'Major Bank Launches Crypto Custody', description: 'Traditional finance embraces digital assets', updated_at: Date.now() - 14400000, url: '#' },
+      { title: 'NFT Market Shows Recovery Signs', description: 'Trading volume up 40% month-over-month', updated_at: Date.now() - 18000000, url: '#' },
+    ])
+    setNewsLoading(false)
   }, [])
 
   // Economic calendar events
@@ -256,39 +237,19 @@ const Dashboard = () => {
     setEventsLoading(false)
   }, [])
 
-  // Fetch market news from free API
+  // Market news - using static data to avoid API errors
   useEffect(() => {
-    const fetchMarketNews = async () => {
-      try {
-        // Using NewsData.io free tier or fallback to sample data
-        const response = await fetch('https://newsdata.io/api/1/news?apikey=pub_63aboreal&q=forex%20OR%20currency%20OR%20trading&language=en&category=business')
-        if (response.ok) {
-          const data = await response.json()
-          if (data.results && data.results.length > 0) {
-            setMarketNews(data.results.slice(0, 10))
-            return
-          }
-        }
-      } catch (error) {
-        console.log('Using fallback news data')
-      }
-      
-      // Fallback sample news with images
-      setMarketNews([
-        { title: 'EUR/USD Breaks Key Resistance Level', description: 'Euro surges against dollar amid ECB hawkish stance', image_url: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400', pubDate: new Date().toISOString(), link: '#' },
-        { title: 'Fed Signals Potential Rate Cuts in 2026', description: 'Federal Reserve hints at monetary policy shift', image_url: 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=400', pubDate: new Date().toISOString(), link: '#' },
-        { title: 'GBP/JPY Volatility Spikes on BOJ News', description: 'Bank of Japan policy decision creates market turbulence', image_url: 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=400', pubDate: new Date().toISOString(), link: '#' },
-        { title: 'Gold Prices Hit New Record High', description: 'Safe-haven demand drives precious metals rally', image_url: 'https://images.unsplash.com/photo-1610375461246-83df859d849d?w=400', pubDate: new Date().toISOString(), link: '#' },
-        { title: 'Oil Markets React to OPEC+ Decision', description: 'Crude prices fluctuate on production cut news', image_url: 'https://images.unsplash.com/photo-1518186285589-2f7649de83e0?w=400', pubDate: new Date().toISOString(), link: '#' },
-        { title: 'USD/CHF Tests Critical Support Zone', description: 'Swiss franc strengthens on risk-off sentiment', image_url: 'https://images.unsplash.com/photo-1642790106117-e829e14a795f?w=400', pubDate: new Date().toISOString(), link: '#' },
-        { title: 'AUD/USD Rallies on China Data', description: 'Australian dollar gains on positive trade figures', image_url: 'https://images.unsplash.com/photo-1523961131990-5ea7c61b2107?w=400', pubDate: new Date().toISOString(), link: '#' },
-        { title: 'Crypto Markets Show Correlation with Forex', description: 'Bitcoin movements mirror dollar index trends', image_url: 'https://images.unsplash.com/photo-1518546305927-5a555bb7020d?w=400', pubDate: new Date().toISOString(), link: '#' },
-      ])
-    }
-    
-    fetchMarketNews()
-    const interval = setInterval(fetchMarketNews, 600000) // Refresh every 10 minutes
-    return () => clearInterval(interval)
+    // Static news data (APIs require paid keys)
+    setMarketNews([
+      { title: 'EUR/USD Breaks Key Resistance Level', description: 'Euro surges against dollar amid ECB hawkish stance', image_url: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=400', pubDate: new Date().toISOString(), link: '#' },
+      { title: 'Fed Signals Potential Rate Cuts in 2026', description: 'Federal Reserve hints at monetary policy shift', image_url: 'https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?w=400', pubDate: new Date().toISOString(), link: '#' },
+      { title: 'GBP/JPY Volatility Spikes on BOJ News', description: 'Bank of Japan policy decision creates market turbulence', image_url: 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?w=400', pubDate: new Date().toISOString(), link: '#' },
+      { title: 'Gold Prices Hit New Record High', description: 'Safe-haven demand drives precious metals rally', image_url: 'https://images.unsplash.com/photo-1610375461246-83df859d849d?w=400', pubDate: new Date().toISOString(), link: '#' },
+      { title: 'Oil Markets React to OPEC+ Decision', description: 'Crude prices fluctuate on production cut news', image_url: 'https://images.unsplash.com/photo-1518186285589-2f7649de83e0?w=400', pubDate: new Date().toISOString(), link: '#' },
+      { title: 'USD/CHF Tests Critical Support Zone', description: 'Swiss franc strengthens on risk-off sentiment', image_url: 'https://images.unsplash.com/photo-1642790106117-e829e14a795f?w=400', pubDate: new Date().toISOString(), link: '#' },
+      { title: 'AUD/USD Rallies on China Data', description: 'Australian dollar gains on positive trade figures', image_url: 'https://images.unsplash.com/photo-1523961131990-5ea7c61b2107?w=400', pubDate: new Date().toISOString(), link: '#' },
+      { title: 'Crypto Markets Show Correlation with Forex', description: 'Bitcoin movements mirror dollar index trends', image_url: 'https://images.unsplash.com/photo-1518546305927-5a555bb7020d?w=400', pubDate: new Date().toISOString(), link: '#' },
+    ])
   }, [])
 
   // Auto-slide news
@@ -420,61 +381,60 @@ const Dashboard = () => {
 
   // Load TradingView widgets
   useEffect(() => {
-    // TradingView Economic Calendar Widget
-    if (economicCalendarRef.current) {
-      economicCalendarRef.current.innerHTML = ''
-      const script = document.createElement('script')
-      script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-events.js'
-      script.async = true
-      script.innerHTML = JSON.stringify({
-        "colorTheme": "dark",
-        "isTransparent": true,
-        "width": "100%",
-        "height": "100%",
-        "locale": "en",
-        "importanceFilter": "0,1",
-        "countryFilter": "us,eu,gb,jp,cn"
-      })
-      economicCalendarRef.current.appendChild(script)
+    const loadWidget = (ref, scriptSrc, config) => {
+      if (!ref.current) return
+      try {
+        ref.current.innerHTML = ''
+        const container = document.createElement('div')
+        container.className = 'tradingview-widget-container'
+        const widgetDiv = document.createElement('div')
+        widgetDiv.className = 'tradingview-widget-container__widget'
+        container.appendChild(widgetDiv)
+        const script = document.createElement('script')
+        script.src = scriptSrc
+        script.async = true
+        script.innerHTML = JSON.stringify(config)
+        container.appendChild(script)
+        ref.current.appendChild(container)
+      } catch (e) {
+        // Silently fail if widget can't load
+      }
     }
+
+    // TradingView Economic Calendar Widget
+    loadWidget(economicCalendarRef, 'https://s3.tradingview.com/external-embedding/embed-widget-events.js', {
+      "colorTheme": isDarkMode ? "dark" : "light",
+      "isTransparent": true,
+      "width": "100%",
+      "height": "100%",
+      "locale": "en",
+      "importanceFilter": "0,1",
+      "countryFilter": "us,eu,gb,jp,cn"
+    })
 
     // TradingView Forex Heatmap Widget
-    if (forexHeatmapRef.current) {
-      forexHeatmapRef.current.innerHTML = ''
-      const script = document.createElement('script')
-      script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-forex-heat-map.js'
-      script.async = true
-      script.innerHTML = JSON.stringify({
-        "width": "100%",
-        "height": "100%",
-        "currencies": ["EUR", "USD", "JPY", "GBP", "CHF", "AUD", "CAD", "NZD"],
-        "isTransparent": true,
-        "colorTheme": "dark",
-        "locale": "en"
-      })
-      forexHeatmapRef.current.appendChild(script)
-    }
+    loadWidget(forexHeatmapRef, 'https://s3.tradingview.com/external-embedding/embed-widget-forex-heat-map.js', {
+      "width": "100%",
+      "height": "100%",
+      "currencies": ["EUR", "USD", "JPY", "GBP", "CHF", "AUD", "CAD", "NZD"],
+      "isTransparent": true,
+      "colorTheme": isDarkMode ? "dark" : "light",
+      "locale": "en"
+    })
 
     // TradingView Forex Screener Widget
-    if (forexScreenerRef.current) {
-      forexScreenerRef.current.innerHTML = ''
-      const script = document.createElement('script')
-      script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-screener.js'
-      script.async = true
-      script.innerHTML = JSON.stringify({
-        "width": "100%",
-        "height": "100%",
-        "defaultColumn": "overview",
-        "defaultScreen": "general",
-        "market": "forex",
-        "showToolbar": true,
-        "colorTheme": "dark",
-        "locale": "en",
-        "isTransparent": true
-      })
-      forexScreenerRef.current.appendChild(script)
-    }
-  }, [])
+    loadWidget(forexScreenerRef, 'https://s3.tradingview.com/external-embedding/embed-widget-screener.js', {
+      "width": "100%",
+      "height": "100%",
+      "defaultColumn": "overview",
+      "defaultScreen": "general",
+      "market": "forex",
+      "showToolbar": true,
+      "colorTheme": isDarkMode ? "dark" : "light",
+      "locale": "en",
+      "isTransparent": true
+    })
+  }, [isDarkMode])
 
   return (
     <div className={`h-screen flex transition-colors duration-300 ${isDarkMode ? 'bg-dark-900' : 'bg-gray-100'}`}>
@@ -544,8 +504,8 @@ const Dashboard = () => {
         {/* Welcome Header */}
         <header className={`flex items-center justify-between px-6 py-5 border-b ${isDarkMode ? 'border-gray-800 bg-gradient-to-r from-dark-800 to-dark-900' : 'border-gray-200 bg-gradient-to-r from-gray-50 to-white'}`}>
           <div>
-            <p className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>Welcome back,</p>
-            <h1 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{user.name || user.email || 'Trader'}</h1>
+            <p className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>{localStorage.getItem('isNewUser') === 'true' ? 'Welcome,' : 'Welcome back,'}</p>
+            <h1 className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{user.firstName || user.name || 'Trader'}</h1>
           </div>
           <div className="flex items-center gap-3">
             <div className={`px-3 py-1.5 rounded-full ${isDarkMode ? 'bg-accent-green/20' : 'bg-green-100'}`}>
@@ -560,7 +520,7 @@ const Dashboard = () => {
             !kycStatus 
               ? 'bg-yellow-500/10 border-yellow-500/30' 
               : kycStatus.status?.toUpperCase() === 'PENDING' 
-                ? 'bg-blue-500/10 border-blue-500/30'
+                ? 'bg-red-500/10 border-blue-500/30'
                 : 'bg-red-500/10 border-red-500/30'
           }`}>
             <div className="flex items-center gap-3">
@@ -568,7 +528,7 @@ const Dashboard = () => {
                 !kycStatus 
                   ? 'bg-yellow-500/20' 
                   : kycStatus.status?.toUpperCase() === 'PENDING' 
-                    ? 'bg-blue-500/20'
+                    ? 'bg-red-500/20'
                     : 'bg-red-500/20'
               }`}>
                 {!kycStatus ? (
@@ -626,7 +586,7 @@ const Dashboard = () => {
             {/* Total Trades Box */}
             <div className={`rounded-xl p-5 border ${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'}`}>
               <div className="flex items-center justify-between mb-3">
-                <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center">
                   <TrendingUp size={20} className="text-blue-500" />
                 </div>
                 <span className="text-gray-500 text-xs">{userAccounts.length} accounts</span>
@@ -670,7 +630,7 @@ const Dashboard = () => {
             <div className={`rounded-xl p-5 border ${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'}`}>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                  <div className="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center">
                     <Newspaper size={20} className="text-blue-500" />
                   </div>
                   <div>
@@ -709,7 +669,7 @@ const Dashboard = () => {
                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                             <div className="absolute bottom-3 left-3 right-3">
                               <div className="flex items-center gap-2 mb-1">
-                                <span className="text-xs px-2 py-0.5 rounded bg-blue-500/80 text-white font-medium">
+                                <span className="text-xs px-2 py-0.5 rounded bg-red-500/80 text-white font-medium">
                                   {item.category || 'Markets'}
                                 </span>
                                 <span className="text-xs text-white/80">{item.time}</span>
@@ -720,7 +680,7 @@ const Dashboard = () => {
                         <div className="p-4">
                           {!item.image && (
                             <div className="flex items-center justify-between mb-2">
-                              <span className={`text-xs px-2 py-0.5 rounded ${isDarkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>
+                              <span className={`text-xs px-2 py-0.5 rounded ${isDarkMode ? 'bg-red-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>
                                 {item.category || 'Markets'}
                               </span>
                               <span className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>{item.time}</span>

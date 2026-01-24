@@ -170,7 +170,7 @@ const AdminOverview = () => {
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center">
                   <Users size={18} className="text-blue-500" />
                 </div>
                 <span className="text-gray-400">New Users This Week</span>

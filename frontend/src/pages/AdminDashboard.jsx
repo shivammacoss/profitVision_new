@@ -150,7 +150,7 @@ const AdminDashboard = () => {
               <div className="grid grid-cols-4 gap-4 mb-6">
                 <div className="bg-dark-800 rounded-xl p-5 border border-gray-800">
                   <div className="flex items-center justify-between mb-3">
-                    <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                    <div className="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center">
                       <Users size={20} className="text-blue-500" />
                     </div>
                   </div>

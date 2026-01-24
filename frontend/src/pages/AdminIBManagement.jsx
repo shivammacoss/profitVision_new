@@ -480,7 +480,7 @@ const AdminIBManagement = () => {
                     <tr key={ib._id} className="hover:bg-dark-700/50">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center">
+                          <div className="w-8 h-8 bg-red-500/20 rounded-full flex items-center justify-center">
                             <span className="text-blue-400 font-medium text-sm">{ib.firstName?.charAt(0)}</span>
                           </div>
                           <div>
@@ -654,7 +654,7 @@ const AdminIBManagement = () => {
               <div className="flex items-center gap-3">
                 <button
                   onClick={addReferralLevel}
-                  className="flex items-center gap-2 px-3 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30"
+                  className="flex items-center gap-2 px-3 py-2 bg-red-500/20 text-blue-400 rounded-lg hover:bg-red-500/30"
                 >
                   <Plus size={16} /> Add Level
                 </button>
@@ -709,7 +709,7 @@ const AdminIBManagement = () => {
             <h3 className="text-lg font-medium text-white mb-4">Commission Preview (1 lot trade)</h3>
             <div className="flex flex-wrap gap-2">
               {referralPlan.levels.map((level) => (
-                <div key={level.level} className="px-3 py-2 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                <div key={level.level} className="px-3 py-2 bg-red-500/10 border border-blue-500/30 rounded-lg">
                   <span className="text-blue-400 font-medium">L{level.level}:</span>
                   <span className="text-white ml-2">${level.amount}</span>
                 </div>
@@ -733,7 +733,7 @@ const AdminIBManagement = () => {
               <div className="flex items-center gap-3">
                 <button
                   onClick={addJoiningLevel}
-                  className="flex items-center gap-2 px-3 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30"
+                  className="flex items-center gap-2 px-3 py-2 bg-red-500/20 text-blue-400 rounded-lg hover:bg-red-500/30"
                 >
                   <Plus size={16} /> Add Level
                 </button>

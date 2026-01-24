@@ -29,6 +29,10 @@ export default {
           sell: 'var(--theme-sellColor, #EF4444)',
           profit: 'var(--theme-profitColor, #10B981)',
           loss: 'var(--theme-lossColor, #EF4444)',
+        },
+        btn: {
+          DEFAULT: 'var(--color-button, #EF4444)',
+          hover: 'var(--color-button-hover, #DC2626)',
         }
       },
       animation: {

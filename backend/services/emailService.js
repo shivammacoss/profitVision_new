@@ -3,12 +3,16 @@ import nodemailer from 'nodemailer'
 // Create transporter with SMTP settings
 const createTransporter = () => {
   return nodemailer.createTransport({
+    service: 'gmail',
     host: process.env.SMTP_HOST || 'smtp.gmail.com',
     port: parseInt(process.env.SMTP_PORT) || 587,
-    secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+    secure: false,
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS
+    },
+    tls: {
+      rejectUnauthorized: false
     }
   })
 }
@@ -212,16 +216,15 @@ export const sendAdminEmail = async (to, subject, htmlContent) => {
   }
 }
 
-// Send password reset email
-export const sendPasswordResetEmail = async (email, resetToken, name) => {
+// Send password reset OTP email
+export const sendPasswordResetOTP = async (email, otp, name) => {
   try {
     const transporter = createTransporter()
-    const resetLink = `${process.env.FRONTEND_URL || 'https://trade.profitvisionfx.com'}/user/reset-password?token=${resetToken}`
     
     const mailOptions = {
       from: `"ProfitVisionFX" <${process.env.SMTP_USER}>`,
       to: email,
-      subject: 'Reset Your Password - ProfitVisionFX',
+      subject: 'Password Reset OTP - ProfitVisionFX',
       html: `
         <!DOCTYPE html>
         <html>
@@ -242,19 +245,17 @@ export const sendPasswordResetEmail = async (email, resetToken, name) => {
                 <h2 style="color: #ffffff; font-size: 24px; margin-bottom: 10px;">Reset Your Password</h2>
                 <p style="color: #9ca3af; font-size: 16px; margin-bottom: 30px;">
                   Hi ${name || 'there'},<br>
-                  We received a request to reset your password.
+                  Use the OTP below to reset your password.
                 </p>
                 
-                <!-- CTA Button -->
-                <div style="margin: 30px 0;">
-                  <a href="${resetLink}" 
-                     style="display: inline-block; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: #ffffff; text-decoration: none; padding: 15px 40px; border-radius: 8px; font-weight: bold; font-size: 16px;">
-                    Reset Password
-                  </a>
+                <!-- OTP Box -->
+                <div style="background: #0f0f23; border-radius: 12px; padding: 25px; margin: 30px 0;">
+                  <p style="color: #9ca3af; font-size: 14px; margin: 0 0 10px 0;">Your password reset code:</p>
+                  <div style="font-size: 36px; font-weight: bold; color: #ef4444; letter-spacing: 8px;">${otp}</div>
                 </div>
                 
                 <p style="color: #6b7280; font-size: 14px;">
-                  This link will expire in <strong style="color: #ef4444;">1 hour</strong>.
+                  This code will expire in <strong style="color: #ef4444;">10 minutes</strong>.
                 </p>
                 <p style="color: #6b7280; font-size: 14px;">
                   If you didn't request this, please ignore this email.
@@ -275,10 +276,10 @@ export const sendPasswordResetEmail = async (email, resetToken, name) => {
     }
     
     await transporter.sendMail(mailOptions)
-    return { success: true, message: 'Password reset email sent successfully' }
+    return { success: true, message: 'Password reset OTP sent successfully' }
   } catch (error) {
-    console.error('Error sending password reset email:', error)
-    return { success: false, message: 'Failed to send password reset email', error: error.message }
+    console.error('Error sending password reset OTP:', error)
+    return { success: false, message: 'Failed to send password reset OTP', error: error.message }
   }
 }
 
@@ -287,5 +288,5 @@ export default {
   sendOTPEmail,
   sendWelcomeEmail,
   sendAdminEmail,
-  sendPasswordResetEmail
+  sendPasswordResetOTP
 }

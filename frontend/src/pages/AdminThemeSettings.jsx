@@ -194,7 +194,7 @@ const AdminThemeSettings = () => {
     },
     {
       title: 'Button Colors',
-      colors: ['buttonPrimary', 'buttonSecondary', 'buttonDanger']
+      colors: ['buttonColor', 'buttonHoverColor', 'buttonPrimary', 'buttonSecondary', 'buttonDanger']
     }
   ]
 
@@ -271,7 +271,7 @@ const AdminThemeSettings = () => {
           </div>
           <button 
             onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+            className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
           >
             <Plus size={16} />
             Create Theme
@@ -327,7 +327,7 @@ const AdminThemeSettings = () => {
                   )}
                   <button
                     onClick={() => openEditModal(theme)}
-                    className="flex-1 py-2 bg-blue-500/20 text-blue-500 rounded-lg hover:bg-blue-500/30 text-sm flex items-center justify-center gap-1"
+                    className="flex-1 py-2 bg-red-500/20 text-blue-500 rounded-lg hover:bg-red-500/30 text-sm flex items-center justify-center gap-1"
                   >
                     <Eye size={14} />
                     Edit
@@ -376,7 +376,7 @@ const AdminThemeSettings = () => {
               </button>
               <button
                 onClick={createTheme}
-                className="flex-1 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                className="flex-1 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600"
               >
                 Create Theme
               </button>

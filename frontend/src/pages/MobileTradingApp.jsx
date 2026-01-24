@@ -558,7 +558,7 @@ const MobileTradingApp = () => {
         <div className="flex items-center gap-3">
           <img src={logo} alt="ProfitVisionFX" className="h-24 object-contain" />
           <div>
-            <p className={`${colors.textMuted} text-xs`}>Welcome back,</p>
+            <p className={`${colors.textMuted} text-xs`}>{localStorage.getItem('isNewUser') === 'true' ? 'Welcome,' : 'Welcome back,'}</p>
             <h1 className={`${colors.textPrimary} text-lg font-bold`}>{user?.firstName || 'Trader'}</h1>
           </div>
         </div>
@@ -636,7 +636,7 @@ const MobileTradingApp = () => {
           <div className="flex gap-2 mt-3">
             <button 
               onClick={() => navigate('/wallet')}
-              className={`flex-1 flex items-center justify-center gap-1 py-2 ${isDarkMode ? 'bg-accent-green text-black' : 'bg-blue-600 text-white'} rounded-lg text-sm font-medium`}
+              className={`flex-1 flex items-center justify-center gap-1 py-2 ${isDarkMode ? 'bg-accent-green text-black' : 'bg-red-600 text-white'} rounded-lg text-sm font-medium`}
             >
               <ArrowDownCircle size={16} />
               Deposit
@@ -776,7 +776,7 @@ const MobileTradingApp = () => {
               onClick={() => setActiveCategory(cat)}
               className={`px-4 py-1.5 rounded-full text-sm whitespace-nowrap ${
                 activeCategory === cat 
-                  ? (isDarkMode ? 'bg-accent-green text-black' : 'bg-blue-600 text-white') 
+                  ? (isDarkMode ? 'bg-accent-green text-black' : 'bg-red-600 text-white') 
                   : `${colors.bgCardAlt} ${colors.textSecondary}`
               }`}
             >
@@ -927,7 +927,7 @@ const MobileTradingApp = () => {
                           <div className="flex items-center gap-2">
                             <span className={`${colors.textPrimary} font-medium text-sm`}>{trade.symbol}</span>
                             <span className={`px-1.5 py-0.5 rounded text-[10px] ${
-                              trade.side === 'BUY' ? 'bg-blue-500/20 text-blue-500' : 'bg-red-500/20 text-red-500'
+                              trade.side === 'BUY' ? 'bg-red-500/20 text-blue-500' : 'bg-red-500/20 text-red-500'
                             }`}>
                               {trade.side}
                             </span>
@@ -939,7 +939,7 @@ const MobileTradingApp = () => {
                         {/* Pen icon for quick SL/TP edit */}
                         <button
                           onClick={(e) => { e.stopPropagation(); openModifyModal(trade) }}
-                          className="p-2 bg-blue-500/20 rounded-lg active:bg-blue-500/30"
+                          className="p-2 bg-red-500/20 rounded-lg active:bg-red-500/30"
                         >
                           <Pencil size={14} className="text-blue-400" />
                         </button>
@@ -992,7 +992,7 @@ const MobileTradingApp = () => {
                         <div className="flex gap-2">
                           <button
                             onClick={(e) => { e.stopPropagation(); openModifyModal(trade) }}
-                            className="flex-1 py-2.5 bg-blue-500 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2"
+                            className="flex-1 py-2.5 bg-red-500 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2"
                           >
                             <Pencil size={14} />
                             Modify SL/TP
@@ -1030,7 +1030,7 @@ const MobileTradingApp = () => {
                     <div className="flex items-center gap-2">
                       <span className={`${colors.textPrimary} font-medium`}>{order.symbol}</span>
                       <span className={`px-1.5 py-0.5 rounded text-[10px] ${
-                        order.side === 'BUY' ? 'bg-blue-500/20 text-blue-500' : 'bg-red-500/20 text-red-500'
+                        order.side === 'BUY' ? 'bg-red-500/20 text-blue-500' : 'bg-red-500/20 text-red-500'
                       }`}>
                         {order.orderType}
                       </span>
@@ -1223,7 +1223,7 @@ const MobileTradingApp = () => {
               setOrderSide('BUY')
               setShowOrderPanel(true)
             }}
-            className="flex-1 py-3 bg-blue-500 text-white font-semibold rounded-xl"
+            className="flex-1 py-3 bg-red-500 text-white font-semibold rounded-xl"
           >
             BUY
           </button>
@@ -1322,7 +1322,7 @@ const MobileTradingApp = () => {
                 <button
                   onClick={() => { setOrderSide('BUY'); executeOrder() }}
                   disabled={isExecuting}
-                  className="flex-1 py-3 bg-blue-600 rounded-xl disabled:opacity-50"
+                  className="flex-1 py-3 bg-red-600 rounded-xl disabled:opacity-50"
                 >
                   <p className="text-white text-xs">BUY</p>
                   <p className="text-white text-lg font-bold">
@@ -1345,7 +1345,7 @@ const MobileTradingApp = () => {
                   onClick={() => setOrderType('market')}
                   className={`flex-1 py-2 rounded-lg text-sm font-medium ${
                     orderType === 'market' 
-                      ? (isDarkMode ? 'bg-accent-green text-black' : 'bg-blue-600 text-white') 
+                      ? (isDarkMode ? 'bg-accent-green text-black' : 'bg-red-600 text-white') 
                       : `${colors.bgCardAlt} ${colors.textSecondary}`
                   }`}
                 >
@@ -1355,7 +1355,7 @@ const MobileTradingApp = () => {
                   onClick={() => setOrderType('pending')}
                   className={`flex-1 py-2 rounded-lg text-sm font-medium ${
                     orderType === 'pending' 
-                      ? (isDarkMode ? 'bg-accent-green text-black' : 'bg-blue-600 text-white') 
+                      ? (isDarkMode ? 'bg-accent-green text-black' : 'bg-red-600 text-white') 
                       : `${colors.bgCardAlt} ${colors.textSecondary}`
                   }`}
                 >
@@ -1424,7 +1424,7 @@ const MobileTradingApp = () => {
                 <button
                   onClick={() => { setOrderSide('BUY'); executeOrder() }}
                   disabled={isExecuting}
-                  className="flex-1 py-4 bg-blue-500 text-white font-semibold rounded-xl disabled:opacity-50"
+                  className="flex-1 py-4 bg-red-500 text-white font-semibold rounded-xl disabled:opacity-50"
                 >
                   {isExecuting ? 'Executing...' : 'BUY'}
                 </button>

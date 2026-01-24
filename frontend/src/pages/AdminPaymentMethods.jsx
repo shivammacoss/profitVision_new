@@ -244,7 +244,7 @@ const AdminPaymentMethods = () => {
                       onClick={() => setFormData({ ...formData, type })}
                       className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border transition-colors ${
                         formData.type === type 
-                          ? 'bg-blue-500 text-white border-blue-500' 
+                          ? 'bg-red-500 text-white border-blue-500' 
                           : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
                       }`}
                     >
@@ -306,7 +306,7 @@ const AdminPaymentMethods = () => {
 
             <div className="flex gap-3 mt-6">
               <button onClick={() => { setShowModal(false); resetForm(); }} className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-lg hover:bg-gray-300">Cancel</button>
-              <button onClick={handleSubmit} className="flex-1 bg-blue-500 text-white font-medium py-3 rounded-lg hover:bg-blue-600">{editingMethod ? 'Update' : 'Create'}</button>
+              <button onClick={handleSubmit} className="flex-1 bg-red-500 text-white font-medium py-3 rounded-lg hover:bg-red-600">{editingMethod ? 'Update' : 'Create'}</button>
             </div>
           </div>
         </div>

@@ -70,6 +70,9 @@ const WalletPage = () => {
   const [cryptoLoading, setCryptoLoading] = useState(false)
   const [cryptoPaymentUrl, setCryptoPaymentUrl] = useState(null)
   const [paymentGatewaySettings, setPaymentGatewaySettings] = useState(null)
+  const [userBankAccounts, setUserBankAccounts] = useState([])
+  const [selectedBankAccount, setSelectedBankAccount] = useState(null)
+  const [showNoBankWarning, setShowNoBankWarning] = useState(false)
 
   const user = JSON.parse(localStorage.getItem('user') || '{}')
 
@@ -134,11 +137,23 @@ const WalletPage = () => {
       fetchWallet()
       fetchTransactions()
       fetchKycStatus()
+      fetchUserBankAccounts()
     }
     fetchPaymentMethods()
     fetchCurrencies()
     fetchPaymentGatewaySettings()
   }, [user._id])
+
+  // Fetch user's saved bank accounts for withdrawal
+  const fetchUserBankAccounts = async () => {
+    try {
+      const res = await fetch(`${API_URL}/payment-methods/user-banks/${user._id}`)
+      const data = await res.json()
+      setUserBankAccounts(data.accounts || [])
+    } catch (error) {
+      console.error('Error fetching user bank accounts:', error)
+    }
+  }
 
   // Fetch payment gateway settings to check if crypto is enabled
   const fetchPaymentGatewaySettings = async () => {
@@ -395,12 +410,19 @@ const WalletPage = () => {
       return
     }
 
+    // Check if user has any approved bank accounts
+    const approvedAccounts = userBankAccounts.filter(acc => acc.status === 'APPROVED')
+    if (approvedAccounts.length === 0) {
+      setShowNoBankWarning(true)
+      return
+    }
+
     if (!amount || parseFloat(amount) <= 0) {
       setError('Please enter a valid amount')
       return
     }
-    if (!selectedPaymentMethod) {
-      setError('Please select a payment method')
+    if (!selectedBankAccount) {
+      setError('Please select a bank account for withdrawal')
       return
     }
     if (wallet && parseFloat(amount) > wallet.balance) {
@@ -415,7 +437,15 @@ const WalletPage = () => {
         body: JSON.stringify({
           userId: user._id,
           amount: parseFloat(amount),
-          paymentMethod: selectedPaymentMethod.type
+          paymentMethod: selectedBankAccount.type,
+          bankAccountId: selectedBankAccount._id,
+          bankDetails: {
+            bankName: selectedBankAccount.bankName,
+            accountNumber: selectedBankAccount.accountNumber,
+            accountHolderName: selectedBankAccount.accountHolderName,
+            ifscCode: selectedBankAccount.ifscCode,
+            upiId: selectedBankAccount.upiId
+          }
         })
       })
       const data = await res.json()
@@ -424,7 +454,7 @@ const WalletPage = () => {
         setSuccess('Withdrawal request submitted successfully!')
         setShowWithdrawModal(false)
         setAmount('')
-        setSelectedPaymentMethod(null)
+        setSelectedBankAccount(null)
         fetchWallet()
         fetchTransactions()
         setTimeout(() => setSuccess(''), 3000)
@@ -949,7 +979,7 @@ const WalletPage = () => {
                 onClick={() => {
                   setShowWithdrawModal(false)
                   setAmount('')
-                  setSelectedPaymentMethod(null)
+                  setSelectedBankAccount(null)
                   setError('')
                 }}
                 className="text-gray-400 hover:text-white"
@@ -958,13 +988,13 @@ const WalletPage = () => {
               </button>
             </div>
 
-            <div className={`mb-2 p-3 ${isDarkMode ? 'bg-dark-700' : 'bg-gray-100'} rounded-lg`}>
+            <div className={`mb-4 p-3 ${isDarkMode ? 'bg-dark-700' : 'bg-gray-100'} rounded-lg`}>
               <p className="text-gray-500 text-sm">Available Balance</p>
               <p className={`${isDarkMode ? 'text-white' : 'text-gray-900'} text-xl font-bold`}>${wallet?.balance?.toLocaleString() || '0.00'}</p>
             </div>
 
             <div className="mb-4">
-              <label className="block text-gray-500 text-sm mb-2">Amount</label>
+              <label className="block text-gray-500 text-sm mb-2">Amount (USD)</label>
               <input
                 type="number"
                 value={amount}
@@ -975,23 +1005,57 @@ const WalletPage = () => {
             </div>
 
             <div className="mb-6">
-              <label className="block text-gray-500 text-sm mb-2">Withdrawal Method</label>
-              <div className="grid grid-cols-3 gap-3">
-                {paymentMethods.map((method) => (
+              <label className="block text-gray-500 text-sm mb-2">Select Bank Account</label>
+              {userBankAccounts.filter(acc => acc.status === 'APPROVED').length === 0 ? (
+                <div className={`p-4 rounded-lg border ${isDarkMode ? 'border-yellow-500/30 bg-yellow-500/10' : 'border-yellow-400 bg-yellow-50'}`}>
+                  <p className={`text-sm ${isDarkMode ? 'text-yellow-400' : 'text-yellow-700'}`}>
+                    No approved bank accounts found. Please add a bank account in your Profile page first.
+                  </p>
                   <button
-                    key={method._id}
-                    onClick={() => setSelectedPaymentMethod(method)}
-                    className={`p-4 rounded-lg border transition-colors flex flex-col items-center gap-2 ${
-                      selectedPaymentMethod?._id === method._id
-                        ? 'border-accent-green bg-accent-green/10'
-                        : isDarkMode ? 'border-gray-700 bg-dark-700 hover:border-gray-600' : 'border-gray-300 bg-gray-100 hover:border-gray-400'
-                    }`}
+                    onClick={() => {
+                      setShowWithdrawModal(false)
+                      navigate('/profile')
+                    }}
+                    className="mt-2 text-sm text-accent-green hover:underline"
                   >
-                    {getPaymentIcon(method.type)}
-                    <span className={`${isDarkMode ? 'text-white' : 'text-gray-900'} text-sm`}>{method.type}</span>
+                    Go to Profile →
                   </button>
-                ))}
-              </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {userBankAccounts.filter(acc => acc.status === 'APPROVED').map((account) => (
+                    <button
+                      key={account._id}
+                      onClick={() => setSelectedBankAccount(account)}
+                      className={`w-full p-4 rounded-lg border transition-colors text-left ${
+                        selectedBankAccount?._id === account._id
+                          ? 'border-accent-green bg-accent-green/10'
+                          : isDarkMode ? 'border-gray-700 bg-dark-700 hover:border-gray-600' : 'border-gray-300 bg-gray-100 hover:border-gray-400'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isDarkMode ? 'bg-dark-600' : 'bg-gray-200'}`}>
+                          {account.type === 'UPI' ? <Smartphone size={18} className="text-purple-500" /> : <Building size={18} className="text-green-500" />}
+                        </div>
+                        <div className="flex-1">
+                          <p className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {account.type === 'UPI' ? account.upiId : account.bankName}
+                          </p>
+                          <p className="text-gray-500 text-sm">
+                            {account.type === 'UPI' 
+                              ? 'UPI Transfer' 
+                              : `A/C: ****${account.accountNumber?.slice(-4) || ''} • ${account.ifscCode || ''}`
+                            }
+                          </p>
+                        </div>
+                        {selectedBankAccount?._id === account._id && (
+                          <Check size={20} className="text-accent-green" />
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
@@ -1001,7 +1065,7 @@ const WalletPage = () => {
                 onClick={() => {
                   setShowWithdrawModal(false)
                   setAmount('')
-                  setSelectedPaymentMethod(null)
+                  setSelectedBankAccount(null)
                   setError('')
                 }}
                 className={`flex-1 ${isDarkMode ? 'bg-dark-700 text-white hover:bg-dark-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'} py-3 rounded-lg transition-colors`}
@@ -1010,10 +1074,45 @@ const WalletPage = () => {
               </button>
               <button
                 onClick={handleWithdraw}
-                className="flex-1 bg-accent-green text-black font-medium py-3 rounded-lg hover:bg-accent-green/90 transition-colors"
+                disabled={userBankAccounts.filter(acc => acc.status === 'APPROVED').length === 0}
+                className="flex-1 bg-accent-green text-black font-medium py-3 rounded-lg hover:bg-accent-green/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Submit Withdrawal
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* No Bank Account Warning Modal */}
+      {showNoBankWarning && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className={`${isDarkMode ? 'bg-dark-800 border-gray-700' : 'bg-white border-gray-200'} rounded-xl p-6 w-full max-w-md border`}>
+            <div className="text-center">
+              <div className="w-16 h-16 bg-orange-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Building size={32} className="text-orange-500" />
+              </div>
+              <h3 className={`text-xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Bank Account Required</h3>
+              <p className={`mb-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                You need to add and get a bank account approved before making withdrawals. Please add your bank details in the Profile page.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowNoBankWarning(false)}
+                  className={`flex-1 py-3 rounded-lg ${isDarkMode ? 'bg-dark-700 text-white hover:bg-dark-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    setShowNoBankWarning(false)
+                    navigate('/profile')
+                  }}
+                  className="flex-1 bg-accent-green text-black font-medium py-3 rounded-lg hover:bg-accent-green/90"
+                >
+                  Add Bank Account
+                </button>
+              </div>
             </div>
           </div>
         </div>

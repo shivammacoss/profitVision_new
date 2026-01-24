@@ -54,7 +54,9 @@ const themeSchema = new mongoose.Schema({
     sidebarActive: { type: String, default: '#3B82F6' },
     
     // Button colors
-    buttonPrimary: { type: String, default: '#3B82F6' },
+    buttonColor: { type: String, default: '#EF4444' },        // Main button color (red)
+    buttonHoverColor: { type: String, default: '#DC2626' },   // Button hover color
+    buttonPrimary: { type: String, default: '#EF4444' },
     buttonSecondary: { type: String, default: '#374151' },
     buttonDanger: { type: String, default: '#EF4444' }
   },

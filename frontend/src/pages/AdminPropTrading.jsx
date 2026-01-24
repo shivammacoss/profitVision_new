@@ -172,7 +172,7 @@ export default function AdminPropTrading() {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'ACTIVE': return 'bg-blue-500/20 text-blue-500'
+      case 'ACTIVE': return 'bg-red-500/20 text-blue-500'
       case 'PASSED': return 'bg-green-500/20 text-green-500'
       case 'FUNDED': return 'bg-purple-500/20 text-purple-500'
       case 'FAILED': return 'bg-red-500/20 text-red-500'
@@ -276,7 +276,7 @@ export default function AdminPropTrading() {
                 <h3 className="text-lg font-bold text-white mb-4">Account Distribution</h3>
                 <div className="space-y-3">
                   {[
-                    { label: 'Active', value: stats.activeAccounts, color: 'bg-blue-500' },
+                    { label: 'Active', value: stats.activeAccounts, color: 'bg-red-500' },
                     { label: 'Passed', value: stats.passedAccounts, color: 'bg-green-500' },
                     { label: 'Funded', value: stats.fundedAccounts, color: 'bg-purple-500' },
                     { label: 'Failed', value: stats.failedAccounts, color: 'bg-red-500' }
@@ -343,7 +343,7 @@ export default function AdminPropTrading() {
                     <div className="flex items-center justify-between mb-2">
                       <span className={`text-xs font-bold px-2 py-1 rounded-full ${
                         challenge.stepsCount === 0 ? 'bg-green-500/20 text-green-500' :
-                        challenge.stepsCount === 1 ? 'bg-blue-500/20 text-blue-500' :
+                        challenge.stepsCount === 1 ? 'bg-red-500/20 text-blue-500' :
                         'bg-purple-500/20 text-purple-500'
                       }`}>
                         {challenge.stepsCount === 0 ? 'Instant' : `${challenge.stepsCount}-Step`}
@@ -496,7 +496,7 @@ export default function AdminPropTrading() {
                                 </button>
                                 <button
                                   onClick={() => handleExtendTime(acc._id)}
-                                  className="p-1.5 hover:bg-blue-500/20 rounded text-gray-400 hover:text-blue-500"
+                                  className="p-1.5 hover:bg-red-500/20 rounded text-gray-400 hover:text-blue-500"
                                   title="Extend Time"
                                 >
                                   <Clock size={14} />

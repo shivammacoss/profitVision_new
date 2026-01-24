@@ -64,7 +64,7 @@ router.post('/deposit', async (req, res) => {
 // POST /api/wallet/withdraw - Create withdrawal request
 router.post('/withdraw', async (req, res) => {
   try {
-    const { userId, amount, paymentMethod } = req.body
+    const { userId, amount, paymentMethod, bankAccountId, bankDetails } = req.body
 
     if (!amount || amount <= 0) {
       return res.status(400).json({ message: 'Invalid amount' })
@@ -81,14 +81,16 @@ router.post('/withdraw', async (req, res) => {
       return res.status(400).json({ message: 'Insufficient balance' })
     }
 
-    // Create transaction
+    // Create transaction with bank details
     const transaction = new Transaction({
       userId,
       walletId: wallet._id,
       type: 'Withdrawal',
       amount,
       paymentMethod,
-      status: 'Pending'
+      status: 'Pending',
+      bankAccountId,
+      bankDetails: bankDetails || {}
     })
     await transaction.save()
 
