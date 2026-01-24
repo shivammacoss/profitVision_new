@@ -495,8 +495,8 @@ const CopyTradePage = () => {
                     <Crown size={isMobile ? 20 : 24} className="text-yellow-500" />
                   </div>
                   <div>
-                    <h3 className={`text-white font-semibold ${isMobile ? 'text-sm' : ''}`}>Become a Master Trader</h3>
-                    <p className="text-gray-400 text-xs">Share your trades and earn commission</p>
+                    <h3 className={`${isDarkMode ? 'text-white' : 'text-gray-900'} font-semibold ${isMobile ? 'text-sm' : ''}`}>Become a Master Trader</h3>
+                    <p className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} text-xs`}>Share your trades and earn commission</p>
                   </div>
                 </div>
                 <button
@@ -542,7 +542,7 @@ const CopyTradePage = () => {
                 </div>
                 {myMasterProfile.status === 'ACTIVE' && (
                   <div className={isMobile ? '' : 'text-right'}>
-                    <p className="text-gray-400 text-xs">Commission: <span className="text-white font-semibold">{myMasterProfile.approvedCommissionPercentage}%</span></p>
+                    <p className="text-gray-400 text-xs">Commission: <span className="text-green-400 font-semibold">50%</span> (fixed)</p>
                   </div>
                 )}
               </div>
@@ -625,7 +625,7 @@ const CopyTradePage = () => {
                           </div>
                           <div className={`${isDarkMode ? 'bg-dark-700' : 'bg-gray-50'} rounded-lg p-3`}>
                             <p className="text-gray-500 text-xs">Commission</p>
-                            <p className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{master.totalCommissionPercentage || master.approvedCommissionPercentage || 0}%</p>
+                            <p className="font-semibold text-green-500">50%</p>
                           </div>
                           <div className={`${isDarkMode ? 'bg-dark-700' : 'bg-gray-50'} rounded-lg p-3`}>
                             <p className="text-gray-500 text-xs">Profit</p>
@@ -906,7 +906,7 @@ const CopyTradePage = () => {
                 </div>
                 <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-4 border`}>
                   <p className="text-gray-500 text-xs mb-1">Your Commission Rate</p>
-                  <p className="text-blue-400 text-xl font-bold">{myMasterProfile?.approvedCommissionPercentage || 0}%</p>
+                  <p className="text-blue-400 text-xl font-bold">50%</p>
                 </div>
               </div>
 
@@ -989,7 +989,7 @@ const CopyTradePage = () => {
                 <h4 className={`font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>How Commission Works</h4>
                 <ul className="text-gray-500 text-sm space-y-2">
                   <li>• Commission is calculated daily based on your followers' profits</li>
-                  <li>• Your rate: <span className="text-purple-400 font-medium">{myMasterProfile?.approvedCommissionPercentage}%</span> of daily profit</li>
+                  <li>• Your rate: <span className="text-purple-400 font-medium">50%</span> of daily profit (fixed)</li>
                   <li>• Commission is only charged when followers make profit</li>
                   <li>• Minimum withdrawal amount is $10</li>
                   <li>• Withdrawals are transferred to your wallet instantly</li>
@@ -1081,9 +1081,20 @@ const CopyTradePage = () => {
                 />
               </div>
 
-              {/* Commission Info */}
-              <div className={`${isDarkMode ? 'bg-dark-700' : 'bg-gray-100'} rounded-lg p-3`}>
-                <p className="text-gray-500 text-sm">Commission: <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{selectedMaster.totalCommissionPercentage || selectedMaster.approvedCommissionPercentage}%</span> of daily profit</p>
+              {/* Commission Info - Fixed 50/50 */}
+              <div className={`${isDarkMode ? 'bg-green-500/10 border-green-500/30' : 'bg-green-50 border-green-200'} rounded-lg p-3 border`}>
+                <p className="text-gray-500 text-sm mb-2">Commission Structure (Fixed)</p>
+                <div className="flex items-center justify-between">
+                  <div className="text-center flex-1">
+                    <p className="text-green-500 font-bold">50%</p>
+                    <p className="text-gray-500 text-xs">Master</p>
+                  </div>
+                  <div className="text-gray-400">|</div>
+                  <div className="text-center flex-1">
+                    <p className="text-blue-500 font-bold">50%</p>
+                    <p className="text-gray-500 text-xs">You Keep</p>
+                  </div>
+                </div>
               </div>
 
               {/* Info Box */}
@@ -1119,15 +1130,15 @@ const CopyTradePage = () => {
 
       {/* Master Application Modal */}
       {showMasterModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className={`${isDarkMode ? 'bg-dark-800 border-gray-700' : 'bg-white border-gray-200'} rounded-xl p-6 w-full max-w-md border`}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className={`${isDarkMode ? 'bg-dark-800 border-gray-700' : 'bg-white border-gray-200'} rounded-xl p-4 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto border`}>
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 bg-yellow-500/20 rounded-full flex items-center justify-center">
                 <Crown size={20} className="text-yellow-500" />
               </div>
               <div>
-                <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Become a Master Trader</h2>
-                <p className="text-gray-500 text-sm">Share your trades with followers</p>
+                <h2 className={`text-base sm:text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Become a Master Trader</h2>
+                <p className="text-gray-500 text-xs sm:text-sm">Share your trades with followers</p>
               </div>
             </div>
             
@@ -1211,16 +1222,16 @@ const CopyTradePage = () => {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setShowMasterModal(false)}
-                className={`flex-1 ${isDarkMode ? 'bg-dark-700 text-white hover:bg-dark-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'} py-2 rounded-lg`}
+                className={`flex-1 ${isDarkMode ? 'bg-dark-700 text-white hover:bg-dark-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'} py-2.5 rounded-lg text-sm sm:text-base`}
               >
                 Cancel
               </button>
               <button
                 onClick={handleApplyMaster}
                 disabled={applyingMaster}
-                className="flex-1 bg-yellow-500 text-black py-2 rounded-lg font-medium hover:bg-yellow-400 disabled:opacity-50"
+                className="flex-1 bg-yellow-500 text-black py-2.5 rounded-lg font-medium hover:bg-yellow-400 disabled:opacity-50 text-sm sm:text-base"
               >
-                {applyingMaster ? 'Submitting...' : 'Submit Application'}
+                {applyingMaster ? 'Submitting...' : 'Submit'}
               </button>
             </div>
           </div>

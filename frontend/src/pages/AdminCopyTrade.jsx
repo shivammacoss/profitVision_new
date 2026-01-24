@@ -32,12 +32,10 @@ const AdminCopyTrade = () => {
   const [showApproveModal, setShowApproveModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [approveForm, setApproveForm] = useState({
-    approvedCommissionPercentage: 10,
-    adminSharePercentage: 30
+    approvedCommissionPercentage: 50
   })
   const [editForm, setEditForm] = useState({
-    approvedCommissionPercentage: 10,
-    adminSharePercentage: 30
+    approvedCommissionPercentage: 50
   })
 
   const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}')
@@ -366,7 +364,7 @@ const AdminCopyTrade = () => {
                         )}
                         {master.status === 'ACTIVE' && (
                           <>
-                            <button onClick={() => { setSelectedMaster(master); setEditForm({ approvedCommissionPercentage: master.approvedCommissionPercentage || 10, adminSharePercentage: master.adminSharePercentage || 30 }); setShowEditModal(true) }} className="p-2 hover:bg-dark-600 rounded-lg text-gray-400 hover:text-blue-500" title="Edit Commission"><Edit size={16} /></button>
+                            <button onClick={() => { setSelectedMaster(master); setEditForm({ approvedCommissionPercentage: master.approvedCommissionPercentage || 50 }); setShowEditModal(true) }} className="p-2 hover:bg-dark-600 rounded-lg text-gray-400 hover:text-blue-500" title="Edit Commission"><Edit size={16} /></button>
                             <button onClick={() => handleSuspend(master._id)} className="p-2 hover:bg-dark-600 rounded-lg text-gray-400 hover:text-red-500" title="Suspend"><Trash2 size={16} /></button>
                           </>
                         )}
@@ -430,11 +428,7 @@ const AdminCopyTrade = () => {
               <p className="text-white text-2xl font-bold">${commissionTotals?.totalCommission?.toFixed(2) || '0.00'}</p>
             </div>
             <div className="bg-dark-800 rounded-xl p-5 border border-gray-800">
-              <p className="text-gray-500 text-sm mb-1">Admin Share</p>
-              <p className="text-purple-400 text-2xl font-bold">${commissionTotals?.totalAdminShare?.toFixed(2) || '0.00'}</p>
-            </div>
-            <div className="bg-dark-800 rounded-xl p-5 border border-gray-800">
-              <p className="text-gray-500 text-sm mb-1">Master Share</p>
+              <p className="text-gray-500 text-sm mb-1">Master Earnings</p>
               <p className="text-green-400 text-2xl font-bold">${commissionTotals?.totalMasterShare?.toFixed(2) || '0.00'}</p>
             </div>
             <div className="bg-dark-800 rounded-xl p-5 border border-gray-800">
@@ -462,8 +456,7 @@ const AdminCopyTrade = () => {
                       <th className="text-left text-gray-500 text-sm py-3 px-4">Daily Profit</th>
                       <th className="text-left text-gray-500 text-sm py-3 px-4">Rate</th>
                       <th className="text-left text-gray-500 text-sm py-3 px-4">Total Commission</th>
-                      <th className="text-left text-gray-500 text-sm py-3 px-4">Admin Share</th>
-                      <th className="text-left text-gray-500 text-sm py-3 px-4">Master Share</th>
+                      <th className="text-left text-gray-500 text-sm py-3 px-4">Master Earnings</th>
                       <th className="text-left text-gray-500 text-sm py-3 px-4">Status</th>
                     </tr>
                   </thead>
@@ -479,8 +472,7 @@ const AdminCopyTrade = () => {
                         <td className="py-4 px-4 text-green-400 font-medium">${comm.dailyProfit?.toFixed(2)}</td>
                         <td className="py-4 px-4 text-gray-400">{comm.commissionPercentage}%</td>
                         <td className="py-4 px-4 text-white font-medium">${comm.totalCommission?.toFixed(2)}</td>
-                        <td className="py-4 px-4 text-purple-400 font-medium">${comm.adminShare?.toFixed(2)}</td>
-                        <td className="py-4 px-4 text-green-400 font-medium">${comm.masterShare?.toFixed(2)}</td>
+                        <td className="py-4 px-4 text-green-400 font-medium">${comm.totalCommission?.toFixed(2)}</td>
                         <td className="py-4 px-4">
                           <span className={`px-2 py-1 rounded-full text-xs ${
                             comm.status === 'DEDUCTED' ? 'bg-green-500/20 text-green-500' :
@@ -500,12 +492,12 @@ const AdminCopyTrade = () => {
 
           {/* Commission Info */}
           <div className="mt-6 bg-dark-800 rounded-xl p-5 border border-gray-800">
-            <h4 className="text-white font-semibold mb-3">Commission Split Logic</h4>
+            <h4 className="text-white font-semibold mb-3">Commission Logic (Fixed 50/50 Split)</h4>
             <ul className="text-gray-400 text-sm space-y-2">
-              <li>• User sees <span className="text-white">Total Commission %</span> = Master % + Admin %</li>
-              <li>• Example: Master sets 10%, Admin share is 30% → User pays ~14.3% total</li>
+              <li>• Commission is fixed at <span className="text-green-400">50%</span> - Master gets 50%, Follower keeps 50%</li>
               <li>• Commission is calculated daily from followers' profits only</li>
-              <li>• Admin share goes to Admin Pool, Master share to Master's pending balance</li>
+              <li>• Full commission goes to Master's pending balance</li>
+              <li>• Followers pay commission only when they make profit</li>
             </ul>
           </div>
         </div>
@@ -513,73 +505,62 @@ const AdminCopyTrade = () => {
 
       {/* Approve Modal */}
       {showApproveModal && selectedMaster && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-dark-800 rounded-xl p-6 w-full max-w-md border border-gray-700">
-            <h2 className="text-xl font-semibold text-white mb-4">Approve: {selectedMaster.displayName}</h2>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-800 rounded-xl p-4 sm:p-6 w-full max-w-md border border-gray-700">
+            <h2 className="text-lg sm:text-xl font-semibold text-white mb-4">Approve: {selectedMaster.displayName}</h2>
             <div className="space-y-4">
-              <div>
-                <label className="text-gray-400 text-sm mb-1 block">Commission (%)</label>
-                <input type="number" value={approveForm.approvedCommissionPercentage} onChange={(e) => setApproveForm(prev => ({ ...prev, approvedCommissionPercentage: parseFloat(e.target.value) || 0 }))} className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white" />
+              {/* Fixed 50/50 Commission Display */}
+              <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+                <p className="text-white text-sm font-medium mb-3">Commission Structure (Fixed)</p>
+                <div className="flex items-center justify-between">
+                  <div className="text-center flex-1">
+                    <p className="text-green-400 text-xl font-bold">50%</p>
+                    <p className="text-gray-500 text-xs">Master Gets</p>
+                  </div>
+                  <div className="text-gray-500 text-xl">|</div>
+                  <div className="text-center flex-1">
+                    <p className="text-blue-400 text-xl font-bold">50%</p>
+                    <p className="text-gray-500 text-xs">Follower Keeps</p>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label className="text-gray-400 text-sm mb-1 block">Admin Share (%)</label>
-                <input type="number" value={approveForm.adminSharePercentage} onChange={(e) => setApproveForm(prev => ({ ...prev, adminSharePercentage: parseFloat(e.target.value) || 0 }))} className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white" />
-              </div>
+              <p className="text-gray-500 text-xs">Commission is automatically split 50/50 on profitable trades</p>
             </div>
             <div className="flex gap-3 mt-6">
-              <button onClick={() => setShowApproveModal(false)} className="flex-1 bg-dark-700 text-white py-2 rounded-lg">Cancel</button>
-              <button onClick={handleApprove} className="flex-1 bg-green-500 text-white py-2 rounded-lg">Approve</button>
+              <button onClick={() => setShowApproveModal(false)} className="flex-1 bg-dark-700 text-white py-2.5 rounded-lg text-sm sm:text-base">Cancel</button>
+              <button onClick={handleApprove} className="flex-1 bg-green-500 text-white py-2.5 rounded-lg font-medium text-sm sm:text-base">Approve Master</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Edit Commission Modal */}
+      {/* Edit Commission Modal - Shows fixed 50/50 info */}
       {showEditModal && selectedMaster && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-dark-800 rounded-xl p-6 w-full max-w-md border border-gray-700">
-            <h2 className="text-xl font-semibold text-white mb-4">Edit Commission: {selectedMaster.displayName}</h2>
-            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 mb-4">
-              <p className="text-blue-400 text-sm">You can change the master's commission percentage and admin share at any time. Changes will apply to future commission calculations.</p>
-            </div>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-dark-800 rounded-xl p-4 sm:p-6 w-full max-w-md border border-gray-700">
+            <h2 className="text-lg sm:text-xl font-semibold text-white mb-4">Master: {selectedMaster.displayName}</h2>
             <div className="space-y-4">
-              <div>
-                <label className="text-gray-400 text-sm mb-1 block">Master Commission (%)</label>
-                <input 
-                  type="number" 
-                  value={editForm.approvedCommissionPercentage} 
-                  onChange={(e) => setEditForm(prev => ({ ...prev, approvedCommissionPercentage: parseFloat(e.target.value) || 0 }))} 
-                  min="0"
-                  max="50"
-                  step="0.5"
-                  className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white" 
-                />
-                <p className="text-gray-500 text-xs mt-1">Percentage of follower's profit paid as commission</p>
-              </div>
-              <div>
-                <label className="text-gray-400 text-sm mb-1 block">Admin Share (%)</label>
-                <input 
-                  type="number" 
-                  value={editForm.adminSharePercentage} 
-                  onChange={(e) => setEditForm(prev => ({ ...prev, adminSharePercentage: parseFloat(e.target.value) || 0 }))} 
-                  min="0"
-                  max="100"
-                  step="1"
-                  className="w-full bg-dark-700 border border-gray-600 rounded-lg px-3 py-2 text-white" 
-                />
-                <p className="text-gray-500 text-xs mt-1">Admin's share of the total commission</p>
-              </div>
-              <div className="bg-dark-700 rounded-lg p-3">
-                <p className="text-gray-400 text-sm">Commission Split Preview:</p>
-                <div className="flex justify-between mt-2">
-                  <span className="text-purple-400">Admin gets: {(editForm.approvedCommissionPercentage * editForm.adminSharePercentage / 100).toFixed(2)}%</span>
-                  <span className="text-green-400">Master gets: {(editForm.approvedCommissionPercentage * (100 - editForm.adminSharePercentage) / 100).toFixed(2)}%</span>
+              {/* Fixed 50/50 Commission Display */}
+              <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+                <p className="text-white text-sm font-medium mb-3">Commission Structure (Fixed)</p>
+                <div className="flex items-center justify-between">
+                  <div className="text-center flex-1">
+                    <p className="text-green-400 text-xl font-bold">50%</p>
+                    <p className="text-gray-500 text-xs">Master Gets</p>
+                  </div>
+                  <div className="text-gray-500 text-xl">|</div>
+                  <div className="text-center flex-1">
+                    <p className="text-blue-400 text-xl font-bold">50%</p>
+                    <p className="text-gray-500 text-xs">Follower Keeps</p>
+                  </div>
                 </div>
+              </div>
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
+                <p className="text-blue-400 text-sm">Commission is fixed at 50/50 split. This cannot be changed.</p>
               </div>
             </div>
             <div className="flex gap-3 mt-6">
-              <button onClick={() => { setShowEditModal(false); setSelectedMaster(null); }} className="flex-1 bg-dark-700 text-white py-2 rounded-lg hover:bg-dark-600">Cancel</button>
-              <button onClick={handleUpdateCommission} className="flex-1 bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600">Update Commission</button>
+              <button onClick={() => { setShowEditModal(false); setSelectedMaster(null); }} className="flex-1 bg-dark-700 text-white py-2.5 rounded-lg hover:bg-dark-600 text-sm sm:text-base">Close</button>
             </div>
           </div>
         </div>

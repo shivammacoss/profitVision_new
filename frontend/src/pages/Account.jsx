@@ -1037,43 +1037,43 @@ const Account = () => {
                       <button
                         key={type._id}
                         onClick={() => setSelectedType(type)}
-                        className={`relative bg-dark-700 rounded-xl p-5 text-left transition-all duration-200 border ${
+                        className={`relative ${isDarkMode ? 'bg-dark-700' : 'bg-gray-50'} rounded-xl p-5 text-left transition-all duration-200 border ${
                           isSelected
-                            ? 'border-white ring-1 ring-white'
-                            : 'border-gray-700 hover:border-gray-600'
+                            ? isDarkMode ? 'border-white ring-1 ring-white' : 'border-blue-500 ring-1 ring-blue-500'
+                            : isDarkMode ? 'border-gray-700 hover:border-gray-600' : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
                         {/* Header */}
                         <div className="flex items-center gap-3 mb-3">
                           <span className="text-2xl">{icon}</span>
-                          <span className="text-white font-bold text-lg">{type.name}</span>
-                          <div className={`w-4 h-4 rounded-full border-2 ml-auto ${isSelected ? 'border-white bg-white' : 'border-gray-500'}`}>
-                            {isSelected && <div className="w-full h-full rounded-full bg-white" />}
+                          <span className={`${isDarkMode ? 'text-white' : 'text-gray-900'} font-bold text-lg`}>{type.name}</span>
+                          <div className={`w-4 h-4 rounded-full border-2 ml-auto ${isSelected ? (isDarkMode ? 'border-white bg-white' : 'border-blue-500 bg-blue-500') : 'border-gray-400'}`}>
+                            {isSelected && <div className="w-full h-full rounded-full" />}
                           </div>
                         </div>
                         
                         {/* Description */}
-                        <p className="text-gray-400 text-sm mb-4">
+                        <p className={`${isDarkMode ? 'text-gray-400' : 'text-gray-600'} text-sm mb-4`}>
                           {type.description || (type.isDemo ? 'Practice trading with virtual funds. No risk involved.' : 'Live trading account')}
                         </p>
                         
                         {/* Stats Grid */}
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                           <div>
-                            <p className="text-gray-500 text-xs">{type.isDemo ? 'Virtual Balance' : 'Min deposit'}</p>
-                            <p className="text-white font-semibold">${type.isDemo ? '10,000' : type.minDeposit?.toLocaleString() || '100'} {!type.isDemo && 'USD'}</p>
+                            <p className={`${isDarkMode ? 'text-gray-500' : 'text-gray-500'} text-xs`}>{type.isDemo ? 'Virtual Balance' : 'Min deposit'}</p>
+                            <p className={`${isDarkMode ? 'text-white' : 'text-gray-900'} font-semibold`}>${type.isDemo ? '10,000' : type.minDeposit?.toLocaleString() || '100'} {!type.isDemo && 'USD'}</p>
                           </div>
                           <div>
-                            <p className="text-gray-500 text-xs">Min spread</p>
-                            <p className="text-white font-semibold">{type.spread || '2'} pips</p>
+                            <p className={`${isDarkMode ? 'text-gray-500' : 'text-gray-500'} text-xs`}>Min spread</p>
+                            <p className={`${isDarkMode ? 'text-white' : 'text-gray-900'} font-semibold`}>{type.spread || '2'} pips</p>
                           </div>
                           <div>
-                            <p className="text-gray-500 text-xs">Max leverage</p>
-                            <p className="text-white font-semibold">{type.leverage || '1:100'}</p>
+                            <p className={`${isDarkMode ? 'text-gray-500' : 'text-gray-500'} text-xs`}>Max leverage</p>
+                            <p className={`${isDarkMode ? 'text-white' : 'text-gray-900'} font-semibold`}>{type.leverage || '1:100'}</p>
                           </div>
                           <div>
-                            <p className="text-gray-500 text-xs">Commission</p>
-                            <p className="text-white font-semibold">{type.commission ? `$${type.commission}/lot` : 'NO COMM'}</p>
+                            <p className={`${isDarkMode ? 'text-gray-500' : 'text-gray-500'} text-xs`}>Commission</p>
+                            <p className={`${isDarkMode ? 'text-white' : 'text-gray-900'} font-semibold`}>{type.commission ? `$${type.commission}/lot` : 'NO COMM'}</p>
                           </div>
                         </div>
                       </button>
@@ -1103,7 +1103,7 @@ const Account = () => {
                   setSelectedType(null)
                   setError('')
                 }}
-                className="flex-1 bg-dark-700 text-white py-3 rounded-lg hover:bg-dark-600 transition-colors"
+                className={`flex-1 ${isDarkMode ? 'bg-dark-700 text-white hover:bg-dark-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'} py-3 rounded-lg transition-colors`}
               >
                 Cancel
               </button>

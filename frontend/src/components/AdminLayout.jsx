@@ -37,24 +37,38 @@ const AdminLayout = ({ children, title, subtitle }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [expandedSections, setExpandedSections] = useState({})
 
-  const menuItems = [
-    { name: 'Overview Dashboard', icon: LayoutDashboard, path: '/admin/dashboard' },
-    { name: 'User Management', icon: Users, path: '/admin/users' },
-    { name: 'Trade Management', icon: TrendingUp, path: '/admin/trades' },
-    { name: 'Book Management', icon: BookOpen, path: '/admin/book-management' },
-    { name: 'Fund Management', icon: Wallet, path: '/admin/funds' },
-    { name: 'Bank Settings', icon: Building2, path: '/admin/bank-settings' },
-    { name: 'IB Management', icon: UserCog, path: '/admin/ib-management' },
-    { name: 'Forex Charges', icon: DollarSign, path: '/admin/forex-charges' },
-    { name: 'Earnings Report', icon: TrendingUp, path: '/admin/earnings' },
-    { name: 'Copy Trade Management', icon: Copy, path: '/admin/copy-trade' },
-    { name: 'Prop Firm Challenges', icon: Trophy, path: '/admin/prop-firm' },
-    { name: 'Account Types', icon: CreditCard, path: '/admin/account-types' },
-    { name: 'Theme Settings', icon: Palette, path: '/admin/theme' },
-    { name: 'Admin Management', icon: Shield, path: '/admin/admin-management' },
-    { name: 'KYC Verification', icon: FileCheck, path: '/admin/kyc' },
-    { name: 'Support Tickets', icon: HeadphonesIcon, path: '/admin/support' },
+  // Get admin user and permissions from localStorage
+  const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}')
+  const permissions = adminUser.permissions || {}
+  const isSuperAdmin = adminUser.role === 'SUPER_ADMIN'
+
+  // Define menu items with required permissions
+  const allMenuItems = [
+    { name: 'Overview Dashboard', icon: LayoutDashboard, path: '/admin/dashboard', permission: null }, // Always visible
+    { name: 'User Management', icon: Users, path: '/admin/users', permission: 'canViewUsers' },
+    { name: 'Trade Management', icon: TrendingUp, path: '/admin/trades', permission: 'canManageTrades' },
+    { name: 'Book Management', icon: BookOpen, path: '/admin/book-management', permission: 'canManageTrades' },
+    { name: 'Fund Management', icon: Wallet, path: '/admin/funds', permission: 'canManageDeposits' },
+    { name: 'Bank Settings', icon: Building2, path: '/admin/bank-settings', permission: 'canManageSettings' },
+    { name: 'IB Management', icon: UserCog, path: '/admin/ib-management', permission: 'canManageIB' },
+    { name: 'Forex Charges', icon: DollarSign, path: '/admin/forex-charges', permission: 'canManageSettings' },
+    { name: 'Earnings Report', icon: TrendingUp, path: '/admin/earnings', permission: 'canViewReports' },
+    { name: 'Copy Trade Management', icon: Copy, path: '/admin/copy-trade', permission: 'canManageCopyTrading' },
+    { name: 'Prop Firm Challenges', icon: Trophy, path: '/admin/prop-firm', permission: 'canManageSettings' },
+    { name: 'Account Types', icon: CreditCard, path: '/admin/account-types', permission: 'canManageAccounts' },
+    { name: 'Theme Settings', icon: Palette, path: '/admin/theme', permission: 'canManageTheme' },
+    { name: 'Payment Gateway', icon: CreditCard, path: '/admin/payment-gateway', permission: 'canManageAdmins' },
+    { name: 'Admin Management', icon: Shield, path: '/admin/admin-management', permission: 'canManageAdmins' },
+    { name: 'KYC Verification', icon: FileCheck, path: '/admin/kyc', permission: 'canManageKYC' },
+    { name: 'Support Tickets', icon: HeadphonesIcon, path: '/admin/support', permission: null }, // Always visible
   ]
+
+  // Filter menu items based on permissions (Super Admin sees all)
+  const menuItems = allMenuItems.filter(item => {
+    if (isSuperAdmin) return true
+    if (item.permission === null) return true
+    return permissions[item.permission] === true
+  })
 
   useEffect(() => {
     const adminToken = localStorage.getItem('adminToken')
@@ -188,10 +202,6 @@ const AdminLayout = ({ children, title, subtitle }) => {
               <h1 className={`text-lg sm:text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{title || 'Admin Dashboard'}</h1>
               {subtitle && <p className="text-gray-500 text-sm hidden sm:block">{subtitle}</p>}
             </div>
-          </div>
-          <div className="flex items-center gap-2 px-3 py-1 bg-red-500/20 text-red-500 rounded-full text-xs sm:text-sm">
-            <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-            <span className="hidden sm:inline">Admin Mode</span>
           </div>
         </header>
 

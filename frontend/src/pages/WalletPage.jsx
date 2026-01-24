@@ -30,7 +30,8 @@ import {
   Image,
   BookOpen,
   Sun,
-  Moon
+  Moon,
+  CreditCard
 } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import logo from '../assets/logo.png'
@@ -64,6 +65,11 @@ const WalletPage = () => {
   const [kycStatus, setKycStatus] = useState(null)
   const [showKycWarning, setShowKycWarning] = useState(false)
   const fileInputRef = useRef(null)
+  const [showCryptoDeposit, setShowCryptoDeposit] = useState(false)
+  const [cryptoAmount, setCryptoAmount] = useState('')
+  const [cryptoLoading, setCryptoLoading] = useState(false)
+  const [cryptoPaymentUrl, setCryptoPaymentUrl] = useState(null)
+  const [paymentGatewaySettings, setPaymentGatewaySettings] = useState(null)
 
   const user = JSON.parse(localStorage.getItem('user') || '{}')
 
@@ -131,7 +137,21 @@ const WalletPage = () => {
     }
     fetchPaymentMethods()
     fetchCurrencies()
+    fetchPaymentGatewaySettings()
   }, [user._id])
+
+  // Fetch payment gateway settings to check if crypto is enabled
+  const fetchPaymentGatewaySettings = async () => {
+    try {
+      const res = await fetch(`${API_URL}/payment-gateway/settings`)
+      const data = await res.json()
+      if (data.success) {
+        setPaymentGatewaySettings({ oxapayEnabled: data.oxapayEnabled })
+      }
+    } catch (error) {
+      console.error('Error fetching payment gateway settings:', error)
+    }
+  }
 
   const fetchKycStatus = async () => {
     try {
@@ -230,11 +250,17 @@ const WalletPage = () => {
       setError('Please select a payment method')
       return
     }
+    if (!transactionRef || transactionRef.trim() === '') {
+      setError('Transaction Reference ID is required')
+      return
+    }
+    if (!screenshot && !screenshotPreview) {
+      setError('Payment screenshot is required')
+      return
+    }
 
-    // Calculate USD amount from local currency
-    const usdAmount = selectedCurrency && selectedCurrency.currency !== 'USD'
-      ? calculateUSDAmount(parseFloat(localAmount), selectedCurrency)
-      : parseFloat(localAmount)
+    // Amount is always in USD now
+    const usdAmount = parseFloat(localAmount)
 
     try {
       setUploadingScreenshot(true)
@@ -262,11 +288,11 @@ const WalletPage = () => {
         body: JSON.stringify({
           userId: user._id,
           amount: usdAmount,
-          localAmount: parseFloat(localAmount),
-          currency: selectedCurrency?.currency || 'USD',
-          currencySymbol: selectedCurrency?.symbol || '$',
-          exchangeRate: selectedCurrency?.rateToUSD || 1,
-          markup: selectedCurrency?.markup || 0,
+          localAmount: usdAmount,
+          currency: 'USD',
+          currencySymbol: '$',
+          exchangeRate: 1,
+          markup: 0,
           paymentMethod: selectedPaymentMethod.type,
           transactionRef,
           screenshot: screenshotUrl || screenshotPreview
@@ -295,6 +321,70 @@ const WalletPage = () => {
       setError('Error submitting deposit. Please try again.')
     } finally {
       setUploadingScreenshot(false)
+    }
+  }
+
+  // Handle Crypto Deposit via OxaPay
+  const handleCryptoDeposit = async () => {
+    if (!user._id) {
+      setError('Please login to make a deposit')
+      return
+    }
+    if (!cryptoAmount || parseFloat(cryptoAmount) < 10) {
+      setError('Minimum crypto deposit is $10')
+      return
+    }
+
+    setCryptoLoading(true)
+    setError('')
+
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        setError('Please login to make a deposit')
+        setCryptoLoading(false)
+        return
+      }
+      
+      const res = await fetch(`${API_URL}/oxapay/create-deposit`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          userId: user._id,
+          amount: parseFloat(cryptoAmount)
+        })
+      })
+      const data = await res.json()
+      
+      // Handle 401 specifically
+      if (res.status === 401) {
+        setError('Session expired. Please login again.')
+        setCryptoLoading(false)
+        return
+      }
+      
+      if (data.success) {
+        setCryptoPaymentUrl(data.paymentUrl)
+        // Open payment URL in new tab
+        window.open(data.paymentUrl, '_blank')
+        setSuccess('Payment page opened! Complete your crypto payment there.')
+        setShowDepositModal(false)
+        setShowCryptoDeposit(false)
+        setCryptoAmount('')
+        fetchWallet()
+        fetchTransactions()
+        setTimeout(() => setSuccess(''), 5000)
+      } else {
+        setError(data.message || 'Failed to create crypto payment')
+      }
+    } catch (error) {
+      console.error('Crypto deposit error:', error)
+      setError('Error creating crypto payment. Please try again.')
+    } finally {
+      setCryptoLoading(false)
     }
   }
 
@@ -486,7 +576,7 @@ const WalletPage = () => {
                   </div>
                 </div>
               </div>
-              <div className={`flex gap-2 ${isMobile ? 'mt-4' : ''}`}>
+              <div className={`flex gap-2 flex-wrap ${isMobile ? 'mt-4' : ''}`}>
                 <button
                   onClick={() => {
                     setShowDepositModal(true)
@@ -633,63 +723,88 @@ const WalletPage = () => {
               </button>
             </div>
 
-            {/* Currency Selection */}
-            <div className="mb-4">
-              <label className="block text-gray-500 text-sm mb-2">Select Your Currency</label>
-              <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-32 sm:max-h-40 overflow-y-auto p-1">
-                <button
-                  onClick={() => setSelectedCurrency({ currency: 'USD', symbol: '$', rateToUSD: 1, markup: 0 })}
-                  className={`p-2 rounded-lg border transition-colors flex flex-col items-center gap-0.5 ${
-                    !selectedCurrency || selectedCurrency.currency === 'USD'
-                      ? 'border-accent-green bg-accent-green/10'
-                      : isDarkMode ? 'border-gray-700 bg-dark-700 hover:border-gray-600' : 'border-gray-300 bg-gray-100 hover:border-gray-400'
-                  }`}
-                >
-                  <span className="text-lg">$</span>
-                  <span className={`${isDarkMode ? 'text-white' : 'text-gray-900'} text-[10px]`}>USD</span>
-                </button>
-                {currencies.map((curr) => (
+            {/* Deposit Method Selection - Bank or Crypto */}
+            {paymentGatewaySettings?.oxapayEnabled && (
+              <div className="mb-4">
+                <label className="block text-gray-500 text-sm mb-2">Deposit Method</label>
+                <div className="grid grid-cols-2 gap-3">
                   <button
-                    key={curr._id}
-                    onClick={() => setSelectedCurrency(curr)}
-                    className={`p-2 rounded-lg border transition-colors flex flex-col items-center gap-0.5 ${
-                      selectedCurrency?.currency === curr.currency
-                        ? 'border-accent-green bg-accent-green/10'
-                        : isDarkMode ? 'border-gray-700 bg-dark-700 hover:border-gray-600' : 'border-gray-300 bg-gray-100 hover:border-gray-400'
+                    onClick={() => setShowCryptoDeposit(false)}
+                    className={`p-3 rounded-lg border transition-colors flex items-center justify-center gap-2 ${
+                      !showCryptoDeposit
+                        ? 'border-accent-green bg-accent-green/10 text-accent-green'
+                        : isDarkMode ? 'border-gray-700 text-gray-400 hover:border-gray-600' : 'border-gray-300 text-gray-600 hover:border-gray-400'
                     }`}
                   >
-                    <span className="text-lg">{curr.symbol}</span>
-                    <span className={`${isDarkMode ? 'text-white' : 'text-gray-900'} text-[10px]`}>{curr.currency}</span>
+                    <CreditCard size={18} />
+                    <span className="font-medium">Bank/UPI</span>
                   </button>
-                ))}
+                  <button
+                    onClick={() => setShowCryptoDeposit(true)}
+                    className={`p-3 rounded-lg border transition-colors flex items-center justify-center gap-2 ${
+                      showCryptoDeposit
+                        ? 'border-orange-500 bg-orange-500/10 text-orange-500'
+                        : isDarkMode ? 'border-gray-700 text-gray-400 hover:border-gray-600' : 'border-gray-300 text-gray-600 hover:border-gray-400'
+                    }`}
+                  >
+                    <Wallet size={18} />
+                    <span className="font-medium">Crypto</span>
+                  </button>
+                </div>
               </div>
-              {currencies.length === 0 && (
-                <p className="text-gray-500 text-xs mt-1">Only USD available. Admin can add more currencies.</p>
-              )}
-            </div>
+            )}
 
+            {/* Crypto Deposit Section */}
+            {showCryptoDeposit && paymentGatewaySettings?.oxapayEnabled ? (
+              <div className="space-y-4">
+                <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-orange-500/10 border-orange-500/30' : 'bg-orange-50 border-orange-200'} border`}>
+                  <p className={`text-sm ${isDarkMode ? 'text-orange-400' : 'text-orange-600'}`}>
+                    Pay with Bitcoin, Ethereum, USDT, and 100+ cryptocurrencies via OxaPay
+                  </p>
+                </div>
+                <div>
+                  <label className="block text-gray-500 text-sm mb-2">Amount (USD)</label>
+                  <input
+                    type="number"
+                    value={cryptoAmount}
+                    onChange={(e) => setCryptoAmount(e.target.value)}
+                    placeholder="Minimum $10"
+                    min="10"
+                    className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-4 py-3 placeholder-gray-500 focus:outline-none focus:border-orange-500`}
+                  />
+                </div>
+                {error && <p className="text-red-500 text-sm">{error}</p>}
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setShowDepositModal(false)
+                      setCryptoAmount('')
+                      setError('')
+                    }}
+                    className={`flex-1 py-3 rounded-lg font-medium ${isDarkMode ? 'bg-dark-700 text-white hover:bg-dark-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'}`}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCryptoDeposit}
+                    disabled={cryptoLoading || !cryptoAmount || parseFloat(cryptoAmount) < 10}
+                    className="flex-1 bg-orange-500 text-white font-medium py-3 rounded-lg hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {cryptoLoading ? 'Processing...' : 'Pay with Crypto'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
             <div className="mb-4">
-              <label className="block text-gray-500 text-sm mb-2">
-                Amount {selectedCurrency ? `(${selectedCurrency.symbol} ${selectedCurrency.currency})` : '($ USD)'}
-              </label>
+              <label className="block text-gray-500 text-sm mb-2">Amount ($ USD)</label>
               <input
                 type="number"
                 value={localAmount}
                 onChange={(e) => setLocalAmount(e.target.value)}
-                placeholder={`Enter amount in ${selectedCurrency?.currency || 'USD'}`}
+                placeholder="Enter amount in USD"
                 className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-4 py-3 placeholder-gray-500 focus:outline-none focus:border-accent-green`}
               />
-              {selectedCurrency && selectedCurrency.currency !== 'USD' && localAmount && parseFloat(localAmount) > 0 && (
-                <div className="mt-2 p-3 bg-accent-green/10 rounded-lg border border-accent-green/30">
-                  <div className="text-center">
-                    <p className="text-gray-400 text-xs mb-1">You will receive</p>
-                    <p className="text-green-400 font-bold text-2xl">${calculateUSDAmount(parseFloat(localAmount), selectedCurrency).toFixed(2)} USD</p>
-                    <p className="text-gray-500 text-xs mt-2">
-                      Exchange Rate: 1 USD = {selectedCurrency.symbol}{(selectedCurrency.rateToUSD * (1 + (selectedCurrency.markup || 0) / 100)).toFixed(2)} {selectedCurrency.currency}
-                    </p>
-                  </div>
-                </div>
-              )}
             </div>
 
             <div className="mb-4">
@@ -735,7 +850,7 @@ const WalletPage = () => {
             )}
 
             <div className="mb-4">
-              <label className="block text-gray-500 text-sm mb-2">Transaction Reference (Optional)</label>
+              <label className="block text-gray-500 text-sm mb-2">Transaction Reference ID <span className="text-red-500">*</span></label>
               <input
                 type="text"
                 value={transactionRef}
@@ -747,7 +862,7 @@ const WalletPage = () => {
 
             {/* Screenshot Upload */}
             <div className="mb-6">
-              <label className="block text-gray-500 text-sm mb-2">Payment Screenshot (Proof)</label>
+              <label className="block text-gray-500 text-sm mb-2">Payment Screenshot <span className="text-red-500">*</span></label>
               <input
                 type="file"
                 ref={fileInputRef}
@@ -818,6 +933,8 @@ const WalletPage = () => {
                 )}
               </button>
             </div>
+              </>
+            )}
           </div>
         </div>
       )}

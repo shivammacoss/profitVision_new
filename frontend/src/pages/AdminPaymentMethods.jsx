@@ -227,46 +227,86 @@ const AdminPaymentMethods = () => {
       </main>
 
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-dark-800 rounded-xl p-6 w-full max-w-md border border-gray-700">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md border border-gray-200 shadow-xl max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-white font-semibold text-lg">{editingMethod ? 'Edit' : 'Add'} Payment Method</h3>
-              <button onClick={() => { setShowModal(false); resetForm(); }} className="text-gray-400 hover:text-white"><X size={20} /></button>
+              <h3 className="text-gray-900 font-semibold text-lg">{editingMethod ? 'Edit' : 'Add'} Payment Method</h3>
+              <button onClick={() => { setShowModal(false); resetForm(); }} className="text-gray-500 hover:text-gray-700"><X size={20} /></button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-gray-400 text-sm mb-2">Type</label>
-                <select value={formData.type} onChange={(e) => setFormData({ ...formData, type: e.target.value })} className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white focus:outline-none">
-                  <option value="Bank Transfer">Bank Transfer</option>
-                  <option value="UPI">UPI</option>
-                  <option value="QR Code">QR Code</option>
-                </select>
+                <label className="block text-gray-600 text-sm mb-2">Payment Type</label>
+                <div className="flex gap-2">
+                  {['Bank Transfer', 'UPI', 'QR Code'].map(type => (
+                    <button
+                      key={type}
+                      onClick={() => setFormData({ ...formData, type })}
+                      className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border transition-colors ${
+                        formData.type === type 
+                          ? 'bg-blue-500 text-white border-blue-500' 
+                          : 'bg-white text-gray-700 border-gray-300 hover:border-gray-400'
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {formData.type === 'Bank Transfer' && (
                 <>
-                  <input type="text" value={formData.bankName} onChange={(e) => setFormData({ ...formData, bankName: e.target.value })} placeholder="Bank Name" className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none" />
-                  <input type="text" value={formData.accountNumber} onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })} placeholder="Account Number" className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none" />
-                  <input type="text" value={formData.accountHolderName} onChange={(e) => setFormData({ ...formData, accountHolderName: e.target.value })} placeholder="Account Holder Name" className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none" />
-                  <input type="text" value={formData.ifscCode} onChange={(e) => setFormData({ ...formData, ifscCode: e.target.value })} placeholder="IFSC Code" className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none" />
+                  <div>
+                    <label className="block text-gray-600 text-sm mb-2">Bank Name</label>
+                    <input type="text" value={formData.bankName} onChange={(e) => setFormData({ ...formData, bankName: e.target.value })} placeholder="Enter bank name" className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500" />
+                  </div>
+                  <div>
+                    <label className="block text-gray-600 text-sm mb-2">Account Holder Name</label>
+                    <input type="text" value={formData.accountHolderName} onChange={(e) => setFormData({ ...formData, accountHolderName: e.target.value })} placeholder="Enter account holder name" className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-gray-600 text-sm mb-2">Account Number</label>
+                      <input type="text" value={formData.accountNumber} onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })} placeholder="e.g., 1234567890" className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-gray-600 text-sm mb-2">IFSC Code</label>
+                      <input type="text" value={formData.ifscCode} onChange={(e) => setFormData({ ...formData, ifscCode: e.target.value })} placeholder="e.g., HDFC0001234" className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500" />
+                    </div>
+                  </div>
                 </>
               )}
 
               {formData.type === 'UPI' && (
-                <input type="text" value={formData.upiId} onChange={(e) => setFormData({ ...formData, upiId: e.target.value })} placeholder="UPI ID (e.g., name@upi)" className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none" />
+                <div>
+                  <label className="block text-gray-600 text-sm mb-2">UPI ID</label>
+                  <input type="text" value={formData.upiId} onChange={(e) => setFormData({ ...formData, upiId: e.target.value })} placeholder="e.g., name@upi" className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500" />
+                </div>
               )}
 
               {formData.type === 'QR Code' && (
-                <input type="text" value={formData.qrCodeImage} onChange={(e) => setFormData({ ...formData, qrCodeImage: e.target.value })} placeholder="QR Code Image URL" className="w-full bg-dark-700 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none" />
+                <div>
+                  <label className="block text-gray-600 text-sm mb-2">QR Code Image URL</label>
+                  <input type="text" value={formData.qrCodeImage} onChange={(e) => setFormData({ ...formData, qrCodeImage: e.target.value })} placeholder="Enter QR code image URL" className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500" />
+                </div>
               )}
+
+              <div className="flex items-center justify-between bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <span className="text-gray-700 font-medium">Active Status</span>
+                <button
+                  onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+                  className={`w-12 h-6 rounded-full transition-colors ${formData.isActive ? 'bg-green-500' : 'bg-gray-300'}`}
+                >
+                  <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${formData.isActive ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                </button>
+              </div>
             </div>
 
             {error && <p className="text-red-500 text-sm mt-4">{error}</p>}
 
             <div className="flex gap-3 mt-6">
-              <button onClick={() => { setShowModal(false); resetForm(); }} className="flex-1 bg-dark-700 text-white py-3 rounded-lg hover:bg-dark-600">Cancel</button>
-              <button onClick={handleSubmit} className="flex-1 bg-red-500 text-white font-medium py-3 rounded-lg hover:bg-red-600">{editingMethod ? 'Update' : 'Create'}</button>
+              <button onClick={() => { setShowModal(false); resetForm(); }} className="flex-1 bg-gray-200 text-gray-800 py-3 rounded-lg hover:bg-gray-300">Cancel</button>
+              <button onClick={handleSubmit} className="flex-1 bg-blue-500 text-white font-medium py-3 rounded-lg hover:bg-blue-600">{editingMethod ? 'Update' : 'Create'}</button>
             </div>
           </div>
         </div>
