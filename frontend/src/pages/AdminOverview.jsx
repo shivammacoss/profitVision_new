@@ -10,8 +10,15 @@ import {
   RefreshCw,
   Calendar
 } from 'lucide-react'
+import { API_URL } from '../config/api'
 
 const AdminOverview = () => {
+  const adminToken = localStorage.getItem('adminToken')
+  
+  const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${adminToken}`
+  })
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
@@ -30,7 +37,9 @@ const AdminOverview = () => {
   const fetchData = async () => {
     setLoading(true)
     try {
-      const response = await fetch('' + API_URL + '/admin/users')
+      const response = await fetch(`${API_URL}/admin/users`, {
+        headers: getAuthHeaders()
+      })
       if (response.ok) {
         const data = await response.json()
         const userList = data.users || []
