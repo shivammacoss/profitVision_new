@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Mail, ChevronDown, Search, Eye, EyeOff, ArrowLeft } from 'lucide-react'
-import { sendOTP, verifyOTP, resendOTP } from '../api/auth'
+import { Mail, ChevronDown, Search, Eye, EyeOff } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import logo from '../assets/logo.png'
 
@@ -57,10 +56,6 @@ const Signup = () => {
   const dropdownRef = useRef(null)
   const [showPassword, setShowPassword] = useState(false)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
-  const [step, setStep] = useState('form') // 'form' or 'otp'
-  const [otp, setOtp] = useState('')
-  const [otpEmail, setOtpEmail] = useState('')
-  const [resendTimer, setResendTimer] = useState(0)
   const [formData, setFormData] = useState({
     firstName: '',
     email: '',
@@ -103,21 +98,7 @@ const Signup = () => {
     setError('')
   }
 
-  // Start resend timer
-  const startResendTimer = () => {
-    setResendTimer(60)
-    const interval = setInterval(() => {
-      setResendTimer(prev => {
-        if (prev <= 1) {
-          clearInterval(interval)
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-  }
-
-  // Step 1: Send OTP
+  // Direct signup without OTP
   const handleSubmit = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -129,36 +110,29 @@ const Signup = () => {
         referralCode: referralCode || undefined
       }
       
-      const response = await sendOTP(signupData)
-      setOtpEmail(formData.email)
-      setStep('otp')
-      startResendTimer()
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Step 2: Verify OTP
-  const handleVerifyOTP = async (e) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
-    
-    try {
-      const response = await verifyOTP(otpEmail, otp)
-      localStorage.setItem('token', response.token)
-      localStorage.setItem('user', JSON.stringify(response.user))
+      const response = await fetch(`${API_URL}/auth/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(signupData)
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Registration failed')
+      }
+      
+      localStorage.setItem('token', data.token)
+      localStorage.setItem('user', JSON.stringify(data.user))
       
       // Also call register-referral API for backward compatibility
-      if (referralCode && response.user?._id) {
+      if (referralCode && data.user?._id) {
         try {
           await fetch(`${API_URL}/ib/register-referral`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              userId: response.user._id,
+              userId: data.user._id,
               referralCode: referralCode
             })
           })
@@ -172,22 +146,6 @@ const Signup = () => {
       } else {
         navigate('/dashboard')
       }
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Resend OTP
-  const handleResendOTP = async () => {
-    if (resendTimer > 0) return
-    setLoading(true)
-    setError('')
-    
-    try {
-      await resendOTP(otpEmail)
-      startResendTimer()
     } catch (err) {
       setError(err.message)
     } finally {
@@ -228,10 +186,8 @@ const Signup = () => {
           </Link>
         </div>
 
-        {step === 'form' ? (
-          <>
-            {/* Title */}
-            <h1 className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-6`}>Create an account</h1>
+        {/* Title */}
+        <h1 className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-6`}>Create an account</h1>
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -347,7 +303,7 @@ const Signup = () => {
                 disabled={loading}
                 className="w-full bg-white text-black font-medium py-3 rounded-lg hover:bg-gray-100 transition-colors mt-2 disabled:opacity-50"
               >
-                {loading ? 'Sending OTP...' : 'Continue'}
+                {loading ? 'Creating Account...' : 'Create Account'}
               </button>
             </form>
 
@@ -356,68 +312,6 @@ const Signup = () => {
               By creating an account, you agree to our{' '}
               <a href="#" className={`${isDarkMode ? 'text-white' : 'text-gray-900'} hover:underline`}>Terms & Service</a>
             </p>
-          </>
-        ) : (
-          <>
-            {/* OTP Verification Step */}
-            <button
-              onClick={() => { setStep('form'); setError(''); setOtp(''); }}
-              className={`flex items-center gap-2 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'} mb-6 transition-colors`}
-            >
-              <ArrowLeft size={18} />
-              <span>Back</span>
-            </button>
-
-            <h1 className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'} mb-2`}>Verify your email</h1>
-            <p className="text-gray-500 text-sm mb-6">
-              We've sent a 6-digit code to <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{otpEmail}</span>
-            </p>
-
-            <form onSubmit={handleVerifyOTP} className="space-y-4">
-              {/* OTP Input */}
-              <input
-                type="text"
-                placeholder="Enter 6-digit OTP"
-                value={otp}
-                onChange={(e) => { setOtp(e.target.value.replace(/\D/g, '').slice(0, 6)); setError(''); }}
-                maxLength={6}
-                className={`w-full ${isDarkMode ? 'bg-dark-600 border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'} border rounded-lg px-4 py-3 text-center text-2xl tracking-widest placeholder-gray-500 focus:outline-none focus:border-gray-600 transition-colors`}
-              />
-
-              {/* Error message */}
-              {error && (
-                <p className="text-red-500 text-sm">{error}</p>
-              )}
-
-              {/* Verify button */}
-              <button
-                type="submit"
-                disabled={loading || otp.length !== 6}
-                className="w-full bg-white text-black font-medium py-3 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-50"
-              >
-                {loading ? 'Verifying...' : 'Verify & Create Account'}
-              </button>
-            </form>
-
-            {/* Resend OTP */}
-            <div className="text-center mt-6">
-              <p className="text-gray-500 text-sm">
-                Didn't receive the code?{' '}
-                {resendTimer > 0 ? (
-                  <span className="text-gray-400">Resend in {resendTimer}s</span>
-                ) : (
-                  <button
-                    onClick={handleResendOTP}
-                    disabled={loading}
-                    className={`${isDarkMode ? 'text-white' : 'text-gray-900'} hover:underline disabled:opacity-50`}
-                  >
-                    Resend OTP
-                  </button>
-                )}
-              </p>
-            </div>
-          </>
-        )}
       </div>
     </div>
   )
