@@ -348,14 +348,20 @@ class CopyTradingEngine {
           tradingDay
         })
 
-        // Update follower stats
-        follower.stats.totalCopiedTrades += 1
-        follower.stats.activeCopiedTrades += 1
-        await follower.save()
+        // Update follower stats using atomic update to avoid parallel save errors
+        await CopyFollower.findByIdAndUpdate(follower._id, {
+          $inc: {
+            'stats.totalCopiedTrades': 1,
+            'stats.activeCopiedTrades': 1
+          }
+        })
 
-        // Update master stats
-        master.stats.totalCopiedVolume += followerLotSize
-        await master.save()
+        // Update master stats using atomic update to avoid parallel save errors
+        await MasterTrader.findByIdAndUpdate(masterId, {
+          $inc: {
+            'stats.totalCopiedVolume': followerLotSize
+          }
+        })
 
         console.log(`[CopyTrade] SUCCESS: Copied trade to follower ${follower._id}, lot size: ${followerLotSize}`)
         
