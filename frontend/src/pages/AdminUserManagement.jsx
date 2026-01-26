@@ -152,7 +152,7 @@ const AdminUserManagement = () => {
 
   const fetchUserAccounts = async (userId) => {
     try {
-      const response = await fetch(`' + API_URL + '/trading-accounts/user/${userId}`)
+      const response = await fetch(`${API_URL}/trading-accounts/user/${userId}`)
       if (response.ok) {
         const data = await response.json()
         setUserAccounts(data.accounts || [])
@@ -167,7 +167,7 @@ const AdminUserManagement = () => {
 
   const fetchUserWallet = async (userId) => {
     try {
-      const response = await fetch(`' + API_URL + '/wallet/${userId}`)
+      const response = await fetch(`${API_URL}/wallet/${userId}`)
       if (response.ok) {
         const data = await response.json()
         setUserWalletBalance(data.wallet?.balance || 0)
@@ -220,7 +220,7 @@ const AdminUserManagement = () => {
 
     setActionLoading(true)
     try {
-      const response = await fetch(`' + API_URL + '/admin/users/${selectedUser._id}/password`, {
+      const response = await fetch(`${API_URL}/admin/users/${selectedUser._id}/password`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: newPassword })
@@ -247,7 +247,7 @@ const AdminUserManagement = () => {
 
     setActionLoading(true)
     try {
-      const response = await fetch(`' + API_URL + '/admin/users/${selectedUser._id}/deduct`, {
+      const response = await fetch(`${API_URL}/admin/users/${selectedUser._id}/deduct`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -281,7 +281,7 @@ const AdminUserManagement = () => {
 
     setActionLoading(true)
     try {
-      const response = await fetch(`' + API_URL + '/admin/users/${selectedUser._id}/add-fund`, {
+      const response = await fetch(`${API_URL}/admin/users/${selectedUser._id}/add-fund`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -310,7 +310,7 @@ const AdminUserManagement = () => {
   const handleBlockUser = async () => {
     setActionLoading(true)
     try {
-      const response = await fetch(`' + API_URL + '/admin/users/${selectedUser._id}/block`, {
+      const response = await fetch(`${API_URL}/admin/users/${selectedUser._id}/block`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -338,7 +338,7 @@ const AdminUserManagement = () => {
   const handleBanUser = async () => {
     setActionLoading(true)
     try {
-      const response = await fetch(`' + API_URL + '/admin/users/${selectedUser._id}/ban`, {
+      const response = await fetch(`${API_URL}/admin/users/${selectedUser._id}/ban`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -366,7 +366,7 @@ const AdminUserManagement = () => {
   const handleDeleteUser = async () => {
     setActionLoading(true)
     try {
-      const response = await fetch(`' + API_URL + '/admin/users/${selectedUser._id}`, {
+      const response = await fetch(`${API_URL}/admin/users/${selectedUser._id}`, {
         method: 'DELETE'
       })
       
@@ -398,7 +398,7 @@ const AdminUserManagement = () => {
 
     setActionLoading(true)
     try {
-      const response = await fetch(`' + API_URL + '/admin/trading-account/${selectedAccountId}/add-credit`, {
+      const response = await fetch(`${API_URL}/admin/trading-account/${selectedAccountId}/add-credit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -439,7 +439,7 @@ const AdminUserManagement = () => {
 
     setActionLoading(true)
     try {
-      const response = await fetch(`' + API_URL + '/admin/trading-account/${selectedAccountId}/remove-credit`, {
+      const response = await fetch(`${API_URL}/admin/trading-account/${selectedAccountId}/remove-credit`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -482,7 +482,7 @@ const AdminUserManagement = () => {
 
     setActionLoading(true)
     try {
-      const response = await fetch(`' + API_URL + '/admin/trading-account/${selectedAccountId}/add-fund`, {
+      const response = await fetch(`${API_URL}/admin/trading-account/${selectedAccountId}/add-fund`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -521,7 +521,7 @@ const AdminUserManagement = () => {
 
     setActionLoading(true)
     try {
-      const response = await fetch(`' + API_URL + '/admin/trading-account/${selectedAccountId}/deduct`, {
+      const response = await fetch(`${API_URL}/admin/trading-account/${selectedAccountId}/deduct`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -550,7 +550,7 @@ const AdminUserManagement = () => {
   const handleLoginAsUser = async () => {
     setActionLoading(true)
     try {
-      const response = await fetch(`' + API_URL + '/admin/login-as-user/${selectedUser._id}`, {
+      const response = await fetch(`${API_URL}/admin/login-as-user/${selectedUser._id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ adminId: adminUser._id })
