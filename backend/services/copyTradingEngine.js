@@ -456,7 +456,7 @@ class CopyTradingEngine {
   }
 
   // Close all follower trades when master closes
-  // P/L is split 50-50 between master and follower
+  // Commission-based system: Follower gets full P/L, Master gets commission only on profit
   async closeFollowerTrades(masterTradeId, masterClosePrice) {
     console.log(`[CopyTrade] ========== CLOSING FOLLOWER TRADES ==========`)
     console.log(`[CopyTrade] Master Trade ID: ${masterTradeId}, Close Price: ${masterClosePrice}`)
@@ -475,7 +475,8 @@ class CopyTradingEngine {
     // Process sequentially to avoid race conditions
     for (const copyTrade of copyTrades) {
       try {
-        // Close the follower trade - this calculates the raw P/L
+        // Close the follower trade - this calculates the full P/L
+        // tradeEngine.closeTrade already adds full P/L to follower's account
         const result = await tradeEngine.closeTrade(
           copyTrade.followerTradeId,
           masterClosePrice,
@@ -485,57 +486,60 @@ class CopyTradingEngine {
 
         const rawPnl = result.realizedPnl
         
-        // ========== 50-50 P/L SPLIT ==========
-        // Split the P/L: 50% to follower, 50% to master
-        const followerShare = rawPnl * 0.5
-        const masterShare = rawPnl * 0.5
+        // ========== COMMISSION-BASED SYSTEM ==========
+        // Follower gets FULL P/L (already applied by tradeEngine.closeTrade)
+        // Master gets commission ONLY on profitable trades
+        // On loss: Master gets 0, Follower bears full loss
         
-        console.log(`[CopyTrade] Trade ${copyTrade._id}: Raw P/L=$${rawPnl.toFixed(2)}, Follower Share=$${followerShare.toFixed(2)}, Master Share=$${masterShare.toFixed(2)}`)
-
-        // Adjust follower's account balance for the 50-50 split
-        // The tradeEngine.closeTrade already added full P/L to follower
-        // We need to deduct the master's share (50%)
-        const followerAccount = await TradingAccount.findById(copyTrade.followerAccountId)
-        if (followerAccount && masterShare !== 0) {
-          // Deduct master's share from follower (whether profit or loss)
-          // If profit: follower got full profit, deduct 50% for master
-          // If loss: follower took full loss, add back 50% (master shares the loss)
-          followerAccount.balance -= masterShare
-          await followerAccount.save()
-          console.log(`[CopyTrade] Adjusted follower balance: deducted $${masterShare.toFixed(2)} for master share`)
-        }
-
-        // Add master's share to master's pending commission (for profits)
-        // For losses, master shares the loss (no action needed as it's already deducted)
-        if (masterShare > 0) {
+        let masterCommission = 0
+        const followerPnl = rawPnl // Follower keeps full P/L
+        
+        if (rawPnl > 0) {
+          // Get master's commission percentage (default 50%)
           const master = await MasterTrader.findById(copyTrade.masterId)
           if (master) {
-            master.pendingCommission += masterShare
-            master.totalCommissionEarned += masterShare
+            const commissionPercentage = master.approvedCommissionPercentage || 50
+            masterCommission = rawPnl * (commissionPercentage / 100)
+            
+            // Deduct commission from follower's account
+            const followerAccount = await TradingAccount.findById(copyTrade.followerAccountId)
+            if (followerAccount && followerAccount.balance >= masterCommission) {
+              followerAccount.balance -= masterCommission
+              await followerAccount.save()
+              console.log(`[CopyTrade] Deducted $${masterCommission.toFixed(2)} commission from follower`)
+            }
+            
+            // Add commission to master's pending commission
+            master.pendingCommission += masterCommission
+            master.totalCommissionEarned += masterCommission
             await master.save()
-            console.log(`[CopyTrade] Added $${masterShare.toFixed(2)} to master's pending commission`)
+            console.log(`[CopyTrade] Added $${masterCommission.toFixed(2)} to master's pending commission`)
           }
         }
+        
+        console.log(`[CopyTrade] Trade ${copyTrade._id}: Raw P/L=$${rawPnl.toFixed(2)}, Follower P/L=$${(rawPnl - masterCommission).toFixed(2)}, Master Commission=$${masterCommission.toFixed(2)}`)
 
-        // Update copy trade record with split P/L info
+        // Update copy trade record
         copyTrade.masterClosePrice = masterClosePrice
         copyTrade.followerClosePrice = result.trade.closePrice
-        copyTrade.followerPnl = followerShare // Store follower's 50% share
-        copyTrade.masterPnl = masterShare // Store master's 50% share
-        copyTrade.rawPnl = rawPnl // Store original raw P/L
+        copyTrade.rawPnl = rawPnl // Original full P/L
+        copyTrade.followerPnl = rawPnl - masterCommission // Follower's net P/L after commission
+        copyTrade.masterPnl = masterCommission // Master's commission (0 on loss)
         copyTrade.status = 'CLOSED'
         copyTrade.closedAt = new Date()
-        copyTrade.commissionApplied = true // Mark as processed
+        copyTrade.commissionApplied = true
         await copyTrade.save()
 
-        // Update follower stats with their 50% share
+        // Update follower stats with their net P/L
+        const netFollowerPnl = rawPnl - masterCommission
         await CopyFollower.findByIdAndUpdate(copyTrade.followerId, {
           $inc: {
             'stats.activeCopiedTrades': -1,
-            'stats.totalProfit': followerShare >= 0 ? followerShare : 0,
-            'stats.totalLoss': followerShare < 0 ? Math.abs(followerShare) : 0,
-            'dailyProfit': followerShare >= 0 ? followerShare : 0,
-            'dailyLoss': followerShare < 0 ? Math.abs(followerShare) : 0
+            'stats.totalProfit': netFollowerPnl >= 0 ? netFollowerPnl : 0,
+            'stats.totalLoss': netFollowerPnl < 0 ? Math.abs(netFollowerPnl) : 0,
+            'stats.totalCommissionPaid': masterCommission,
+            'dailyProfit': netFollowerPnl >= 0 ? netFollowerPnl : 0,
+            'dailyLoss': netFollowerPnl < 0 ? Math.abs(netFollowerPnl) : 0
           }
         })
 
@@ -543,8 +547,8 @@ class CopyTradingEngine {
           copyTradeId: copyTrade._id,
           status: 'SUCCESS',
           rawPnl: rawPnl,
-          followerPnl: followerShare,
-          masterPnl: masterShare
+          followerPnl: netFollowerPnl,
+          masterCommission: masterCommission
         })
 
       } catch (error) {
@@ -562,22 +566,31 @@ class CopyTradingEngine {
     return results
   }
 
-  // Apply commission immediately after a trade closes (for profitable trades)
+  // Apply commission immediately after a trade closes (for profitable trades only)
+  // Commission-based system: Master gets % of profit, Follower keeps the rest
+  // On loss: No commission, Follower bears full loss
   async _applyCommissionForTrade(copyTrade, pnl) {
-    if (pnl <= 0) return null // No commission on losing trades
+    // No commission on losing trades - follower bears full loss
+    if (pnl <= 0) {
+      console.log(`[CopyTrade] No commission on loss. PnL: $${pnl.toFixed(2)}`)
+      return null
+    }
 
     const master = await MasterTrader.findById(copyTrade.masterId)
     if (!master) return null
 
-    // FIXED 50/50 split: 50% to master, 50% stays with follower
+    // Commission percentage from master's approved rate (default 50%)
     const commissionPercentage = master.approvedCommissionPercentage || 50
     const adminSharePercentage = master.adminSharePercentage || 0
 
+    // Calculate commission on PROFIT only
     const totalCommission = pnl * (commissionPercentage / 100)
     const adminShare = totalCommission * (adminSharePercentage / 100)
     const masterShare = totalCommission - adminShare
 
-    // Deduct from follower account
+    console.log(`[CopyTrade] Commission calculation: PnL=$${pnl.toFixed(2)}, Rate=${commissionPercentage}%, Commission=$${totalCommission.toFixed(2)}`)
+
+    // Deduct commission from follower account
     const followerAccount = await TradingAccount.findById(copyTrade.followerAccountId)
     if (followerAccount && followerAccount.balance >= totalCommission) {
       followerAccount.balance -= totalCommission
@@ -598,7 +611,7 @@ class CopyTradingEngine {
         adminSharePercentage,
         status: 'DEDUCTED',
         deductedAt: new Date(),
-        tradeId: copyTrade._id // Link to specific trade
+        tradeId: copyTrade._id
       })
 
       // Update master pending commission
@@ -606,28 +619,29 @@ class CopyTradingEngine {
       master.totalCommissionEarned += masterShare
       await master.save()
 
-      // Update admin pool
-      const settings = await CopySettings.getSettings()
-      if (settings) {
-        settings.adminCopyPool += adminShare
-        await settings.save()
+      // Update admin pool if admin share exists
+      if (adminShare > 0) {
+        const settings = await CopySettings.getSettings()
+        if (settings) {
+          settings.adminCopyPool += adminShare
+          await settings.save()
+        }
       }
 
       // Update follower stats
-      const follower = await CopyFollower.findById(copyTrade.followerId)
-      if (follower) {
-        follower.stats.totalCommissionPaid += totalCommission
-        await follower.save()
-      }
+      await CopyFollower.findByIdAndUpdate(copyTrade.followerId, {
+        $inc: { 'stats.totalCommissionPaid': totalCommission }
+      })
 
       // Mark trade as commission applied
       copyTrade.commissionApplied = true
       await copyTrade.save()
 
-      console.log(`[CopyTrade] Commission: $${totalCommission.toFixed(2)} (Master: $${masterShare.toFixed(2)}, Admin: $${adminShare.toFixed(2)}) for PnL: $${pnl.toFixed(2)}`)
+      console.log(`[CopyTrade] Commission applied: $${totalCommission.toFixed(2)} (Master: $${masterShare.toFixed(2)}, Admin: $${adminShare.toFixed(2)})`)
       return commission
     }
 
+    console.log(`[CopyTrade] Insufficient balance for commission. Balance: $${followerAccount?.balance || 0}, Required: $${totalCommission.toFixed(2)}`)
     return null
   }
 
