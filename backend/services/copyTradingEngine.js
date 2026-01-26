@@ -232,50 +232,80 @@ class CopyTradingEngine {
 
         // EQUITY_BASED MODE: Lot = Master Lot × (Follower Equity / Master Equity)
         if (follower.copyMode === 'EQUITY_BASED') {
-          console.log(`[CopyTrade DEBUG] ========== EQUITY_BASED LOT CALCULATION ==========`)
-          console.log(`[CopyTrade DEBUG] Master Account ID: ${master.tradingAccountId}`)
-          console.log(`[CopyTrade DEBUG] Master Account Found: ${!!masterAccount}`)
-          console.log(`[CopyTrade DEBUG] Master Account: balance=$${masterAccount?.balance || 0}, credit=$${masterAccount?.credit || 0}, floatingPnl=$${masterFloatingPnl.toFixed(2)}`)
-          console.log(`[CopyTrade DEBUG] Follower Account: balance=$${followerAccount.balance || 0}, credit=$${followerAccount.credit || 0}, floatingPnl=$${followerFloatingPnl.toFixed(2)}`)
-          console.log(`[CopyTrade DEBUG] Master Equity: $${masterEquity.toFixed(2)}`)
-          console.log(`[CopyTrade DEBUG] Follower Equity: $${followerEquity.toFixed(2)}`)
-          console.log(`[CopyTrade DEBUG] Master Lot Size: ${masterTrade.quantity}`)
+          const timestamp = new Date().toISOString()
+          const brokerLotStep = 0.01 // Standard broker lot step
+          
+          console.log(`\n[CopyTrade CALC] ╔══════════════════════════════════════════════════════════════╗`)
+          console.log(`[CopyTrade CALC] ║           EQUITY-BASED LOT CALCULATION                       ║`)
+          console.log(`[CopyTrade CALC] ║           Timestamp: ${timestamp}            ║`)
+          console.log(`[CopyTrade CALC] ╠══════════════════════════════════════════════════════════════╣`)
+          
+          // MASTER EQUITY SNAPSHOT
+          console.log(`[CopyTrade CALC] ║ MASTER EQUITY SNAPSHOT:                                      ║`)
+          console.log(`[CopyTrade CALC] ║   Account ID: ${master.tradingAccountId}`)
+          console.log(`[CopyTrade CALC] ║   Balance:        $${(masterAccount?.balance || 0).toFixed(4)}`)
+          console.log(`[CopyTrade CALC] ║   Credit:         $${(masterAccount?.credit || 0).toFixed(4)}`)
+          console.log(`[CopyTrade CALC] ║   Floating P/L:   $${masterFloatingPnl.toFixed(4)} (from ${masterOpenTrades.length} open trades)`)
+          console.log(`[CopyTrade CALC] ║   ─────────────────────────────────────`)
+          console.log(`[CopyTrade CALC] ║   TOTAL EQUITY:   $${masterEquity.toFixed(4)}`)
+          console.log(`[CopyTrade CALC] ╠══════════════════════════════════════════════════════════════╣`)
+          
+          // FOLLOWER EQUITY SNAPSHOT
+          console.log(`[CopyTrade CALC] ║ FOLLOWER EQUITY SNAPSHOT:                                    ║`)
+          console.log(`[CopyTrade CALC] ║   Account ID: ${followerAccountId}`)
+          console.log(`[CopyTrade CALC] ║   Balance:        $${(followerAccount.balance || 0).toFixed(4)}`)
+          console.log(`[CopyTrade CALC] ║   Credit:         $${(followerAccount.credit || 0).toFixed(4)}`)
+          console.log(`[CopyTrade CALC] ║   Floating P/L:   $${followerFloatingPnl.toFixed(4)} (from ${followerOpenTrades.length} open trades)`)
+          console.log(`[CopyTrade CALC] ║   ─────────────────────────────────────`)
+          console.log(`[CopyTrade CALC] ║   TOTAL EQUITY:   $${followerEquity.toFixed(4)}`)
+          console.log(`[CopyTrade CALC] ╠══════════════════════════════════════════════════════════════╣`)
           
           if (masterEquity > 0) {
             const ratio = followerEquity / masterEquity
-            const calculatedLot = masterTrade.quantity * ratio
-            // Round to 2 decimal places - use proper rounding, not floor
-            const roundedLot = Math.round(calculatedLot * 100) / 100
-            // Ensure minimum 0.01 (broker minimum) - but this should ROUND UP, not reduce
-            const beforeMinApplied = roundedLot
-            followerLotSize = Math.max(0.01, roundedLot)
+            const calculatedLotRaw = masterTrade.quantity * ratio
+            // Broker lot step rounding (standard is 0.01)
+            const roundedLot = Math.round(calculatedLotRaw / brokerLotStep) * brokerLotStep
+            const roundedLot2dp = Math.round(roundedLot * 100) / 100 // Ensure 2 decimal places
+            const beforeMinApplied = roundedLot2dp
+            followerLotSize = Math.max(0.01, roundedLot2dp)
             
-            console.log(`[CopyTrade DEBUG] Equity Ratio: ${ratio.toFixed(6)} (Follower/Master)`)
-            console.log(`[CopyTrade DEBUG] Calculated Lot (raw): ${calculatedLot.toFixed(6)}`)
-            console.log(`[CopyTrade DEBUG] Rounded Lot: ${roundedLot}`)
-            console.log(`[CopyTrade DEBUG] After Min 0.01 Applied: ${followerLotSize}`)
+            // LOT CALCULATION DETAILS
+            console.log(`[CopyTrade CALC] ║ LOT CALCULATION:                                             ║`)
+            console.log(`[CopyTrade CALC] ║   Master Lot Size:           ${masterTrade.quantity}`)
+            console.log(`[CopyTrade CALC] ║   Equity Ratio:              ${ratio.toFixed(8)} (Follower/Master)`)
+            console.log(`[CopyTrade CALC] ║   ─────────────────────────────────────`)
+            console.log(`[CopyTrade CALC] ║   Calculated Lot (EXACT):    ${calculatedLotRaw.toFixed(8)}`)
+            console.log(`[CopyTrade CALC] ║   Broker Lot Step:           ${brokerLotStep}`)
+            console.log(`[CopyTrade CALC] ║   After Lot Step Rounding:   ${roundedLot2dp}`)
+            console.log(`[CopyTrade CALC] ║   After Min 0.01 Applied:    ${followerLotSize}`)
+            
+            // Show rounding impact
+            const roundingDiff = calculatedLotRaw - followerLotSize
+            const roundingPct = (roundingDiff / calculatedLotRaw * 100).toFixed(2)
+            console.log(`[CopyTrade CALC] ║   Rounding Impact:           ${roundingDiff.toFixed(8)} lots (${roundingPct}%)`)
             
             // CRITICAL: Detect if Math.max is masking a calculation failure
             if (beforeMinApplied < 0.01 && beforeMinApplied > 0) {
-              console.log(`[CopyTrade WARNING] Lot was ${beforeMinApplied}, forced to 0.01 by Math.max!`)
+              console.log(`[CopyTrade CALC] ║   ⚠️  WARNING: Lot was ${beforeMinApplied}, forced to 0.01 by minimum!`)
             }
-            if (calculatedLot === 0 || isNaN(calculatedLot)) {
-              console.log(`[CopyTrade ERROR] Calculated lot is 0 or NaN! masterTrade.quantity=${masterTrade.quantity}, ratio=${ratio}`)
+            if (calculatedLotRaw === 0 || isNaN(calculatedLotRaw)) {
+              console.log(`[CopyTrade CALC] ║   ❌ ERROR: Calculated lot is 0 or NaN!`)
             }
           } else {
             followerLotSize = masterTrade.quantity
-            console.log(`[CopyTrade WARNING] Master equity is 0 or negative ($${masterEquity}), using master lot size: ${followerLotSize}`)
+            console.log(`[CopyTrade CALC] ║   ⚠️  WARNING: Master equity is $${masterEquity}, using master lot: ${followerLotSize}`)
           }
           
           // Apply max lot size limit ONLY if user explicitly set a limit AND it's reasonable
-          // Default maxLotSize of 10 should not limit normal proportional trades
           const beforeMaxLimit = followerLotSize
           if (follower.maxLotSize && follower.maxLotSize > 0 && followerLotSize > follower.maxLotSize) {
             followerLotSize = follower.maxLotSize
-            console.log(`[CopyTrade] Max Lot Size Limit Applied: ${follower.maxLotSize} (was ${beforeMaxLimit})`)
+            console.log(`[CopyTrade CALC] ║   Max Lot Limit Applied:     ${follower.maxLotSize} (was ${beforeMaxLimit})`)
           }
           
-          console.log(`[CopyTrade] ========== FINAL LOT SIZE: ${followerLotSize} ==========`)
+          console.log(`[CopyTrade CALC] ╠══════════════════════════════════════════════════════════════╣`)
+          console.log(`[CopyTrade CALC] ║ ✅ FINAL LOT SIZE: ${followerLotSize}`)
+          console.log(`[CopyTrade CALC] ╚══════════════════════════════════════════════════════════════╝\n`)
         }
 
         // MULTIPLIER MODE (also handles LOT_MULTIPLIER for backward compatibility): Lot = Master Lot × Multiplier
@@ -354,7 +384,24 @@ class CopyTradingEngine {
           status: 'OPEN' 
         })
         const usedMargin = existingTrades.reduce((sum, t) => sum + (t.marginUsed || 0), 0)
-        const freeMargin = followerAccount.balance + (followerAccount.credit || 0) - usedMargin
+        const totalEquityForMargin = followerAccount.balance + (followerAccount.credit || 0)
+        const freeMargin = totalEquityForMargin - usedMargin
+        
+        // MARGIN CHECK LOGGING
+        console.log(`[CopyTrade MARGIN] ╔══════════════════════════════════════════════════════════════╗`)
+        console.log(`[CopyTrade MARGIN] ║ MARGIN CHECK:                                                ║`)
+        console.log(`[CopyTrade MARGIN] ║   Symbol:              ${masterTrade.symbol}`)
+        console.log(`[CopyTrade MARGIN] ║   Lot Size:            ${followerLotSize}`)
+        console.log(`[CopyTrade MARGIN] ║   Contract Size:       ${contractSize}`)
+        console.log(`[CopyTrade MARGIN] ║   Leverage:            ${followerAccount.leverage}`)
+        console.log(`[CopyTrade MARGIN] ║   Open Price:          ${masterTrade.openPrice}`)
+        console.log(`[CopyTrade MARGIN] ║   ─────────────────────────────────────`)
+        console.log(`[CopyTrade MARGIN] ║   Margin Required:     $${marginRequired.toFixed(4)}`)
+        console.log(`[CopyTrade MARGIN] ║   Total Equity:        $${totalEquityForMargin.toFixed(4)}`)
+        console.log(`[CopyTrade MARGIN] ║   Used Margin:         $${usedMargin.toFixed(4)} (${existingTrades.length} open trades)`)
+        console.log(`[CopyTrade MARGIN] ║   Free Margin:         $${freeMargin.toFixed(4)}`)
+        console.log(`[CopyTrade MARGIN] ║   Margin Available:    ${marginRequired <= freeMargin ? '✅ YES' : '❌ NO'}`)
+        console.log(`[CopyTrade MARGIN] ╚══════════════════════════════════════════════════════════════╝`)
         
         if (marginRequired > freeMargin) {
           // Record failed copy trade
@@ -429,7 +476,11 @@ class CopyTradingEngine {
 
         console.log(`[CopyTrade DEBUG] Trade created successfully: ${followerTrade._id}`)
 
-        // Record successful copy trade
+        // Calculate equity ratio for storage
+        const equityRatioForStorage = masterEquity > 0 ? followerEquity / masterEquity : 0
+        const calculatedLotBeforeRounding = masterTrade.quantity * equityRatioForStorage
+
+        // Record successful copy trade with equity snapshots
         await CopyTrade.create({
           masterTradeId: masterTrade._id,
           masterId: masterId,
@@ -445,6 +496,11 @@ class CopyTradingEngine {
           copyValue: follower.copyValue,
           masterOpenPrice: masterTrade.openPrice,
           followerOpenPrice: followerTrade.openPrice,
+          // Store equity snapshots for audit/proof
+          masterEquitySnapshot: masterEquity,
+          followerEquitySnapshot: followerEquity,
+          calculatedLotBeforeRounding: calculatedLotBeforeRounding,
+          equityRatio: equityRatioForStorage,
           status: 'OPEN',
           tradingDay
         })

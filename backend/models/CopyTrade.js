@@ -77,7 +77,24 @@ const copyTradeSchema = new mongoose.Schema({
     type: Number,
     default: null
   },
-  // PnL - Split 50-50 between master and follower
+  // Equity snapshots at calculation time (for audit/proof)
+  masterEquitySnapshot: {
+    type: Number,
+    default: null
+  },
+  followerEquitySnapshot: {
+    type: Number,
+    default: null
+  },
+  calculatedLotBeforeRounding: {
+    type: Number,
+    default: null
+  },
+  equityRatio: {
+    type: Number,
+    default: null
+  },
+  // PnL - Commission-based system
   rawPnl: {
     type: Number,
     default: 0
