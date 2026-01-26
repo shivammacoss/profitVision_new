@@ -65,8 +65,8 @@ router.post('/create-deposit', async (req, res) => {
       await wallet.save()
     }
 
-    // Generate unique order ID
-    const orderId = `DEP-${authenticatedUserId.toString().slice(-6)}-${Date.now()}`
+    // Generate unique order ID - include full userId for webhook to find user
+    const orderId = `DEP-${authenticatedUserId.toString()}-${Date.now()}`
 
     // Create OxaPay invoice
     let invoice
@@ -89,24 +89,13 @@ router.post('/create-deposit', async (req, res) => {
       throw oxaError
     }
 
-    // Create pending transaction
-    const transaction = new Transaction({
-      userId: authenticatedUserId,
-      walletId: wallet._id,
-      type: 'Deposit',
-      amount: parseFloat(amount),
-      paymentMethod: 'Crypto (OxaPay)',
-      transactionRef: invoice.trackId,
-      status: 'Pending',
-      remarks: `OxaPay Invoice - Order: ${orderId}`
-    })
-    await transaction.save()
-
-    // Update pending deposits
-    wallet.pendingDeposits += parseFloat(amount)
-    await wallet.save()
-
-    console.log(`[OxaPay Deposit] Created invoice for user ${user.email}, amount: $${amount}, trackId: ${invoice.trackId}`)
+    // NOTE: We do NOT create a transaction here anymore
+    // Transaction will be created when webhook receives "Paying" or "Paid" status
+    // This prevents showing pending deposits that user never actually paid
+    
+    // Store invoice info temporarily (will be used by webhook)
+    // We use a simple in-memory store or rely on orderId pattern to reconstruct user info
+    console.log(`[OxaPay Deposit] Created invoice for user ${user.email}, amount: $${amount}, trackId: ${invoice.trackId}, orderId: ${orderId}`)
 
     res.json({
       success: true,
@@ -126,6 +115,7 @@ router.post('/create-deposit', async (req, res) => {
 /**
  * POST /api/oxapay/webhook
  * Handle OxaPay payment callbacks (IPN)
+ * Transaction is only created when payment is actually received (Paying/Paid status)
  */
 router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
   try {
@@ -143,31 +133,108 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
 
     console.log(`[OxaPay Webhook] Received: trackId=${track_id}, status=${status}, amount=${amount}, orderId=${order_id}`)
 
-    // Find the transaction by track_id
-    const transaction = await Transaction.findOne({ transactionRef: track_id })
-    if (!transaction) {
-      console.error(`[OxaPay Webhook] Transaction not found for trackId: ${track_id}`)
-      return res.status(404).json({ success: false, message: 'Transaction not found' })
+    // Extract userId from orderId (format: DEP-{fullUserId}-{timestamp})
+    // First, try to find existing transaction
+    let transaction = await Transaction.findOne({ transactionRef: track_id })
+    
+    // Helper function to extract userId from order_id
+    const extractUserId = (orderId) => {
+      if (!orderId) return null
+      const parts = orderId.split('-')
+      // Format: DEP-{userId}-{timestamp}, userId is the middle part
+      if (parts.length >= 3 && parts[0] === 'DEP') {
+        return parts[1] // Full MongoDB ObjectId
+      }
+      return null
     }
-
+    
     // Handle different statuses
     switch (status) {
       case 'Waiting':
-        // Payment created, waiting for user to pay
-        transaction.status = 'Pending'
-        await transaction.save()
+        // Payment created, waiting for user to pay - DO NOT create transaction yet
+        console.log(`[OxaPay Webhook] Invoice waiting for payment: ${track_id}`)
         break
 
       case 'Paying':
-        // Payment received, awaiting confirmations
-        transaction.status = 'Pending'
-        transaction.adminRemarks = 'Payment received, awaiting blockchain confirmation'
-        await transaction.save()
+        // Payment received, awaiting confirmations - NOW create the transaction
+        if (!transaction) {
+          // Find user from order_id
+          const userId = extractUserId(order_id)
+          const user = userId ? await User.findById(userId) : null
+          
+          if (user) {
+            let wallet = await Wallet.findOne({ userId: user._id })
+            if (!wallet) {
+              wallet = new Wallet({ userId: user._id, balance: 0 })
+              await wallet.save()
+            }
+            
+            // Create pending transaction NOW (payment actually started)
+            transaction = new Transaction({
+              userId: user._id,
+              walletId: wallet._id,
+              type: 'Deposit',
+              amount: parseFloat(amount),
+              paymentMethod: 'Crypto (OxaPay)',
+              transactionRef: track_id,
+              status: 'Pending',
+              remarks: `OxaPay Crypto Deposit - Order: ${order_id}`,
+              adminRemarks: 'Payment received, awaiting blockchain confirmation'
+            })
+            await transaction.save()
+            
+            // Update pending deposits
+            wallet.pendingDeposits += parseFloat(amount)
+            await wallet.save()
+            
+            console.log(`[OxaPay Webhook] Created pending transaction for user ${user.email}, amount: $${amount}`)
+          } else {
+            console.error(`[OxaPay Webhook] Could not find user for order: ${order_id}`)
+          }
+        } else {
+          transaction.adminRemarks = 'Payment received, awaiting blockchain confirmation'
+          await transaction.save()
+        }
         break
 
       case 'Paid':
         // Payment confirmed - credit the user's wallet
-        if (transaction.status !== 'Approved') {
+        if (!transaction) {
+          // Transaction might not exist if Paying webhook was missed - create and approve directly
+          const userId = extractUserId(order_id)
+          const user = userId ? await User.findById(userId) : null
+          
+          if (user) {
+            let wallet = await Wallet.findOne({ userId: user._id })
+            if (!wallet) {
+              wallet = new Wallet({ userId: user._id, balance: 0 })
+              await wallet.save()
+            }
+            
+            // Create and approve transaction directly
+            transaction = new Transaction({
+              userId: user._id,
+              walletId: wallet._id,
+              type: 'Deposit',
+              amount: parseFloat(amount),
+              paymentMethod: 'Crypto (OxaPay)',
+              transactionRef: track_id,
+              status: 'Approved',
+              processedAt: new Date(),
+              remarks: `OxaPay Crypto Deposit - Order: ${order_id}`,
+              adminRemarks: `Auto-approved via OxaPay. Crypto: ${currency}, TxHash: ${txs?.[0]?.tx_hash || 'N/A'}`
+            })
+            await transaction.save()
+            
+            // Add to balance directly
+            wallet.balance += parseFloat(amount)
+            await wallet.save()
+            
+            console.log(`[OxaPay Webhook] Deposit approved for user ${user.email}, amount: $${amount}`)
+          } else {
+            console.error(`[OxaPay Webhook] Could not find user for order: ${order_id}`)
+          }
+        } else if (transaction.status !== 'Approved') {
           const wallet = await Wallet.findOne({ userId: transaction.userId })
           if (wallet) {
             // Remove from pending and add to balance
@@ -186,8 +253,8 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         break
 
       case 'Expired':
-        // Payment expired
-        if (transaction.status === 'Pending') {
+        // Payment expired - only update if transaction exists (user actually started paying)
+        if (transaction && transaction.status === 'Pending') {
           const wallet = await Wallet.findOne({ userId: transaction.userId })
           if (wallet) {
             wallet.pendingDeposits = Math.max(0, wallet.pendingDeposits - transaction.amount)
@@ -195,16 +262,17 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
           }
 
           transaction.status = 'Rejected'
-          transaction.adminRemarks = 'Payment expired - no payment received'
+          transaction.adminRemarks = 'Payment expired - blockchain confirmation timeout'
           await transaction.save()
 
           console.log(`[OxaPay Webhook] Deposit expired for user ${transaction.userId}`)
         }
+        // If no transaction exists, invoice just expired without user paying - no action needed
         break
 
       case 'Failed':
-        // Payment failed
-        if (transaction.status === 'Pending') {
+        // Payment failed - only update if transaction exists
+        if (transaction && transaction.status === 'Pending') {
           const wallet = await Wallet.findOne({ userId: transaction.userId })
           if (wallet) {
             wallet.pendingDeposits = Math.max(0, wallet.pendingDeposits - transaction.amount)
