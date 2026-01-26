@@ -38,11 +38,14 @@ class CopyTradingEngine {
   }
 
   // Copy master trade to all active followers
-  // Processes all followers in parallel for instant execution
+  // Uses batched processing to handle large numbers of followers reliably
   async copyTradeToFollowers(masterTrade, masterId) {
+    console.log(`[CopyTrade] ========== STARTING COPY TO FOLLOWERS ==========`)
+    console.log(`[CopyTrade] Master Trade ID: ${masterTrade._id}, Symbol: ${masterTrade.symbol}, Lot: ${masterTrade.quantity}`)
+    
     const master = await MasterTrader.findById(masterId)
     if (!master || master.status !== 'ACTIVE') {
-      console.log(`Master ${masterId} not active, skipping copy`)
+      console.log(`[CopyTrade] Master ${masterId} not active, skipping copy`)
       return []
     }
 
@@ -60,15 +63,49 @@ class CopyTradingEngine {
     }
 
     const tradingDay = this.getTradingDay()
+    const allResults = []
     
-    // Process ALL followers in parallel for instant execution
-    const allResults = await Promise.all(followers.map(async (follower) => {
-      return this._copyTradeToSingleFollower(masterTrade, master, follower, tradingDay)
-    }))
+    // Process followers in batches of 10 to avoid overwhelming the database
+    // This ensures ALL followers get processed reliably
+    const BATCH_SIZE = 10
+    for (let i = 0; i < followers.length; i += BATCH_SIZE) {
+      const batch = followers.slice(i, i + BATCH_SIZE)
+      console.log(`[CopyTrade] Processing batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(followers.length/BATCH_SIZE)} (${batch.length} followers)`)
+      
+      // Process batch in parallel
+      const batchResults = await Promise.all(batch.map(async (follower) => {
+        try {
+          return await this._copyTradeToSingleFollower(masterTrade, master, follower, tradingDay)
+        } catch (error) {
+          console.error(`[CopyTrade] Unexpected error for follower ${follower._id}:`, error)
+          return {
+            followerId: follower._id,
+            status: 'FAILED',
+            reason: error.message
+          }
+        }
+      }))
+      
+      allResults.push(...batchResults)
+      
+      // Small delay between batches to prevent database overload
+      if (i + BATCH_SIZE < followers.length) {
+        await new Promise(resolve => setTimeout(resolve, 50))
+      }
+    }
     
     const successCount = allResults.filter(r => r.status === 'SUCCESS').length
     const failedCount = allResults.filter(r => r.status === 'FAILED').length
-    console.log(`[CopyTrade] COMPLETE: ${successCount} success, ${failedCount} failed, ${allResults.length - successCount - failedCount} skipped out of ${followers.length} total followers`)
+    const skippedCount = allResults.filter(r => r.status === 'SKIPPED').length
+    
+    console.log(`[CopyTrade] ========== COPY COMPLETE ==========`)
+    console.log(`[CopyTrade] Total: ${followers.length}, Success: ${successCount}, Failed: ${failedCount}, Skipped: ${skippedCount}`)
+    
+    // Log failed followers for debugging
+    const failedResults = allResults.filter(r => r.status === 'FAILED')
+    if (failedResults.length > 0) {
+      console.log(`[CopyTrade] Failed followers:`, failedResults.map(r => ({ id: r.followerId, reason: r.reason })))
+    }
     
     return allResults
   }
@@ -418,23 +455,27 @@ class CopyTradingEngine {
     return results
   }
 
-  // Close all follower trades when master closes and calculate commission immediately
+  // Close all follower trades when master closes
+  // P/L is split 50-50 between master and follower
   async closeFollowerTrades(masterTradeId, masterClosePrice) {
-    console.log(`[CopyTrade] closeFollowerTrades called with masterTradeId: ${masterTradeId}, price: ${masterClosePrice}`)
+    console.log(`[CopyTrade] ========== CLOSING FOLLOWER TRADES ==========`)
+    console.log(`[CopyTrade] Master Trade ID: ${masterTradeId}, Close Price: ${masterClosePrice}`)
     
     const copyTrades = await CopyTrade.find({
       masterTradeId,
       status: 'OPEN'
     })
 
-    console.log(`[CopyTrade] Found ${copyTrades.length} open copy trades to close for master trade ${masterTradeId}`)
+    console.log(`[CopyTrade] Found ${copyTrades.length} open copy trades to close`)
     
     if (copyTrades.length === 0) return []
 
-    // Process ALL in parallel
-    const results = await Promise.all(copyTrades.map(async (copyTrade) => {
+    const results = []
+    
+    // Process sequentially to avoid race conditions
+    for (const copyTrade of copyTrades) {
       try {
-        // Close the follower trade
+        // Close the follower trade - this calculates the raw P/L
         const result = await tradeEngine.closeTrade(
           copyTrade.followerTradeId,
           masterClosePrice,
@@ -442,56 +483,82 @@ class CopyTradingEngine {
           'USER'
         )
 
-        // Update copy trade record
+        const rawPnl = result.realizedPnl
+        
+        // ========== 50-50 P/L SPLIT ==========
+        // Split the P/L: 50% to follower, 50% to master
+        const followerShare = rawPnl * 0.5
+        const masterShare = rawPnl * 0.5
+        
+        console.log(`[CopyTrade] Trade ${copyTrade._id}: Raw P/L=$${rawPnl.toFixed(2)}, Follower Share=$${followerShare.toFixed(2)}, Master Share=$${masterShare.toFixed(2)}`)
+
+        // Adjust follower's account balance for the 50-50 split
+        // The tradeEngine.closeTrade already added full P/L to follower
+        // We need to deduct the master's share (50%)
+        const followerAccount = await TradingAccount.findById(copyTrade.followerAccountId)
+        if (followerAccount && masterShare !== 0) {
+          // Deduct master's share from follower (whether profit or loss)
+          // If profit: follower got full profit, deduct 50% for master
+          // If loss: follower took full loss, add back 50% (master shares the loss)
+          followerAccount.balance -= masterShare
+          await followerAccount.save()
+          console.log(`[CopyTrade] Adjusted follower balance: deducted $${masterShare.toFixed(2)} for master share`)
+        }
+
+        // Add master's share to master's pending commission (for profits)
+        // For losses, master shares the loss (no action needed as it's already deducted)
+        if (masterShare > 0) {
+          const master = await MasterTrader.findById(copyTrade.masterId)
+          if (master) {
+            master.pendingCommission += masterShare
+            master.totalCommissionEarned += masterShare
+            await master.save()
+            console.log(`[CopyTrade] Added $${masterShare.toFixed(2)} to master's pending commission`)
+          }
+        }
+
+        // Update copy trade record with split P/L info
         copyTrade.masterClosePrice = masterClosePrice
         copyTrade.followerClosePrice = result.trade.closePrice
-        copyTrade.followerPnl = result.realizedPnl
+        copyTrade.followerPnl = followerShare // Store follower's 50% share
+        copyTrade.masterPnl = masterShare // Store master's 50% share
+        copyTrade.rawPnl = rawPnl // Store original raw P/L
         copyTrade.status = 'CLOSED'
         copyTrade.closedAt = new Date()
+        copyTrade.commissionApplied = true // Mark as processed
         await copyTrade.save()
 
-        // Update follower stats
-        const follower = await CopyFollower.findById(copyTrade.followerId)
-        if (follower) {
-          follower.stats.activeCopiedTrades -= 1
-          if (result.realizedPnl >= 0) {
-            follower.stats.totalProfit += result.realizedPnl
-            follower.dailyProfit += result.realizedPnl
-          } else {
-            follower.stats.totalLoss += Math.abs(result.realizedPnl)
-            follower.dailyLoss += Math.abs(result.realizedPnl)
+        // Update follower stats with their 50% share
+        await CopyFollower.findByIdAndUpdate(copyTrade.followerId, {
+          $inc: {
+            'stats.activeCopiedTrades': -1,
+            'stats.totalProfit': followerShare >= 0 ? followerShare : 0,
+            'stats.totalLoss': followerShare < 0 ? Math.abs(followerShare) : 0,
+            'dailyProfit': followerShare >= 0 ? followerShare : 0,
+            'dailyLoss': followerShare < 0 ? Math.abs(followerShare) : 0
           }
-          await follower.save()
-        }
+        })
 
-        // Calculate and apply commission immediately after trade close (if profitable)
-        if (result.realizedPnl > 0) {
-          try {
-            await this._applyCommissionForTrade(copyTrade, result.realizedPnl)
-            console.log(`[CopyTrade] Commission applied for trade ${copyTrade._id}, PnL: ${result.realizedPnl}`)
-          } catch (commError) {
-            console.error(`[CopyTrade] Error applying commission for trade ${copyTrade._id}:`, commError)
-          }
-        }
-
-        return {
+        results.push({
           copyTradeId: copyTrade._id,
           status: 'SUCCESS',
-          pnl: result.realizedPnl
-        }
+          rawPnl: rawPnl,
+          followerPnl: followerShare,
+          masterPnl: masterShare
+        })
 
       } catch (error) {
-        console.error(`Error closing copy trade ${copyTrade._id}:`, error)
-        return {
+        console.error(`[CopyTrade] Error closing copy trade ${copyTrade._id}:`, error)
+        results.push({
           copyTradeId: copyTrade._id,
           status: 'FAILED',
           reason: error.message
-        }
+        })
       }
-    }))
+    }
 
     const successCount = results.filter(r => r.status === 'SUCCESS').length
-    console.log(`[CopyTrade] Close complete: ${successCount}/${copyTrades.length} success`)
+    console.log(`[CopyTrade] ========== CLOSE COMPLETE: ${successCount}/${copyTrades.length} success ==========`)
     return results
   }
 

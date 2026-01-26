@@ -187,7 +187,7 @@ const BrandedSignup = () => {
             <input
               type="tel"
               name="phone"
-              placeholder="Phone number"
+              placeholder="Phone number (optional)"
               value={formData.phone}
               onChange={handleChange}
               className="w-full bg-dark-600 border border-gray-700 rounded-lg pl-11 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-gray-600 transition-colors"

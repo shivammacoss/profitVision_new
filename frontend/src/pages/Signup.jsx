@@ -341,7 +341,7 @@ const Signup = () => {
                 <input
                   type="tel"
                   name="phone"
-                  placeholder="Enter phone number"
+                  placeholder="Enter phone number (optional)"
                   value={formData.phone}
                   onChange={handleChange}
                   className={`flex-1 ${isDarkMode ? 'bg-dark-600 border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'} border rounded-r-lg px-3 sm:px-4 py-3 placeholder-gray-500 focus:outline-none focus:border-gray-600 transition-colors min-w-0`}

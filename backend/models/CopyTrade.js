@@ -77,8 +77,16 @@ const copyTradeSchema = new mongoose.Schema({
     type: Number,
     default: null
   },
-  // PnL
+  // PnL - Split 50-50 between master and follower
+  rawPnl: {
+    type: Number,
+    default: 0
+  },
   followerPnl: {
+    type: Number,
+    default: 0
+  },
+  masterPnl: {
     type: Number,
     default: 0
   },
