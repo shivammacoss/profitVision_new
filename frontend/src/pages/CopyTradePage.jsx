@@ -790,7 +790,9 @@ const CopyTradePage = () => {
                         <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Lots</th>
                         <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Open Price</th>
                         <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Close Price</th>
-                        <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>P/L</th>
+                        <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Raw P/L</th>
+                        <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Commission</th>
+                        <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Net P/L</th>
                         <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Status</th>
                       </tr>
                     </thead>
@@ -800,11 +802,17 @@ const CopyTradePage = () => {
                           <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{trade.masterId?.displayName || '-'}</td>
                           <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{trade.symbol}</td>
                           <td className={`px-4 py-3 text-sm ${trade.side === 'BUY' ? 'text-green-500' : 'text-red-500'}`}>{trade.side}</td>
-                          <td className="px-4 py-3 text-white text-sm">{trade.followerLotSize}</td>
-                          <td className="px-4 py-3 text-white text-sm">{trade.followerOpenPrice?.toFixed(5)}</td>
-                          <td className="px-4 py-3 text-white text-sm">{trade.followerClosePrice?.toFixed(5) || '-'}</td>
-                          <td className={`px-4 py-3 text-sm font-medium ${trade.followerPnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                            ${trade.followerPnl?.toFixed(2) || '0.00'}
+                          <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{trade.followerLotSize}</td>
+                          <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{trade.followerOpenPrice?.toFixed(5)}</td>
+                          <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{trade.followerClosePrice?.toFixed(5) || '-'}</td>
+                          <td className={`px-4 py-3 text-sm font-medium ${(trade.rawPnl || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            ${(trade.rawPnl || 0).toFixed(2)}
+                          </td>
+                          <td className="px-4 py-3 text-sm text-yellow-500">
+                            {(trade.masterPnl || 0) > 0 ? `-$${(trade.masterPnl || 0).toFixed(2)}` : '$0.00'}
+                          </td>
+                          <td className={`px-4 py-3 text-sm font-medium ${(trade.followerPnl || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            ${(trade.followerPnl || 0).toFixed(2)}
                           </td>
                           <td className="px-4 py-3">
                             <span className={`px-2 py-1 rounded text-xs ${
