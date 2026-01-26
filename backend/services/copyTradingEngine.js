@@ -392,19 +392,42 @@ class CopyTradingEngine {
         console.log(`[CopyTrade DEBUG] Symbol: ${masterTrade.symbol}, Side: ${masterTrade.side}`)
         console.log(`[CopyTrade DEBUG] Open Price: ${masterTrade.openPrice}`)
         
-        const followerTrade = await tradeEngine.openTrade(
-          follower.followerId,
-          followerAccountId, // Use the resolved ID from earlier
-          masterTrade.symbol,
-          masterTrade.segment,
-          masterTrade.side,
-          'MARKET',
-          followerLotSize,
-          masterTrade.openPrice, // Use master's price as bid
-          masterTrade.openPrice, // Use master's price as ask
-          masterTrade.stopLoss,
-          masterTrade.takeProfit
-        )
+        let followerTrade
+        try {
+          followerTrade = await tradeEngine.openTrade(
+            follower.followerId,
+            followerAccountId, // Use the resolved ID from earlier
+            masterTrade.symbol,
+            masterTrade.segment,
+            masterTrade.side,
+            'MARKET',
+            followerLotSize,
+            masterTrade.openPrice, // Use master's price as bid
+            masterTrade.openPrice, // Use master's price as ask
+            masterTrade.stopLoss,
+            masterTrade.takeProfit
+          )
+        } catch (tradeError) {
+          console.log(`[CopyTrade ERROR] tradeEngine.openTrade failed for follower ${follower._id}: ${tradeError.message}`)
+          return {
+            followerId: follower._id,
+            status: 'FAILED',
+            reason: `Trade execution failed: ${tradeError.message}`
+          }
+        }
+
+        // Check if trade was created successfully
+        if (!followerTrade || !followerTrade._id) {
+          console.log(`[CopyTrade ERROR] Trade execution returned null/undefined for follower ${follower._id}`)
+          console.log(`[CopyTrade ERROR] followerTrade:`, JSON.stringify(followerTrade))
+          return {
+            followerId: follower._id,
+            status: 'FAILED',
+            reason: 'Trade execution failed - no trade returned'
+          }
+        }
+
+        console.log(`[CopyTrade DEBUG] Trade created successfully: ${followerTrade._id}`)
 
         // Record successful copy trade
         await CopyTrade.create({
