@@ -118,8 +118,15 @@ class CopyTradingEngine {
     try {
       console.log(`\n[CopyTrade DEBUG ${debugTimestamp}] ==================== COPY TRADE START ====================`)
       console.log(`[CopyTrade DEBUG] Follower ID: ${follower._id}`)
-      console.log(`[CopyTrade DEBUG] Copy Mode: ${follower.copyMode}, Copy Value: ${follower.copyValue}, Max Lot: ${follower.maxLotSize}`)
-      console.log(`[CopyTrade DEBUG] Master Trade: ${masterTrade._id}, Symbol: ${masterTrade.symbol}, Lot: ${masterTrade.quantity}`)
+      console.log(`[CopyTrade DEBUG] Copy Mode: ${follower.copyMode} (type: ${typeof follower.copyMode})`)
+      console.log(`[CopyTrade DEBUG] Copy Value: ${follower.copyValue}, Max Lot: ${follower.maxLotSize}`)
+      console.log(`[CopyTrade DEBUG] Master Trade: ${masterTrade._id}, Symbol: ${masterTrade.symbol}`)
+      console.log(`[CopyTrade DEBUG] Master Lot from DB: ${masterTrade.quantity} (type: ${typeof masterTrade.quantity})`)
+      
+      // CRITICAL: Check if copyMode is actually set
+      if (!follower.copyMode) {
+        console.log(`[CopyTrade WARNING] copyMode is NULL/UNDEFINED! Defaulting behavior may cause 0.01 lot`)
+      }
       
       // Check if already copied for this specific follower (prevent duplicates per follower)
       const existingFollowerCopy = await CopyTrade.findOne({
@@ -225,12 +232,14 @@ class CopyTradingEngine {
 
         // EQUITY_BASED MODE: Lot = Master Lot × (Follower Equity / Master Equity)
         if (follower.copyMode === 'EQUITY_BASED') {
-          console.log(`[CopyTrade] ========== EQUITY_BASED LOT CALCULATION ==========`)
-          console.log(`[CopyTrade] Master Account: balance=$${masterAccount?.balance || 0}, credit=$${masterAccount?.credit || 0}, floatingPnl=$${masterFloatingPnl.toFixed(2)}`)
-          console.log(`[CopyTrade] Follower Account: balance=$${followerAccount.balance || 0}, credit=$${followerAccount.credit || 0}, floatingPnl=$${followerFloatingPnl.toFixed(2)}`)
-          console.log(`[CopyTrade] Master Equity: $${masterEquity.toFixed(2)}`)
-          console.log(`[CopyTrade] Follower Equity: $${followerEquity.toFixed(2)}`)
-          console.log(`[CopyTrade] Master Lot Size: ${masterTrade.quantity}`)
+          console.log(`[CopyTrade DEBUG] ========== EQUITY_BASED LOT CALCULATION ==========`)
+          console.log(`[CopyTrade DEBUG] Master Account ID: ${master.tradingAccountId}`)
+          console.log(`[CopyTrade DEBUG] Master Account Found: ${!!masterAccount}`)
+          console.log(`[CopyTrade DEBUG] Master Account: balance=$${masterAccount?.balance || 0}, credit=$${masterAccount?.credit || 0}, floatingPnl=$${masterFloatingPnl.toFixed(2)}`)
+          console.log(`[CopyTrade DEBUG] Follower Account: balance=$${followerAccount.balance || 0}, credit=$${followerAccount.credit || 0}, floatingPnl=$${followerFloatingPnl.toFixed(2)}`)
+          console.log(`[CopyTrade DEBUG] Master Equity: $${masterEquity.toFixed(2)}`)
+          console.log(`[CopyTrade DEBUG] Follower Equity: $${followerEquity.toFixed(2)}`)
+          console.log(`[CopyTrade DEBUG] Master Lot Size: ${masterTrade.quantity}`)
           
           if (masterEquity > 0) {
             const ratio = followerEquity / masterEquity
@@ -238,15 +247,24 @@ class CopyTradingEngine {
             // Round to 2 decimal places - use proper rounding, not floor
             const roundedLot = Math.round(calculatedLot * 100) / 100
             // Ensure minimum 0.01 (broker minimum) - but this should ROUND UP, not reduce
+            const beforeMinApplied = roundedLot
             followerLotSize = Math.max(0.01, roundedLot)
             
-            console.log(`[CopyTrade] Equity Ratio: ${ratio.toFixed(6)} (Follower/Master)`)
-            console.log(`[CopyTrade] Calculated Lot (raw): ${calculatedLot.toFixed(6)}`)
-            console.log(`[CopyTrade] Rounded Lot: ${roundedLot}`)
-            console.log(`[CopyTrade] After Min 0.01 Applied: ${followerLotSize}`)
+            console.log(`[CopyTrade DEBUG] Equity Ratio: ${ratio.toFixed(6)} (Follower/Master)`)
+            console.log(`[CopyTrade DEBUG] Calculated Lot (raw): ${calculatedLot.toFixed(6)}`)
+            console.log(`[CopyTrade DEBUG] Rounded Lot: ${roundedLot}`)
+            console.log(`[CopyTrade DEBUG] After Min 0.01 Applied: ${followerLotSize}`)
+            
+            // CRITICAL: Detect if Math.max is masking a calculation failure
+            if (beforeMinApplied < 0.01 && beforeMinApplied > 0) {
+              console.log(`[CopyTrade WARNING] Lot was ${beforeMinApplied}, forced to 0.01 by Math.max!`)
+            }
+            if (calculatedLot === 0 || isNaN(calculatedLot)) {
+              console.log(`[CopyTrade ERROR] Calculated lot is 0 or NaN! masterTrade.quantity=${masterTrade.quantity}, ratio=${ratio}`)
+            }
           } else {
             followerLotSize = masterTrade.quantity
-            console.log(`[CopyTrade] WARNING: Master equity is 0 or negative, using master lot size: ${followerLotSize}`)
+            console.log(`[CopyTrade WARNING] Master equity is 0 or negative ($${masterEquity}), using master lot size: ${followerLotSize}`)
           }
           
           // Apply max lot size limit ONLY if user explicitly set a limit AND it's reasonable
@@ -277,24 +295,29 @@ class CopyTradingEngine {
 
         // AUTO MODE: Same as EQUITY_BASED - Lot = Master Lot × (Follower Equity / Master Equity)
         if (follower.copyMode === 'AUTO') {
-          console.log(`[CopyTrade] ========== AUTO (EQUITY_BASED) LOT CALCULATION ==========`)
-          console.log(`[CopyTrade] Master Equity: $${masterEquity.toFixed(2)}`)
-          console.log(`[CopyTrade] Follower Equity: $${followerEquity.toFixed(2)}`)
-          console.log(`[CopyTrade] Master Lot Size: ${masterTrade.quantity}`)
+          console.log(`[CopyTrade DEBUG] ========== AUTO (EQUITY_BASED) LOT CALCULATION ==========`)
+          console.log(`[CopyTrade DEBUG] Master Equity: $${masterEquity.toFixed(2)}`)
+          console.log(`[CopyTrade DEBUG] Follower Equity: $${followerEquity.toFixed(2)}`)
+          console.log(`[CopyTrade DEBUG] Master Lot Size: ${masterTrade.quantity}`)
           
           if (masterEquity > 0) {
             const ratio = followerEquity / masterEquity
             const calculatedLot = masterTrade.quantity * ratio
             const roundedLot = Math.round(calculatedLot * 100) / 100
+            const beforeMinApplied = roundedLot
             followerLotSize = Math.max(0.01, roundedLot)
             
-            console.log(`[CopyTrade] Equity Ratio: ${ratio.toFixed(6)} (Follower/Master)`)
-            console.log(`[CopyTrade] Calculated Lot (raw): ${calculatedLot.toFixed(6)}`)
-            console.log(`[CopyTrade] Rounded Lot: ${roundedLot}`)
-            console.log(`[CopyTrade] After Min 0.01 Applied: ${followerLotSize}`)
+            console.log(`[CopyTrade DEBUG] Equity Ratio: ${ratio.toFixed(6)} (Follower/Master)`)
+            console.log(`[CopyTrade DEBUG] Calculated Lot (raw): ${calculatedLot.toFixed(6)}`)
+            console.log(`[CopyTrade DEBUG] Rounded Lot: ${roundedLot}`)
+            console.log(`[CopyTrade DEBUG] After Min 0.01 Applied: ${followerLotSize}`)
+            
+            if (beforeMinApplied < 0.01 && beforeMinApplied > 0) {
+              console.log(`[CopyTrade WARNING] Lot was ${beforeMinApplied}, forced to 0.01 by Math.max!`)
+            }
           } else {
             followerLotSize = masterTrade.quantity
-            console.log(`[CopyTrade] WARNING: Master equity is 0, using master lot size: ${followerLotSize}`)
+            console.log(`[CopyTrade WARNING] Master equity is 0, using master lot size: ${followerLotSize}`)
           }
           
           // Apply max lot size limit ONLY if it would actually limit the trade
@@ -306,6 +329,15 @@ class CopyTradingEngine {
           
           console.log(`[CopyTrade] ========== FINAL LOT SIZE: ${followerLotSize} ==========`)
         }
+
+        // CRITICAL: Check if NO copyMode matched - this means lot size was never calculated
+        const validCopyModes = ['BALANCE_BASED', 'EQUITY_BASED', 'MULTIPLIER', 'LOT_MULTIPLIER', 'AUTO', 'FIXED_LOT']
+        if (!validCopyModes.includes(follower.copyMode)) {
+          console.log(`[CopyTrade ERROR] INVALID copyMode: "${follower.copyMode}"! Valid modes: ${validCopyModes.join(', ')}`)
+          console.log(`[CopyTrade ERROR] Lot size was NOT calculated properly, using fallback: ${followerLotSize}`)
+        }
+        
+        console.log(`[CopyTrade DEBUG] ========== PRE-EXECUTION LOT SIZE: ${followerLotSize} ==========`)
 
         // Check margin
         const contractSize = tradeEngine.getContractSize(masterTrade.symbol)
