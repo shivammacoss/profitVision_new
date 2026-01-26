@@ -249,8 +249,8 @@ const OrderBook = () => {
     if (!confirm(`Close ${trade.side} ${trade.quantity} ${trade.symbol} position?`)) return
     
     try {
-      const currentPrice = livePrices[trade.symbol]?.[trade.side === 'BUY' ? 'bid' : 'ask']
-      if (!currentPrice) {
+      const priceData = livePrices[trade.symbol]
+      if (!priceData || !priceData.bid || !priceData.ask) {
         alert('Unable to get current price. Please try again.')
         return
       }
@@ -260,7 +260,8 @@ const OrderBook = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tradeId: trade._id,
-          closePrice: currentPrice
+          bid: priceData.bid,
+          ask: priceData.ask
         })
       })
       const data = await res.json()
