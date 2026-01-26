@@ -877,6 +877,31 @@ router.post('/admin/calculate-daily-commission', async (req, res) => {
   }
 })
 
+// POST /api/copy/admin/fix-commission-settings - Fix all masters to have correct 50/50 commission split
+router.post('/admin/fix-commission-settings', async (req, res) => {
+  try {
+    // Update all masters to have correct commission settings
+    const result = await MasterTrader.updateMany(
+      {}, // All masters
+      {
+        $set: {
+          approvedCommissionPercentage: 50, // Master gets 50% of profit
+          adminSharePercentage: 0 // Admin takes 0%, so follower keeps 50%
+        }
+      }
+    )
+
+    res.json({
+      success: true,
+      message: 'All masters updated to 50/50 commission split',
+      modifiedCount: result.modifiedCount,
+      matchedCount: result.matchedCount
+    })
+  } catch (error) {
+    res.status(500).json({ message: 'Error fixing commission settings', error: error.message })
+  }
+})
+
 // GET /api/copy/admin/settings - Get copy trading settings
 router.get('/admin/settings', async (req, res) => {
   try {

@@ -38,11 +38,11 @@ const masterTraderSchema = new mongoose.Schema({
   },
   approvedCommissionPercentage: {
     type: Number,
-    default: null
+    default: 50 // Fixed 50% commission for master
   },
   adminSharePercentage: {
     type: Number,
-    default: 30 // Admin takes 30% of commission by default
+    default: 0 // Admin takes 0% - full 50% goes to master, 50% to follower
   },
   // Visibility
   visibility: {

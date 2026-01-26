@@ -462,30 +462,17 @@ const ProfilePage = () => {
               
               <div className={`grid ${isMobile ? 'grid-cols-1 gap-4' : 'grid-cols-2 gap-6'}`}>
                 <div>
-                  <label className={`text-sm mb-2 block ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>First Name</label>
+                  <label className={`text-sm mb-2 block ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Full Name</label>
                   {editing ? (
                     <input
                       type="text"
                       value={profile.firstName}
                       onChange={(e) => setProfile({...profile, firstName: e.target.value})}
                       className={`w-full rounded-lg px-4 py-2 border ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'}`}
+                      placeholder="Enter your full name"
                     />
                   ) : (
                     <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>{profile.firstName || '-'}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className={`text-sm mb-2 block ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Last Name</label>
-                  {editing ? (
-                    <input
-                      type="text"
-                      value={profile.lastName}
-                      onChange={(e) => setProfile({...profile, lastName: e.target.value})}
-                      className={`w-full rounded-lg px-4 py-2 border ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'}`}
-                    />
-                  ) : (
-                    <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>{profile.lastName || '-'}</p>
                   )}
                 </div>
 
