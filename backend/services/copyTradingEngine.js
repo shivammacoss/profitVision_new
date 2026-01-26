@@ -637,12 +637,31 @@ class CopyTradingEngine {
         
         // Close the follower trade - this calculates the full P/L
         // tradeEngine.closeTrade already adds full P/L to follower's account
-        const result = await tradeEngine.closeTrade(
-          copyTrade.followerTradeId,
-          masterClosePrice,
-          masterClosePrice,
-          'USER'
-        )
+        let result
+        try {
+          result = await tradeEngine.closeTrade(
+            copyTrade.followerTradeId,
+            masterClosePrice,
+            masterClosePrice,
+            'USER'
+          )
+        } catch (closeError) {
+          // Handle race condition - trade might have been closed by another process
+          if (closeError.message === 'Trade is not open') {
+            console.log(`[CopyTrade WARNING] Trade ${copyTrade.followerTradeId} was already closed (race condition), updating copy trade record`)
+            const closedTrade = await Trade.findById(copyTrade.followerTradeId)
+            copyTrade.status = 'CLOSED'
+            copyTrade.closedAt = new Date()
+            copyTrade.followerClosePrice = closedTrade?.closePrice || masterClosePrice
+            copyTrade.rawPnl = closedTrade?.realizedPnl || 0
+            copyTrade.followerPnl = closedTrade?.realizedPnl || 0
+            copyTrade.masterPnl = 0
+            await copyTrade.save()
+            results.push({ copyTradeId: copyTrade._id, status: 'SKIPPED', reason: 'Trade already closed (race condition)' })
+            continue
+          }
+          throw closeError // Re-throw other errors
+        }
 
         const rawPnl = result.realizedPnl
         

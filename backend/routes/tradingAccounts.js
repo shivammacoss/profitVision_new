@@ -3,17 +3,47 @@ import TradingAccount from '../models/TradingAccount.js'
 import AccountType from '../models/AccountType.js'
 import Wallet from '../models/Wallet.js'
 import Transaction from '../models/Transaction.js'
+import Trade from '../models/Trade.js'
 import bcrypt from 'bcryptjs'
 
 const router = express.Router()
 
-// GET /api/trading-accounts/user/:userId - Get user's trading accounts
+// GET /api/trading-accounts/user/:userId - Get user's trading accounts with floating PnL
 router.get('/user/:userId', async (req, res) => {
   try {
     const accounts = await TradingAccount.find({ userId: req.params.userId })
       .populate('accountTypeId', 'name description minDeposit leverage exposureLimit isDemo')
       .sort({ createdAt: -1 })
-    res.json({ success: true, accounts })
+    
+    // Calculate floating PnL for each account from open trades
+    const accountsWithPnl = await Promise.all(accounts.map(async (account) => {
+      const accountObj = account.toObject()
+      
+      // Get open trades for this account
+      const openTrades = await Trade.find({ 
+        tradingAccountId: account._id, 
+        status: 'OPEN' 
+      })
+      
+      // Calculate floating PnL (use stored currentPnl from trades)
+      const floatingPnl = openTrades.reduce((sum, trade) => sum + (trade.currentPnl || 0), 0)
+      const usedMargin = openTrades.reduce((sum, trade) => sum + (trade.marginUsed || 0), 0)
+      
+      // Calculate equity
+      const equity = (account.balance || 0) + (account.credit || 0) + floatingPnl
+      const freeMargin = equity - usedMargin
+      
+      return {
+        ...accountObj,
+        floatingPnl: Math.round(floatingPnl * 100) / 100,
+        usedMargin: Math.round(usedMargin * 100) / 100,
+        equity: Math.round(equity * 100) / 100,
+        freeMargin: Math.round(freeMargin * 100) / 100,
+        openTradesCount: openTrades.length
+      }
+    }))
+    
+    res.json({ success: true, accounts: accountsWithPnl })
   } catch (error) {
     res.status(500).json({ success: false, message: 'Error fetching accounts', error: error.message })
   }
