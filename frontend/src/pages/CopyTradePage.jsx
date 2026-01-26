@@ -25,8 +25,8 @@ const CopyTradePage = () => {
   const [loading, setLoading] = useState(true)
   const [showFollowModal, setShowFollowModal] = useState(false)
   const [selectedMaster, setSelectedMaster] = useState(null)
-  const [copyMode, setCopyMode] = useState('FIXED_LOT')
-  const [copyValue, setCopyValue] = useState('0.01')
+  const [copyMode, setCopyMode] = useState('EQUITY_BASED')
+  const [copyValue, setCopyValue] = useState('1')
   const [depositAmount, setDepositAmount] = useState('')
   const [accounts, setAccounts] = useState([])
   const [selectedAccount, setSelectedAccount] = useState('')
@@ -50,8 +50,8 @@ const CopyTradePage = () => {
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingSubscription, setEditingSubscription] = useState(null)
   const [editAccount, setEditAccount] = useState('')
-  const [editCopyMode, setEditCopyMode] = useState('FIXED_LOT')
-  const [editCopyValue, setEditCopyValue] = useState('0.01')
+  const [editCopyMode, setEditCopyMode] = useState('EQUITY_BASED')
+  const [editCopyValue, setEditCopyValue] = useState('1')
 
   const user = JSON.parse(localStorage.getItem('user') || '{}')
 
@@ -1060,16 +1060,16 @@ const CopyTradePage = () => {
                   }}
                   className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-3 py-2`}
                 >
-                  <option value="FIXED_LOT">Fixed Lot Size</option>
-                  <option value="BALANCE_BASED">Balance Based (Proportional)</option>
-                  <option value="EQUITY_BASED">Equity Based (Proportional)</option>
+                  <option value="EQUITY_BASED">Equity Based (Recommended)</option>
+                  <option value="BALANCE_BASED">Balance Based</option>
                   <option value="MULTIPLIER">Multiplier</option>
+                  <option value="FIXED_LOT">Fixed Lot Size</option>
                 </select>
                 <p className="text-gray-500 text-xs mt-1">
-                  {copyMode === 'FIXED_LOT' && 'Use a fixed lot size for every copied trade'}
-                  {copyMode === 'BALANCE_BASED' && 'Lot = Master Lot × (Your Credit / Master Balance)'}
-                  {copyMode === 'EQUITY_BASED' && 'Lot = Master Lot × (Your Equity / Master Equity)'}
+                  {copyMode === 'EQUITY_BASED' && 'Lot = Master Lot × (Your Equity / Master Equity) - Proportional to your account size'}
+                  {copyMode === 'BALANCE_BASED' && 'Lot = Master Lot × (Your Balance / Master Balance)'}
                   {copyMode === 'MULTIPLIER' && 'Lot = Master Lot × Your Multiplier'}
+                  {copyMode === 'FIXED_LOT' && 'Use a fixed lot size for every copied trade'}
                 </p>
               </div>
 
@@ -1280,16 +1280,16 @@ const CopyTradePage = () => {
                   }}
                   className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-3 py-2`}
                 >
-                  <option value="FIXED_LOT">Fixed Lot Size</option>
-                  <option value="BALANCE_BASED">Balance Based (Proportional)</option>
-                  <option value="EQUITY_BASED">Equity Based (Proportional)</option>
+                  <option value="EQUITY_BASED">Equity Based (Recommended)</option>
+                  <option value="BALANCE_BASED">Balance Based</option>
                   <option value="MULTIPLIER">Multiplier</option>
+                  <option value="FIXED_LOT">Fixed Lot Size</option>
                 </select>
                 <p className="text-gray-500 text-xs mt-1">
-                  {editCopyMode === 'FIXED_LOT' && 'Use a fixed lot size for every copied trade'}
+                  {editCopyMode === 'EQUITY_BASED' && 'Lot = Master Lot × (Your Equity / Master Equity) - Proportional to your account size'}
                   {editCopyMode === 'BALANCE_BASED' && 'Lot = Master Lot × (Your Balance / Master Balance)'}
-                  {editCopyMode === 'EQUITY_BASED' && 'Lot = Master Lot × (Your Equity / Master Equity)'}
                   {editCopyMode === 'MULTIPLIER' && 'Lot = Master Lot × Your Multiplier'}
+                  {editCopyMode === 'FIXED_LOT' && 'Use a fixed lot size for every copied trade'}
                 </p>
               </div>
 
