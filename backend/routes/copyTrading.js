@@ -224,7 +224,11 @@ router.get('/master/commissions/:masterId', async (req, res) => {
 // New flow: User deposits funds -> Auto-create copy trading account -> Funds go to credit
 router.post('/follow', async (req, res) => {
   try {
-    const { followerUserId, masterId, depositAmount, copyMode, copyValue, maxLotSize, maxDailyLoss } = req.body
+    const { followerUserId, masterId, depositAmount, maxLotSize, maxDailyLoss } = req.body
+    
+    // Force EQUITY_BASED mode - this is the only mode supported
+    const copyMode = 'EQUITY_BASED'
+    const copyValue = 1
 
     // Check if copy trading is enabled
     const settings = await CopySettings.getSettings()
@@ -286,10 +290,7 @@ router.post('/follow', async (req, res) => {
       return res.status(400).json({ message: 'Already following this master' })
     }
 
-    // Validate copy settings
-    if (!['FIXED_LOT', 'BALANCE_BASED', 'EQUITY_BASED', 'MULTIPLIER', 'LOT_MULTIPLIER', 'AUTO'].includes(copyMode)) {
-      return res.status(400).json({ message: 'Invalid copy mode' })
-    }
+    // copyMode is now hardcoded to EQUITY_BASED - no validation needed
 
     // Get or create a Copy Trading account type
     let copyAccountType = await AccountType.findOne({ name: 'Copy Trading' })
