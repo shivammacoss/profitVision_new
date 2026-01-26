@@ -12,11 +12,11 @@ const copyTradeSchema = new mongoose.Schema({
     ref: 'MasterTrader',
     required: true
   },
-  // Follower trade reference
+  // Follower trade reference (optional for failed trades)
   followerTradeId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Trade',
-    required: true
+    required: false
   },
   followerId: {
     type: mongoose.Schema.Types.ObjectId,
