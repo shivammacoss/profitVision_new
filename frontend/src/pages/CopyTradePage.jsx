@@ -834,6 +834,26 @@ const CopyTradePage = () => {
           {/* My Followers (for Master Traders) */}
           {activeTab === 'my-followers' && myMasterProfile?.status === 'ACTIVE' && (
             <div>
+              {/* Summary Stats */}
+              <div className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-4'} gap-3 mb-4`}>
+                <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-4 border`}>
+                  <p className="text-gray-500 text-xs mb-1">Total Followers</p>
+                  <p className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{myFollowers.length}</p>
+                </div>
+                <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-4 border`}>
+                  <p className="text-gray-500 text-xs mb-1">Active</p>
+                  <p className="text-green-500 text-xl font-bold">{myFollowers.filter(f => f.status === 'ACTIVE').length}</p>
+                </div>
+                <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-4 border`}>
+                  <p className="text-gray-500 text-xs mb-1">Total Equity</p>
+                  <p className="text-blue-400 text-xl font-bold">${myFollowers.reduce((sum, f) => sum + (f.stats?.equity || 0), 0).toFixed(2)}</p>
+                </div>
+                <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-4 border`}>
+                  <p className="text-gray-500 text-xs mb-1">Commission Earned</p>
+                  <p className="text-purple-400 text-xl font-bold">${myFollowers.reduce((sum, f) => sum + (f.stats?.totalCommissionPaid || 0), 0).toFixed(2)}</p>
+                </div>
+              </div>
+
               {myFollowers.length === 0 ? (
                 <div className="text-center py-12">
                   <Users size={48} className="mx-auto text-gray-600 mb-4" />
@@ -843,50 +863,93 @@ const CopyTradePage = () => {
               ) : (
                 <div className="space-y-4">
                   {myFollowers.map(follower => (
-                    <div key={follower._id} className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-5 border`}>
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center">
+                    <div key={follower._id} className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl ${isMobile ? 'p-4' : 'p-5'} border`}>
+                      {/* Header - Responsive */}
+                      <div className={`${isMobile ? 'flex flex-col gap-3' : 'flex items-center justify-between'}`}>
+                        <div className="flex items-center gap-3">
+                          <div className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'} bg-blue-500/20 rounded-full flex items-center justify-center`}>
                             <span className="text-blue-500 font-bold">{follower.followerId?.firstName?.charAt(0) || 'U'}</span>
                           </div>
                           <div>
-                            <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{follower.followerId?.firstName} {follower.followerId?.lastName}</h3>
-                            <p className="text-gray-500 text-sm">{follower.followerId?.email}</p>
-                            <p className="text-gray-600 text-xs mt-1">
-                              {follower.copyMode === 'FIXED_LOT' && `Fixed: ${follower.copyValue} lots`}
-                              {follower.copyMode === 'BALANCE_BASED' && 'Balance Based'}
-                              {follower.copyMode === 'EQUITY_BASED' && 'Equity Based'}
-                              {follower.copyMode === 'MULTIPLIER' && `Multiplier: ${follower.copyValue}x`}
-                            </p>
+                            <h3 className={`font-semibold ${isMobile ? 'text-sm' : ''} ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                              {follower.followerId?.firstName} {follower.followerId?.lastName}
+                            </h3>
+                            <p className="text-gray-500 text-xs">{follower.followerId?.email}</p>
                           </div>
                         </div>
-                        <div className="text-right">
+                        <div className={`${isMobile ? 'flex items-center justify-between' : 'text-right'}`}>
                           <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                             follower.status === 'ACTIVE' ? 'bg-green-500/20 text-green-500' : 
                             follower.status === 'PAUSED' ? 'bg-yellow-500/20 text-yellow-500' : 'bg-red-500/20 text-red-500'
                           }`}>
                             {follower.status}
                           </span>
-                          <p className="text-gray-500 text-xs mt-2">Account: {follower.followerAccountId?.accountId}</p>
+                          <p className={`text-gray-500 text-xs ${isMobile ? '' : 'mt-2'}`}>
+                            Account: {follower.followerAccountId?.accountId}
+                          </p>
                         </div>
                       </div>
-                      <div className="grid grid-cols-4 gap-4 mt-4 pt-4 border-t border-gray-700">
+
+                      {/* Account Info */}
+                      <div className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-3'} gap-3 mt-4 pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
                         <div>
-                          <p className="text-gray-500 text-xs">Copied Trades</p>
-                          <p className="text-white font-semibold">{follower.stats?.totalCopiedTrades || 0}</p>
+                          <p className="text-gray-500 text-xs">Equity</p>
+                          <p className={`font-semibold ${isMobile ? 'text-sm' : ''} ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            ${(follower.stats?.equity || 0).toFixed(2)}
+                          </p>
                         </div>
                         <div>
-                          <p className="text-gray-500 text-xs">Their Profit</p>
-                          <p className="text-accent-green font-semibold">${follower.stats?.totalProfit?.toFixed(2) || '0.00'}</p>
+                          <p className="text-gray-500 text-xs">Balance</p>
+                          <p className={`font-semibold ${isMobile ? 'text-sm' : ''} ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            ${(follower.stats?.balance || 0).toFixed(2)}
+                          </p>
+                        </div>
+                        <div className={isMobile ? 'col-span-2' : ''}>
+                          <p className="text-gray-500 text-xs">Credit</p>
+                          <p className={`font-semibold ${isMobile ? 'text-sm' : ''} ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            ${(follower.stats?.credit || 0).toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Trade Stats */}
+                      <div className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-5'} gap-3 mt-3 pt-3 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                        <div>
+                          <p className="text-gray-500 text-xs">Total Trades</p>
+                          <p className={`font-semibold ${isMobile ? 'text-sm' : ''} ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                            {follower.stats?.totalCopiedTrades || 0}
+                          </p>
                         </div>
                         <div>
-                          <p className="text-gray-500 text-xs">Their Loss</p>
-                          <p className="text-red-500 font-semibold">${follower.stats?.totalLoss?.toFixed(2) || '0.00'}</p>
+                          <p className="text-gray-500 text-xs">Open Trades</p>
+                          <p className="text-blue-400 font-semibold">{follower.stats?.openTrades || 0}</p>
                         </div>
                         <div>
+                          <p className="text-gray-500 text-xs">Profit</p>
+                          <p className="text-green-500 font-semibold">${(follower.stats?.totalProfit || 0).toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 text-xs">Loss</p>
+                          <p className="text-red-500 font-semibold">${Math.abs(follower.stats?.totalLoss || 0).toFixed(2)}</p>
+                        </div>
+                        <div className={isMobile ? 'col-span-2' : ''}>
                           <p className="text-gray-500 text-xs">Commission Earned</p>
-                          <p className="text-purple-400 font-semibold">${follower.stats?.totalCommissionPaid?.toFixed(2) || '0.00'}</p>
+                          <p className="text-purple-400 font-semibold">${(follower.stats?.totalCommissionPaid || 0).toFixed(2)}</p>
                         </div>
+                      </div>
+
+                      {/* Copy Mode & Joined Date */}
+                      <div className={`flex ${isMobile ? 'flex-col gap-2' : 'items-center justify-between'} mt-3 pt-3 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                        <p className="text-gray-500 text-xs">
+                          Copy Mode: <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>
+                            {follower.copyMode === 'EQUITY_BASED' ? 'Equity Based' : 
+                             follower.copyMode === 'FIXED_LOT' ? `Fixed: ${follower.copyValue} lots` :
+                             follower.copyMode === 'MULTIPLIER' ? `Multiplier: ${follower.copyValue}x` : follower.copyMode}
+                          </span>
+                        </p>
+                        <p className="text-gray-500 text-xs">
+                          Joined: {new Date(follower.joinedAt || follower.createdAt).toLocaleDateString()}
+                        </p>
                       </div>
                     </div>
                   ))}

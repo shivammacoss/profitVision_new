@@ -619,15 +619,54 @@ router.get('/my-copy-trades/:userId', async (req, res) => {
   }
 })
 
-// GET /api/copy/my-followers/:masterId - Get followers for a master trader
+// GET /api/copy/my-followers/:masterId - Get followers for a master trader with detailed stats
 router.get('/my-followers/:masterId', async (req, res) => {
   try {
     const followers = await CopyFollower.find({ masterId: req.params.masterId })
       .populate('followerId', 'firstName lastName email')
-      .populate('followerAccountId', 'accountId balance')
+      .populate('followerAccountId', 'accountId balance credit')
       .sort({ createdAt: -1 })
 
-    res.json({ followers })
+    // Enhance each follower with detailed stats
+    const followersWithStats = await Promise.all(followers.map(async (follower) => {
+      const followerObj = follower.toObject()
+      
+      // Get copy trades for this follower
+      const copyTrades = await CopyTrade.find({ 
+        masterId: req.params.masterId,
+        followerAccountId: follower.followerAccountId?._id 
+      })
+      
+      // Calculate stats
+      const closedTrades = copyTrades.filter(t => t.status === 'CLOSED')
+      const totalProfit = closedTrades.reduce((sum, t) => sum + Math.max(0, t.followerPnl || 0), 0)
+      const totalLoss = closedTrades.reduce((sum, t) => sum + Math.min(0, t.followerPnl || 0), 0)
+      const totalCommissionPaid = closedTrades.reduce((sum, t) => sum + (t.masterPnl || 0), 0)
+      const openTrades = copyTrades.filter(t => t.status === 'OPEN').length
+      
+      // Get follower account equity
+      const account = follower.followerAccountId
+      const equity = account ? (account.balance || 0) + (account.credit || 0) : 0
+      
+      return {
+        ...followerObj,
+        stats: {
+          totalCopiedTrades: copyTrades.length,
+          closedTrades: closedTrades.length,
+          openTrades,
+          totalProfit,
+          totalLoss,
+          netPnl: totalProfit + totalLoss,
+          totalCommissionPaid,
+          equity,
+          balance: account?.balance || 0,
+          credit: account?.credit || 0
+        },
+        joinedAt: follower.createdAt
+      }
+    }))
+
+    res.json({ followers: followersWithStats })
   } catch (error) {
     res.status(500).json({ message: 'Error fetching followers', error: error.message })
   }
