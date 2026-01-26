@@ -530,6 +530,32 @@ class CopyTradingEngine {
         console.log(`[CopyTrade DEBUG] Follower Lot Size (from DB): ${copyTrade.followerLotSize}`)
         console.log(`[CopyTrade DEBUG] Master Lot Size (from DB): ${copyTrade.masterLotSize}`)
         
+        // Check if the follower trade is still open before trying to close
+        const followerTrade = await Trade.findById(copyTrade.followerTradeId)
+        if (!followerTrade) {
+          console.log(`[CopyTrade WARNING] Follower trade ${copyTrade.followerTradeId} not found, marking copy trade as closed`)
+          copyTrade.status = 'CLOSED'
+          copyTrade.closedAt = new Date()
+          copyTrade.failureReason = 'Follower trade not found'
+          await copyTrade.save()
+          results.push({ copyTradeId: copyTrade._id, status: 'SKIPPED', reason: 'Trade not found' })
+          continue
+        }
+        
+        if (followerTrade.status !== 'OPEN') {
+          console.log(`[CopyTrade WARNING] Follower trade ${copyTrade.followerTradeId} is already ${followerTrade.status}, skipping close`)
+          // Update copy trade record to match
+          copyTrade.status = 'CLOSED'
+          copyTrade.closedAt = new Date()
+          copyTrade.followerClosePrice = followerTrade.closePrice || masterClosePrice
+          copyTrade.rawPnl = followerTrade.realizedPnl || 0
+          copyTrade.followerPnl = followerTrade.realizedPnl || 0
+          copyTrade.masterPnl = 0
+          await copyTrade.save()
+          results.push({ copyTradeId: copyTrade._id, status: 'SKIPPED', reason: `Trade already ${followerTrade.status}` })
+          continue
+        }
+        
         // Close the follower trade - this calculates the full P/L
         // tradeEngine.closeTrade already adds full P/L to follower's account
         const result = await tradeEngine.closeTrade(
