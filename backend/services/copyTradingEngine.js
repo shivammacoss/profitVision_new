@@ -113,9 +113,13 @@ class CopyTradingEngine {
   // Internal method to copy trade to a single follower
   async _copyTradeToSingleFollower(masterTrade, master, follower, tradingDay, isRetry = false) {
     const masterId = master._id
+    const debugTimestamp = new Date().toISOString()
     
     try {
-      console.log(`[CopyTrade] ${isRetry ? 'RETRY: ' : ''}Processing follower ${follower._id}: copyMode=${follower.copyMode}, copyValue=${follower.copyValue}, maxLotSize=${follower.maxLotSize}`)
+      console.log(`\n[CopyTrade DEBUG ${debugTimestamp}] ==================== COPY TRADE START ====================`)
+      console.log(`[CopyTrade DEBUG] Follower ID: ${follower._id}`)
+      console.log(`[CopyTrade DEBUG] Copy Mode: ${follower.copyMode}, Copy Value: ${follower.copyValue}, Max Lot: ${follower.maxLotSize}`)
+      console.log(`[CopyTrade DEBUG] Master Trade: ${masterTrade._id}, Symbol: ${masterTrade.symbol}, Lot: ${masterTrade.quantity}`)
       
       // Check if already copied for this specific follower (prevent duplicates per follower)
       const existingFollowerCopy = await CopyTrade.findOne({
@@ -350,7 +354,12 @@ class CopyTradingEngine {
         }
 
         // Execute trade for follower - use the resolved followerAccountId
-        console.log(`[CopyTrade] Opening trade for follower ${follower._id}: ${followerLotSize} lots ${masterTrade.symbol} on account ${followerAccountId}`)
+        console.log(`[CopyTrade DEBUG] ==================== EXECUTING TRADE ====================`)
+        console.log(`[CopyTrade DEBUG] CALCULATED Lot Size to Send: ${followerLotSize}`)
+        console.log(`[CopyTrade DEBUG] Account ID: ${followerAccountId}`)
+        console.log(`[CopyTrade DEBUG] Symbol: ${masterTrade.symbol}, Side: ${masterTrade.side}`)
+        console.log(`[CopyTrade DEBUG] Open Price: ${masterTrade.openPrice}`)
+        
         const followerTrade = await tradeEngine.openTrade(
           follower.followerId,
           followerAccountId, // Use the resolved ID from earlier
@@ -400,7 +409,16 @@ class CopyTradingEngine {
           }
         })
 
-        console.log(`[CopyTrade] SUCCESS: Copied trade to follower ${follower._id}, lot size: ${followerLotSize}`)
+        console.log(`[CopyTrade DEBUG] ==================== TRADE EXECUTED ====================`)
+        console.log(`[CopyTrade DEBUG] EXECUTED Trade ID: ${followerTrade._id}`)
+        console.log(`[CopyTrade DEBUG] EXECUTED Lot Size: ${followerTrade.quantity}`)
+        console.log(`[CopyTrade DEBUG] EXECUTED Open Price: ${followerTrade.openPrice}`)
+        console.log(`[CopyTrade DEBUG] CALCULATED vs EXECUTED Lot: ${followerLotSize} vs ${followerTrade.quantity}`)
+        
+        // VERIFY: Check if calculated matches executed
+        if (followerLotSize !== followerTrade.quantity) {
+          console.log(`[CopyTrade WARNING] LOT SIZE MISMATCH! Calculated: ${followerLotSize}, Executed: ${followerTrade.quantity}`)
+        }
         
         return {
           followerId: follower._id,
@@ -475,6 +493,11 @@ class CopyTradingEngine {
     // Process sequentially to avoid race conditions
     for (const copyTrade of copyTrades) {
       try {
+        console.log(`\n[CopyTrade DEBUG] ==================== CLOSING TRADE ${copyTrade._id} ====================`)
+        console.log(`[CopyTrade DEBUG] Follower Trade ID: ${copyTrade.followerTradeId}`)
+        console.log(`[CopyTrade DEBUG] Follower Lot Size (from DB): ${copyTrade.followerLotSize}`)
+        console.log(`[CopyTrade DEBUG] Master Lot Size (from DB): ${copyTrade.masterLotSize}`)
+        
         // Close the follower trade - this calculates the full P/L
         // tradeEngine.closeTrade already adds full P/L to follower's account
         const result = await tradeEngine.closeTrade(
@@ -485,6 +508,12 @@ class CopyTradingEngine {
         )
 
         const rawPnl = result.realizedPnl
+        
+        console.log(`[CopyTrade DEBUG] ========== P/L CALCULATION ==========`)
+        console.log(`[CopyTrade DEBUG] Raw P/L from tradeEngine: $${rawPnl.toFixed(2)}`)
+        console.log(`[CopyTrade DEBUG] Trade Close Price: ${result.trade.closePrice}`)
+        console.log(`[CopyTrade DEBUG] Trade Open Price: ${result.trade.openPrice}`)
+        console.log(`[CopyTrade DEBUG] Trade Quantity (executed): ${result.trade.quantity}`)
         
         // ========== COMMISSION-BASED SYSTEM ==========
         // Follower gets FULL P/L (already applied by tradeEngine.closeTrade)
@@ -501,23 +530,48 @@ class CopyTradingEngine {
             const commissionPercentage = master.approvedCommissionPercentage || 50
             masterCommission = rawPnl * (commissionPercentage / 100)
             
+            console.log(`[CopyTrade DEBUG] ========== COMMISSION CALCULATION ==========`)
+            console.log(`[CopyTrade DEBUG] Commission Percentage: ${commissionPercentage}%`)
+            console.log(`[CopyTrade DEBUG] Master Commission: $${masterCommission.toFixed(2)}`)
+            console.log(`[CopyTrade DEBUG] Master pendingCommission BEFORE: $${master.pendingCommission.toFixed(2)}`)
+            console.log(`[CopyTrade DEBUG] Master totalCommissionEarned BEFORE: $${master.totalCommissionEarned.toFixed(2)}`)
+            
             // Deduct commission from follower's account
             const followerAccount = await TradingAccount.findById(copyTrade.followerAccountId)
-            if (followerAccount && followerAccount.balance >= masterCommission) {
-              followerAccount.balance -= masterCommission
-              await followerAccount.save()
-              console.log(`[CopyTrade] Deducted $${masterCommission.toFixed(2)} commission from follower`)
+            if (followerAccount) {
+              console.log(`[CopyTrade DEBUG] Follower Balance BEFORE: $${followerAccount.balance.toFixed(2)}`)
+              
+              if (followerAccount.balance >= masterCommission) {
+                followerAccount.balance -= masterCommission
+                await followerAccount.save()
+                console.log(`[CopyTrade DEBUG] Follower Balance AFTER: $${followerAccount.balance.toFixed(2)}`)
+                console.log(`[CopyTrade DEBUG] Commission deducted from follower: $${masterCommission.toFixed(2)}`)
+              } else {
+                console.log(`[CopyTrade WARNING] Insufficient balance for commission! Balance: $${followerAccount.balance.toFixed(2)}, Required: $${masterCommission.toFixed(2)}`)
+              }
+            } else {
+              console.log(`[CopyTrade ERROR] Follower account not found: ${copyTrade.followerAccountId}`)
             }
             
             // Add commission to master's pending commission
             master.pendingCommission += masterCommission
             master.totalCommissionEarned += masterCommission
             await master.save()
-            console.log(`[CopyTrade] Added $${masterCommission.toFixed(2)} to master's pending commission`)
+            
+            console.log(`[CopyTrade DEBUG] Master pendingCommission AFTER: $${master.pendingCommission.toFixed(2)}`)
+            console.log(`[CopyTrade DEBUG] Master totalCommissionEarned AFTER: $${master.totalCommissionEarned.toFixed(2)}`)
+          } else {
+            console.log(`[CopyTrade ERROR] Master not found: ${copyTrade.masterId}`)
           }
+        } else {
+          console.log(`[CopyTrade DEBUG] No commission (loss trade). Raw P/L: $${rawPnl.toFixed(2)}`)
         }
         
-        console.log(`[CopyTrade] Trade ${copyTrade._id}: Raw P/L=$${rawPnl.toFixed(2)}, Follower P/L=$${(rawPnl - masterCommission).toFixed(2)}, Master Commission=$${masterCommission.toFixed(2)}`)
+        const netFollowerPnl = rawPnl - masterCommission
+        console.log(`[CopyTrade DEBUG] ========== FINAL VALUES ==========`)
+        console.log(`[CopyTrade DEBUG] Raw P/L: $${rawPnl.toFixed(2)}`)
+        console.log(`[CopyTrade DEBUG] Master Commission: $${masterCommission.toFixed(2)}`)
+        console.log(`[CopyTrade DEBUG] Net Follower P/L: $${netFollowerPnl.toFixed(2)}`)
 
         // Update copy trade record
         copyTrade.masterClosePrice = masterClosePrice
