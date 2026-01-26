@@ -585,7 +585,6 @@ class CopyTradingEngine {
         await copyTrade.save()
 
         // Update follower stats with their net P/L
-        const netFollowerPnl = rawPnl - masterCommission
         await CopyFollower.findByIdAndUpdate(copyTrade.followerId, {
           $inc: {
             'stats.activeCopiedTrades': -1,
