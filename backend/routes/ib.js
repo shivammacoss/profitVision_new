@@ -5,6 +5,8 @@ import IBCommission from '../models/IBCommission.js'
 import IBReferral from '../models/IBReferral.js'
 import IBSettings from '../models/IBSettings.js'
 import User from '../models/User.js'
+import TradingAccount from '../models/TradingAccount.js'
+import Trade from '../models/Trade.js'
 import ibEngine from '../services/ibEngine.js'
 
 const router = express.Router()
@@ -132,7 +134,7 @@ router.get('/referral-link/:userId', async (req, res) => {
   }
 })
 
-// GET /api/ib/my-referrals/:userId - Get IB's direct referrals
+// GET /api/ib/my-referrals/:userId - Get IB's direct referrals with detailed stats
 router.get('/my-referrals/:userId', async (req, res) => {
   try {
     const ibUser = await IBUser.findOne({ userId: req.params.userId })
@@ -144,7 +146,52 @@ router.get('/my-referrals/:userId', async (req, res) => {
       .populate('userId', 'firstName lastName email createdAt')
       .sort({ createdAt: -1 })
 
-    res.json({ referrals })
+    // Enhance each referral with detailed stats
+    const referralsWithStats = await Promise.all(referrals.map(async (referral) => {
+      const refObj = referral.toObject()
+      const userId = referral.userId?._id
+      
+      if (!userId) return refObj
+      
+      // Get trading accounts for this user
+      const accounts = await TradingAccount.find({ userId })
+      const totalBalance = accounts.reduce((sum, acc) => sum + (acc.balance || 0), 0)
+      const totalCredit = accounts.reduce((sum, acc) => sum + (acc.credit || 0), 0)
+      const totalEquity = totalBalance + totalCredit
+      
+      // Get trade stats
+      const accountIds = accounts.map(acc => acc._id)
+      const trades = await Trade.find({ tradingAccountId: { $in: accountIds } })
+      const closedTrades = trades.filter(t => t.status === 'CLOSED')
+      const openTrades = trades.filter(t => t.status === 'OPEN')
+      const totalVolume = closedTrades.reduce((sum, t) => sum + (t.quantity || 0), 0)
+      const totalPnl = closedTrades.reduce((sum, t) => sum + (t.realizedPnl || 0), 0)
+      
+      // Get commission earned from this referral
+      const commissions = await IBCommission.find({ 
+        ibUserId: ibUser._id,
+        tradeUserId: userId
+      })
+      const totalCommissionEarned = commissions.reduce((sum, c) => sum + (c.commissionAmount || 0), 0)
+      
+      return {
+        ...refObj,
+        stats: {
+          accountsCount: accounts.length,
+          totalBalance,
+          totalCredit,
+          totalEquity,
+          totalTrades: trades.length,
+          closedTrades: closedTrades.length,
+          openTrades: openTrades.length,
+          totalVolume: Math.round(totalVolume * 100) / 100,
+          totalPnl: Math.round(totalPnl * 100) / 100,
+          commissionEarned: Math.round(totalCommissionEarned * 100) / 100
+        }
+      }
+    }))
+
+    res.json({ referrals: referralsWithStats })
   } catch (error) {
     res.status(500).json({ message: 'Error fetching referrals', error: error.message })
   }

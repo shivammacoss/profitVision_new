@@ -691,44 +691,114 @@ const IBPage = () => {
               )}
 
               {activeTab === 'referrals' && (
-                <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl border overflow-hidden`}>
+                <div>
+                  {/* Summary Stats */}
+                  <div className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-4'} gap-3 mb-4`}>
+                    <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-4 border`}>
+                      <p className="text-gray-500 text-xs mb-1">Total Referrals</p>
+                      <p className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{referrals.length}</p>
+                    </div>
+                    <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-4 border`}>
+                      <p className="text-gray-500 text-xs mb-1">Total Equity</p>
+                      <p className="text-blue-400 text-xl font-bold">${referrals.reduce((sum, r) => sum + (r.stats?.totalEquity || 0), 0).toFixed(2)}</p>
+                    </div>
+                    <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-4 border`}>
+                      <p className="text-gray-500 text-xs mb-1">Total Volume</p>
+                      <p className={`text-xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{referrals.reduce((sum, r) => sum + (r.stats?.totalVolume || 0), 0).toFixed(2)} lots</p>
+                    </div>
+                    <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-4 border`}>
+                      <p className="text-gray-500 text-xs mb-1">Commission Earned</p>
+                      <p className="text-accent-green text-xl font-bold">${referrals.reduce((sum, r) => sum + (r.stats?.commissionEarned || 0), 0).toFixed(2)}</p>
+                    </div>
+                  </div>
+
                   {referrals.length === 0 ? (
-                    <div className={`text-center ${isMobile ? 'py-8' : 'py-12'} text-gray-500 text-sm`}>No referrals yet</div>
-                  ) : isMobile ? (
-                    <div className={`divide-y ${isDarkMode ? 'divide-gray-800' : 'divide-gray-200'}`}>
+                    <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl border text-center ${isMobile ? 'py-8' : 'py-12'} text-gray-500 text-sm`}>
+                      No referrals yet. Share your referral link to start earning!
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
                       {referrals.map(ref => (
-                        <div key={ref._id} className="p-3">
-                          <div className="flex justify-between items-start mb-1">
-                            <p className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{ref.firstName} {ref.lastName}</p>
-                            <p className="text-gray-500 text-xs">{new Date(ref.createdAt).toLocaleDateString()}</p>
+                        <div key={ref._id} className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl ${isMobile ? 'p-4' : 'p-5'} border`}>
+                          {/* Header */}
+                          <div className={`${isMobile ? 'flex flex-col gap-3' : 'flex items-center justify-between'}`}>
+                            <div className="flex items-center gap-3">
+                              <div className={`${isMobile ? 'w-10 h-10' : 'w-12 h-12'} bg-purple-500/20 rounded-full flex items-center justify-center`}>
+                                <span className="text-purple-500 font-bold">{ref.userId?.firstName?.charAt(0) || 'U'}</span>
+                              </div>
+                              <div>
+                                <h3 className={`font-semibold ${isMobile ? 'text-sm' : ''} ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                  {ref.userId?.firstName} {ref.userId?.lastName}
+                                </h3>
+                                <p className="text-gray-500 text-xs">{ref.userId?.email}</p>
+                              </div>
+                            </div>
+                            <div className={`${isMobile ? 'flex items-center justify-between' : 'text-right'}`}>
+                              <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-500/20 text-green-500">Active</span>
+                              <p className={`text-gray-500 text-xs ${isMobile ? '' : 'mt-2'}`}>
+                                Joined: {new Date(ref.userId?.createdAt || ref.createdAt).toLocaleDateString()}
+                              </p>
+                            </div>
                           </div>
-                          <p className="text-gray-400 text-xs">{ref.email}</p>
+
+                          {/* Account Info */}
+                          <div className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-4'} gap-3 mt-4 pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                            <div>
+                              <p className="text-gray-500 text-xs">Accounts</p>
+                              <p className={`font-semibold ${isMobile ? 'text-sm' : ''} ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                {ref.stats?.accountsCount || 0}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-500 text-xs">Total Equity</p>
+                              <p className="text-blue-400 font-semibold">${(ref.stats?.totalEquity || 0).toFixed(2)}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-500 text-xs">Balance</p>
+                              <p className={`font-semibold ${isMobile ? 'text-sm' : ''} ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                ${(ref.stats?.totalBalance || 0).toFixed(2)}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-500 text-xs">Credit</p>
+                              <p className={`font-semibold ${isMobile ? 'text-sm' : ''} ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                ${(ref.stats?.totalCredit || 0).toFixed(2)}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Trade Stats */}
+                          <div className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-5'} gap-3 mt-3 pt-3 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                            <div>
+                              <p className="text-gray-500 text-xs">Total Trades</p>
+                              <p className={`font-semibold ${isMobile ? 'text-sm' : ''} ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                {ref.stats?.totalTrades || 0}
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-500 text-xs">Open Trades</p>
+                              <p className="text-blue-400 font-semibold">{ref.stats?.openTrades || 0}</p>
+                            </div>
+                            <div>
+                              <p className="text-gray-500 text-xs">Volume</p>
+                              <p className={`font-semibold ${isMobile ? 'text-sm' : ''} ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                {(ref.stats?.totalVolume || 0).toFixed(2)} lots
+                              </p>
+                            </div>
+                            <div>
+                              <p className="text-gray-500 text-xs">Their P/L</p>
+                              <p className={`font-semibold ${(ref.stats?.totalPnl || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                ${(ref.stats?.totalPnl || 0).toFixed(2)}
+                              </p>
+                            </div>
+                            <div className={isMobile ? 'col-span-2' : ''}>
+                              <p className="text-gray-500 text-xs">Commission Earned</p>
+                              <p className="text-accent-green font-semibold">${(ref.stats?.commissionEarned || 0).toFixed(2)}</p>
+                            </div>
+                          </div>
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <table className="w-full">
-                      <thead className={isDarkMode ? 'bg-dark-700' : 'bg-gray-50'}>
-                        <tr>
-                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>User</th>
-                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Email</th>
-                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Joined</th>
-                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Volume</th>
-                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Commission</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {referrals.map(ref => (
-                          <tr key={ref._id} className={`border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-                            <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{ref.firstName} {ref.lastName}</td>
-                            <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{ref.email}</td>
-                            <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{new Date(ref.createdAt).toLocaleDateString()}</td>
-                            <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>-</td>
-                            <td className="px-4 py-3 text-accent-green text-sm">-</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
                   )}
                 </div>
               )}
