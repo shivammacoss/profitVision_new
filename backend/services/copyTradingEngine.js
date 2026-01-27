@@ -748,6 +748,15 @@ class CopyTradingEngine {
         console.log(`[CopyTrade DEBUG] Trade Open Price: ${result.trade.openPrice}`)
         console.log(`[CopyTrade DEBUG] Trade Quantity (executed): ${result.trade.quantity}`)
         
+        // CRITICAL: Check if commission was already applied (prevent double deduction)
+        if (copyTrade.commissionApplied) {
+          console.log(`[CopyTrade WARNING] Commission already applied for copy trade ${copyTrade._id}, skipping commission`)
+          copyTrade.status = 'CLOSED'
+          await copyTrade.save()
+          results.push({ copyTradeId: copyTrade._id, status: 'SKIPPED', reason: 'Commission already applied' })
+          continue
+        }
+        
         // ========== 50-50 PROFIT/LOSS SHARING SYSTEM ==========
         // Both profit AND loss are shared 50-50 between master and follower
         // Profit: Master gets 50%, Follower keeps 50%

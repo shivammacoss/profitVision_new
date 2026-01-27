@@ -399,18 +399,35 @@ class TradeEngine {
     }
 
     // Close follower trades if this is a master trade
-    this.closeFollowerTradesAsync(trade._id, closePrice)
+    // IMPORTANT: Only call this for master trades, not for follower trades being closed
+    // Check if this trade is a master trade by looking for a MasterTrader with this account
+    this.closeFollowerTradesIfMaster(trade, closePrice)
 
     return { trade, realizedPnl }
   }
 
-  // Async close follower trades (non-blocking)
-  async closeFollowerTradesAsync(masterTradeId, closePrice) {
+  // Only close follower trades if this is actually a master trade
+  async closeFollowerTradesIfMaster(trade, closePrice) {
     try {
+      const MasterTrader = (await import('../models/MasterTrader.js')).default
+      
+      // Check if this trade's account belongs to an active master
+      const master = await MasterTrader.findOne({
+        tradingAccountId: trade.tradingAccountId,
+        status: 'ACTIVE'
+      })
+      
+      if (!master) {
+        // Not a master trade, don't try to close follower trades
+        return
+      }
+      
+      console.log(`[CopyTrade] Master trade detected, closing follower trades for trade ${trade._id}`)
+      
       const copyTradingEngine = (await import('./copyTradingEngine.js')).default
-      const results = await copyTradingEngine.closeFollowerTrades(masterTradeId, closePrice)
+      const results = await copyTradingEngine.closeFollowerTrades(trade._id, closePrice)
       if (results.length > 0) {
-        console.log(`Closed ${results.length} follower trades for master trade ${masterTradeId}`)
+        console.log(`[CopyTrade] Closed ${results.length} follower trades for master trade ${trade._id}`)
       }
     } catch (error) {
       console.error('Error closing follower trades:', error)
