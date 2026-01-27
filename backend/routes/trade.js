@@ -334,24 +334,10 @@ router.post('/close', async (req, res) => {
       }
     })
 
-    // Process copy trading and IB commission in background (non-blocking)
+    // Process IB commission in background (non-blocking)
+    // NOTE: Copy trading close is handled by tradeEngine.closeTrade() -> closeFollowerTradesAsync()
+    // Do NOT call closeFollowerTrades here to avoid duplicate processing
     setImmediate(async () => {
-      try {
-        // Check if this was a master trade and close follower trades
-        const master = await MasterTrader.findOne({ 
-          tradingAccountId: tradeToClose.tradingAccountId, 
-          status: 'ACTIVE' 
-        })
-        
-        if (master) {
-          const closePrice = tradeToClose.side === 'BUY' ? parseFloat(bid) : parseFloat(ask)
-          const copyResults = await copyTradingEngine.closeFollowerTrades(tradeId, closePrice)
-          console.log(`[Background] Closed ${copyResults.length} follower trades`)
-        }
-      } catch (copyError) {
-        console.error('[Background] Error closing follower trades:', copyError)
-      }
-
       // Process IB commission
       try {
         const ibResult = await ibEngine.processTradeCommission(result.trade)

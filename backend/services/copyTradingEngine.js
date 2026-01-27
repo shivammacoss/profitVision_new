@@ -650,14 +650,27 @@ class CopyTradingEngine {
 
   // Close all follower trades when master closes
   // Commission-based system: Follower gets full P/L, Master gets commission only on profit
+  // Uses atomic update to prevent duplicate processing
   async closeFollowerTrades(masterTradeId, masterClosePrice) {
     console.log(`[CopyTrade] ========== CLOSING FOLLOWER TRADES ==========`)
     console.log(`[CopyTrade] Master Trade ID: ${masterTradeId}, Close Price: ${masterClosePrice}`)
     
-    const copyTrades = await CopyTrade.find({
-      masterTradeId,
-      status: 'OPEN'
-    })
+    // Use findOneAndUpdate with status check to atomically claim trades for processing
+    // This prevents duplicate processing if called multiple times
+    const copyTrades = []
+    let claimedTrade
+    
+    do {
+      // Atomically find and mark a trade as CLOSING to prevent duplicate processing
+      claimedTrade = await CopyTrade.findOneAndUpdate(
+        { masterTradeId, status: 'OPEN' },
+        { $set: { status: 'CLOSING' } },
+        { new: true }
+      )
+      if (claimedTrade) {
+        copyTrades.push(claimedTrade)
+      }
+    } while (claimedTrade)
 
     console.log(`[CopyTrade] Found ${copyTrades.length} open copy trades to close`)
     

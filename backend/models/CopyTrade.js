@@ -110,7 +110,7 @@ const copyTradeSchema = new mongoose.Schema({
   // Status
   status: {
     type: String,
-    enum: ['OPEN', 'CLOSED', 'FAILED'],
+    enum: ['OPEN', 'CLOSING', 'CLOSED', 'FAILED'],
     default: 'OPEN'
   },
   failureReason: {
