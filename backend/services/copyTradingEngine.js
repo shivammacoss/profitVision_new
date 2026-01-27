@@ -799,24 +799,24 @@ class CopyTradingEngine {
             }
           }
         } else if (rawPnl < 0) {
-          // LOSS CASE: Master bears 50% of the loss
+          // LOSS CASE: 50-50 Loss Sharing Settlement
           // tradeEngine.closeTrade already deducted full loss from follower
-          // We need to refund 50% of the loss back to follower (master bears that portion)
-          const lossRefund = Math.abs(masterShare) // masterShare is negative, so we take absolute
+          // Apply loss adjustment: master bears 50% of the loss
+          const masterLossShare = Math.abs(masterShare) // masterShare is negative, so we take absolute
           
           if (followerAccount && master) {
-            console.log(`[CopyTrade DEBUG] LOSS - Follower Balance BEFORE refund: $${followerAccount.balance.toFixed(2)}`)
-            console.log(`[CopyTrade DEBUG] LOSS - Master bears 50% of loss: $${lossRefund.toFixed(2)}`)
+            console.log(`[CopyTrade DEBUG] LOSS - Follower Balance BEFORE adjustment: $${followerAccount.balance.toFixed(2)}`)
+            console.log(`[CopyTrade DEBUG] LOSS - Master loss contribution (50%): $${masterLossShare.toFixed(2)}`)
             
-            // Refund 50% of loss to follower (master bears this)
-            followerAccount.balance += lossRefund
+            // Loss adjustment: credit back master's share to follower (master bears this portion)
+            followerAccount.balance += masterLossShare
             await followerAccount.save()
-            console.log(`[CopyTrade DEBUG] LOSS - Follower Balance AFTER refund: $${followerAccount.balance.toFixed(2)}`)
+            console.log(`[CopyTrade DEBUG] LOSS - Follower Balance AFTER adjustment: $${followerAccount.balance.toFixed(2)}`)
             
-            // Deduct from master's pending commission (can go negative)
-            master.pendingCommission -= lossRefund
+            // Deduct from master's pending commission (negative commission adjustment)
+            master.pendingCommission -= masterLossShare
             await master.save()
-            console.log(`[CopyTrade DEBUG] LOSS - Master pendingCommission (after loss): $${master.pendingCommission.toFixed(2)}`)
+            console.log(`[CopyTrade DEBUG] LOSS - Master pendingCommission (after loss sharing): $${master.pendingCommission.toFixed(2)}`)
           }
         }
         
