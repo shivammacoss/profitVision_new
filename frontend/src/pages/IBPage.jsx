@@ -250,6 +250,29 @@ const IBPage = () => {
     alert('Referral link copied!')
   }
 
+  const shareReferralLink = async () => {
+    const link = `${window.location.origin}/user/signup?ref=${ibProfile?.referralCode}`
+    const shareData = {
+      title: 'Join ProfitVision FX',
+      text: 'Start trading with ProfitVision FX! Use my referral link to sign up.',
+      url: link
+    }
+    
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+      try {
+        await navigator.share(shareData)
+      } catch (err) {
+        // User cancelled or share failed - fallback to copy
+        if (err.name !== 'AbortError') {
+          copyReferralLink()
+        }
+      }
+    } else {
+      // Fallback for browsers that don't support Web Share API
+      copyReferralLink()
+    }
+  }
+
   const handleLogout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
@@ -520,7 +543,10 @@ const IBPage = () => {
                       <Copy size={16} />
                       Copy Link
                     </button>
-                    <button className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-colors">
+                    <button 
+                      onClick={shareReferralLink}
+                      className="w-10 h-10 bg-white/20 hover:bg-white/30 rounded-lg flex items-center justify-center transition-colors"
+                    >
                       <Share2 size={18} className="text-white" />
                     </button>
                   </div>
