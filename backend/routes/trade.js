@@ -73,6 +73,33 @@ router.post('/open', async (req, res) => {
       })
     }
 
+    // Check if this is a master trader account - enforce single trade restriction
+    const masterTrader = await MasterTrader.findOne({ 
+      tradingAccountId, 
+      status: 'ACTIVE' 
+    })
+    
+    if (masterTrader) {
+      // Check if master already has an open trade
+      const existingOpenTrades = await Trade.find({
+        tradingAccountId,
+        status: 'OPEN'
+      })
+      
+      if (existingOpenTrades.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Master traders can only have one active trade at a time. Please close your current trade before opening a new one.',
+          code: 'SINGLE_TRADE_LIMIT',
+          existingTrade: {
+            tradeId: existingOpenTrades[0].tradeId,
+            symbol: existingOpenTrades[0].symbol,
+            side: existingOpenTrades[0].side
+          }
+        })
+      }
+    }
+
     // Check if this is a challenge account first
     const challengeAccount = await ChallengeAccount.findById(tradingAccountId).populate('challengeId')
     

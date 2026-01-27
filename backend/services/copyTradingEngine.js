@@ -37,6 +37,18 @@ class CopyTradingEngine {
     return masterLotSize
   }
 
+  // Check if master has any open trades (for single trade restriction)
+  async masterHasOpenTrade(masterId) {
+    const master = await MasterTrader.findById(masterId)
+    if (!master) return false
+    
+    const openTrades = await Trade.find({
+      tradingAccountId: master.tradingAccountId,
+      status: 'OPEN'
+    })
+    return openTrades.length > 0
+  }
+
   // Copy master trade to all active followers
   // Uses batched processing to handle large numbers of followers reliably
   async copyTradeToFollowers(masterTrade, masterId) {
@@ -56,6 +68,7 @@ class CopyTradingEngine {
     }).populate('followerAccountId')
 
     console.log(`[CopyTrade] Found ${followers.length} active followers for master ${masterId}`)
+    console.log(`[CopyTrade] Symbol being copied: ${masterTrade.symbol}`)
 
     if (followers.length === 0) {
       console.log(`[CopyTrade] No active followers found for master ${masterId}`)
@@ -105,6 +118,36 @@ class CopyTradingEngine {
     const failedResults = allResults.filter(r => r.status === 'FAILED')
     if (failedResults.length > 0) {
       console.log(`[CopyTrade] Failed followers:`, failedResults.map(r => ({ id: r.followerId, reason: r.reason })))
+      
+      // RETRY MECHANISM: Retry failed copies once after a short delay
+      console.log(`[CopyTrade] ========== RETRYING FAILED COPIES ==========`)
+      await new Promise(resolve => setTimeout(resolve, 500)) // Wait 500ms before retry
+      
+      for (const failedResult of failedResults) {
+        try {
+          const follower = followers.find(f => f._id.toString() === failedResult.followerId.toString())
+          if (follower && failedResult.retryable !== false) {
+            console.log(`[CopyTrade] Retrying copy for follower ${follower._id}...`)
+            const retryResult = await this._copyTradeToSingleFollower(masterTrade, master, follower, tradingDay, true)
+            
+            // Update result in allResults
+            const idx = allResults.findIndex(r => r.followerId.toString() === failedResult.followerId.toString())
+            if (idx !== -1 && retryResult.status === 'SUCCESS') {
+              allResults[idx] = retryResult
+              console.log(`[CopyTrade] Retry SUCCESS for follower ${follower._id}`)
+            } else if (retryResult.status === 'FAILED') {
+              console.log(`[CopyTrade] Retry FAILED for follower ${follower._id}: ${retryResult.reason}`)
+            }
+          }
+        } catch (retryError) {
+          console.error(`[CopyTrade] Retry error for follower ${failedResult.followerId}:`, retryError.message)
+        }
+      }
+      
+      // Recalculate counts after retry
+      const finalSuccessCount = allResults.filter(r => r.status === 'SUCCESS').length
+      const finalFailedCount = allResults.filter(r => r.status === 'FAILED').length
+      console.log(`[CopyTrade] ========== AFTER RETRY: Success: ${finalSuccessCount}, Failed: ${finalFailedCount} ==========`)
     }
     
     return allResults
@@ -671,84 +714,94 @@ class CopyTradingEngine {
         console.log(`[CopyTrade DEBUG] Trade Open Price: ${result.trade.openPrice}`)
         console.log(`[CopyTrade DEBUG] Trade Quantity (executed): ${result.trade.quantity}`)
         
-        // ========== COMMISSION-BASED SYSTEM ==========
-        // Follower gets FULL P/L (already applied by tradeEngine.closeTrade)
-        // Master gets commission ONLY on profitable trades
-        // On loss: Master gets 0, Follower bears full loss
+        // ========== 50-50 PROFIT/LOSS SHARING SYSTEM ==========
+        // Both profit AND loss are shared 50-50 between master and follower
+        // Profit: Master gets 50%, Follower keeps 50%
+        // Loss: Master bears 50%, Follower bears 50%
         
-        let masterCommission = 0
-        const followerPnl = rawPnl // Follower keeps full P/L
+        const master = await MasterTrader.findById(copyTrade.masterId)
+        const sharePercentage = master?.approvedCommissionPercentage || 50
+        
+        // Calculate master's share (50% of P/L - can be positive or negative)
+        const masterShare = rawPnl * (sharePercentage / 100)
+        // Follower's share is the remaining 50%
+        const followerShare = rawPnl - masterShare
+        
+        console.log(`[CopyTrade DEBUG] ========== 50-50 SHARING CALCULATION ==========`)
+        console.log(`[CopyTrade DEBUG] Share Percentage: ${sharePercentage}%`)
+        console.log(`[CopyTrade DEBUG] Raw P/L: $${rawPnl.toFixed(2)}`)
+        console.log(`[CopyTrade DEBUG] Master Share (${sharePercentage}%): $${masterShare.toFixed(2)}`)
+        console.log(`[CopyTrade DEBUG] Follower Share (${100 - sharePercentage}%): $${followerShare.toFixed(2)}`)
+        
+        const followerAccount = await TradingAccount.findById(copyTrade.followerAccountId)
         
         if (rawPnl > 0) {
-          // Get master's commission percentage (default 50%)
-          const master = await MasterTrader.findById(copyTrade.masterId)
-          if (master) {
-            const commissionPercentage = master.approvedCommissionPercentage || 50
-            masterCommission = rawPnl * (commissionPercentage / 100)
+          // PROFIT CASE: Deduct master's share from follower's balance
+          if (followerAccount && master) {
+            console.log(`[CopyTrade DEBUG] PROFIT - Follower Balance BEFORE: $${followerAccount.balance.toFixed(2)}`)
             
-            console.log(`[CopyTrade DEBUG] ========== COMMISSION CALCULATION ==========`)
-            console.log(`[CopyTrade DEBUG] Commission Percentage: ${commissionPercentage}%`)
-            console.log(`[CopyTrade DEBUG] Master Commission: $${masterCommission.toFixed(2)}`)
-            console.log(`[CopyTrade DEBUG] Master pendingCommission BEFORE: $${master.pendingCommission.toFixed(2)}`)
-            console.log(`[CopyTrade DEBUG] Master totalCommissionEarned BEFORE: $${master.totalCommissionEarned.toFixed(2)}`)
-            
-            // Deduct commission from follower's account
-            const followerAccount = await TradingAccount.findById(copyTrade.followerAccountId)
-            if (followerAccount) {
-              console.log(`[CopyTrade DEBUG] Follower Balance BEFORE: $${followerAccount.balance.toFixed(2)}`)
+            if (followerAccount.balance >= masterShare) {
+              followerAccount.balance -= masterShare
+              await followerAccount.save()
+              console.log(`[CopyTrade DEBUG] PROFIT - Follower Balance AFTER: $${followerAccount.balance.toFixed(2)}`)
+              console.log(`[CopyTrade DEBUG] PROFIT - Master share deducted: $${masterShare.toFixed(2)}`)
               
-              if (followerAccount.balance >= masterCommission) {
-                followerAccount.balance -= masterCommission
-                await followerAccount.save()
-                console.log(`[CopyTrade DEBUG] Follower Balance AFTER: $${followerAccount.balance.toFixed(2)}`)
-                console.log(`[CopyTrade DEBUG] Commission deducted from follower: $${masterCommission.toFixed(2)}`)
-              } else {
-                console.log(`[CopyTrade WARNING] Insufficient balance for commission! Balance: $${followerAccount.balance.toFixed(2)}, Required: $${masterCommission.toFixed(2)}`)
-              }
+              // Add to master's pending commission
+              master.pendingCommission += masterShare
+              master.totalCommissionEarned += masterShare
+              await master.save()
+              console.log(`[CopyTrade DEBUG] PROFIT - Master pendingCommission: $${master.pendingCommission.toFixed(2)}`)
             } else {
-              console.log(`[CopyTrade ERROR] Follower account not found: ${copyTrade.followerAccountId}`)
+              console.log(`[CopyTrade WARNING] Insufficient balance for profit share!`)
             }
-            
-            // Add commission to master's pending commission
-            master.pendingCommission += masterCommission
-            master.totalCommissionEarned += masterCommission
-            await master.save()
-            
-            console.log(`[CopyTrade DEBUG] Master pendingCommission AFTER: $${master.pendingCommission.toFixed(2)}`)
-            console.log(`[CopyTrade DEBUG] Master totalCommissionEarned AFTER: $${master.totalCommissionEarned.toFixed(2)}`)
-          } else {
-            console.log(`[CopyTrade ERROR] Master not found: ${copyTrade.masterId}`)
           }
-        } else {
-          console.log(`[CopyTrade DEBUG] No commission (loss trade). Raw P/L: $${rawPnl.toFixed(2)}`)
+        } else if (rawPnl < 0) {
+          // LOSS CASE: Master bears 50% of the loss
+          // tradeEngine.closeTrade already deducted full loss from follower
+          // We need to refund 50% of the loss back to follower (master bears that portion)
+          const lossRefund = Math.abs(masterShare) // masterShare is negative, so we take absolute
+          
+          if (followerAccount && master) {
+            console.log(`[CopyTrade DEBUG] LOSS - Follower Balance BEFORE refund: $${followerAccount.balance.toFixed(2)}`)
+            console.log(`[CopyTrade DEBUG] LOSS - Master bears 50% of loss: $${lossRefund.toFixed(2)}`)
+            
+            // Refund 50% of loss to follower (master bears this)
+            followerAccount.balance += lossRefund
+            await followerAccount.save()
+            console.log(`[CopyTrade DEBUG] LOSS - Follower Balance AFTER refund: $${followerAccount.balance.toFixed(2)}`)
+            
+            // Deduct from master's pending commission (can go negative)
+            master.pendingCommission -= lossRefund
+            await master.save()
+            console.log(`[CopyTrade DEBUG] LOSS - Master pendingCommission (after loss): $${master.pendingCommission.toFixed(2)}`)
+          }
         }
         
-        const netFollowerPnl = rawPnl - masterCommission
         console.log(`[CopyTrade DEBUG] ========== FINAL VALUES ==========`)
         console.log(`[CopyTrade DEBUG] Raw P/L: $${rawPnl.toFixed(2)}`)
-        console.log(`[CopyTrade DEBUG] Master Commission: $${masterCommission.toFixed(2)}`)
-        console.log(`[CopyTrade DEBUG] Net Follower P/L: $${netFollowerPnl.toFixed(2)}`)
+        console.log(`[CopyTrade DEBUG] Master Share: $${masterShare.toFixed(2)}`)
+        console.log(`[CopyTrade DEBUG] Follower Net P/L: $${followerShare.toFixed(2)}`)
 
         // Update copy trade record
         copyTrade.masterClosePrice = masterClosePrice
         copyTrade.followerClosePrice = result.trade.closePrice
         copyTrade.rawPnl = rawPnl // Original full P/L
-        copyTrade.followerPnl = rawPnl - masterCommission // Follower's net P/L after commission
-        copyTrade.masterPnl = masterCommission // Master's commission (0 on loss)
+        copyTrade.followerPnl = followerShare // Follower's net P/L (50%)
+        copyTrade.masterPnl = masterShare // Master's share (50% - can be negative on loss)
         copyTrade.status = 'CLOSED'
         copyTrade.closedAt = new Date()
         copyTrade.commissionApplied = true
         await copyTrade.save()
 
-        // Update follower stats with their net P/L
+        // Update follower stats with their net P/L (50% share)
         await CopyFollower.findByIdAndUpdate(copyTrade.followerId, {
           $inc: {
             'stats.activeCopiedTrades': -1,
-            'stats.totalProfit': netFollowerPnl >= 0 ? netFollowerPnl : 0,
-            'stats.totalLoss': netFollowerPnl < 0 ? Math.abs(netFollowerPnl) : 0,
-            'stats.totalCommissionPaid': masterCommission,
-            'dailyProfit': netFollowerPnl >= 0 ? netFollowerPnl : 0,
-            'dailyLoss': netFollowerPnl < 0 ? Math.abs(netFollowerPnl) : 0
+            'stats.totalProfit': followerShare >= 0 ? followerShare : 0,
+            'stats.totalLoss': followerShare < 0 ? Math.abs(followerShare) : 0,
+            'stats.totalCommissionPaid': masterShare > 0 ? masterShare : 0,
+            'dailyProfit': followerShare >= 0 ? followerShare : 0,
+            'dailyLoss': followerShare < 0 ? Math.abs(followerShare) : 0
           }
         })
 
@@ -756,8 +809,8 @@ class CopyTradingEngine {
           copyTradeId: copyTrade._id,
           status: 'SUCCESS',
           rawPnl: rawPnl,
-          followerPnl: netFollowerPnl,
-          masterCommission: masterCommission
+          followerPnl: followerShare,
+          masterShare: masterShare
         })
 
       } catch (error) {
