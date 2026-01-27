@@ -86,6 +86,11 @@ router.post('/open', async (req, res) => {
         status: 'OPEN'
       })
       
+      console.log(`[Trade] Master ${masterTrader._id} has ${existingOpenTrades.length} open trades`)
+      if (existingOpenTrades.length > 0) {
+        console.log(`[Trade] Existing open trade IDs: ${existingOpenTrades.map(t => t._id).join(', ')}`)
+      }
+      
       if (existingOpenTrades.length > 0) {
         return res.status(400).json({
           success: false,
@@ -94,7 +99,8 @@ router.post('/open', async (req, res) => {
           existingTrade: {
             tradeId: existingOpenTrades[0].tradeId,
             symbol: existingOpenTrades[0].symbol,
-            side: existingOpenTrades[0].side
+            side: existingOpenTrades[0].side,
+            _id: existingOpenTrades[0]._id
           }
         })
       }

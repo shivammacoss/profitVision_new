@@ -891,11 +891,23 @@ router.post('/admin/fix-commission-settings', async (req, res) => {
       }
     )
 
+    // Also update historical commission records to show 50%
+    const commissionResult = await CopyCommission.updateMany(
+      {}, // All commission records
+      {
+        $set: {
+          commissionPercentage: 50
+        }
+      }
+    )
+
     res.json({
       success: true,
-      message: 'All masters updated to 50/50 commission split',
-      modifiedCount: result.modifiedCount,
-      matchedCount: result.matchedCount
+      message: 'All masters and commission history updated to 50/50 commission split',
+      mastersModified: result.modifiedCount,
+      mastersMatched: result.matchedCount,
+      commissionsModified: commissionResult.modifiedCount,
+      commissionsMatched: commissionResult.matchedCount
     })
   } catch (error) {
     res.status(500).json({ message: 'Error fixing commission settings', error: error.message })
