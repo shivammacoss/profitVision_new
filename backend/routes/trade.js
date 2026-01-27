@@ -429,11 +429,15 @@ router.put('/modify', async (req, res) => {
 router.get('/open/:tradingAccountId', async (req, res) => {
   try {
     const { tradingAccountId } = req.params
+    
+    console.log(`[Trade] Fetching open trades for account: ${tradingAccountId}`)
 
     const trades = await Trade.find({ 
       tradingAccountId, 
       status: 'OPEN' 
     }).sort({ openedAt: -1 })
+    
+    console.log(`[Trade] Found ${trades.length} open trades for account ${tradingAccountId}`)
 
     res.json({
       success: true,
