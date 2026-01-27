@@ -150,6 +150,27 @@ class CopyTradingEngine {
       console.log(`[CopyTrade] ========== AFTER RETRY: Success: ${finalSuccessCount}, Failed: ${finalFailedCount} ==========`)
     }
     
+    // FINAL STATE VERIFICATION: Ensure trade count matches
+    const masterTradeCount = 1 // Master opened 1 trade
+    const followerTradeCount = allResults.filter(r => r.status === 'SUCCESS').length
+    const expectedFollowerCount = followers.length
+    
+    console.log(`[CopyTrade] ╔══════════════════════════════════════════════════════════════╗`)
+    console.log(`[CopyTrade] ║ FINAL STATE VERIFICATION                                     ║`)
+    console.log(`[CopyTrade] ║   Master Trade Count:     ${masterTradeCount}                                      ║`)
+    console.log(`[CopyTrade] ║   Expected Followers:     ${expectedFollowerCount}                                      ║`)
+    console.log(`[CopyTrade] ║   Successful Copies:      ${followerTradeCount}                                      ║`)
+    console.log(`[CopyTrade] ║   Sync Status:            ${followerTradeCount === expectedFollowerCount ? '✅ 100% SYNCED' : '❌ INCOMPLETE'}              ║`)
+    console.log(`[CopyTrade] ╚══════════════════════════════════════════════════════════════╝`)
+    
+    if (followerTradeCount !== expectedFollowerCount) {
+      console.log(`[CopyTrade] ⚠️ WARNING: Not all followers received the trade!`)
+      console.log(`[CopyTrade] Missing: ${expectedFollowerCount - followerTradeCount} followers`)
+      allResults.filter(r => r.status === 'FAILED').forEach(r => {
+        console.log(`[CopyTrade]   - Follower ${r.followerId}: ${r.reason}`)
+      })
+    }
+    
     return allResults
   }
   
