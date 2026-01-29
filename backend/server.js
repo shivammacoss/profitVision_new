@@ -32,6 +32,7 @@ import superAdminRoutes from './routes/superAdmin.js'
 import emailRoutes from './routes/email.js'
 import oxapayRoutes from './routes/oxapay.js'
 import paymentGatewaySettingsRoutes from './routes/paymentGatewaySettings.js'
+import creditRoutes from './routes/credit.js'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -319,6 +320,7 @@ app.use('/api/super-admin', superAdminRoutes)
 app.use('/api/email', emailRoutes)
 app.use('/api/oxapay', oxapayRoutes)
 app.use('/api/payment-gateway', paymentGatewaySettingsRoutes)
+app.use('/api/credit', creditRoutes)
 
 // Serve uploaded files statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))

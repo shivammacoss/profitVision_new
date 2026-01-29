@@ -81,8 +81,22 @@ const copyFollowerSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  // Reason for stopping (used when credit depleted)
+  stopReason: {
+    type: String,
+    default: null
+  },
   // Initial deposit amount when following
   initialDeposit: {
+    type: Number,
+    default: 0
+  },
+  // Credit tracking
+  initialCredit: {
+    type: Number,
+    default: 0
+  },
+  currentCredit: {
     type: Number,
     default: 0
   }

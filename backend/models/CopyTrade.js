@@ -94,7 +94,7 @@ const copyTradeSchema = new mongoose.Schema({
     type: Number,
     default: null
   },
-  // PnL - Commission-based system
+  // PnL - Credit-based system
   rawPnl: {
     type: Number,
     default: 0
@@ -106,6 +106,23 @@ const copyTradeSchema = new mongoose.Schema({
   masterPnl: {
     type: Number,
     default: 0
+  },
+  // Credit tracking for copy trading
+  creditDeducted: {
+    type: Number,
+    default: 0
+  },
+  walletCredited: {
+    type: Number,
+    default: 0
+  },
+  creditBalanceBefore: {
+    type: Number,
+    default: null
+  },
+  creditBalanceAfter: {
+    type: Number,
+    default: null
   },
   // Status
   status: {

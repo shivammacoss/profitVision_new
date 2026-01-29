@@ -20,6 +20,18 @@ const tradeSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Copy Trading Flag - when true, tradeEngine skips wallet/balance mutation
+  // P&L is handled separately by copyTradingEngine using credit
+  isCopyTrade: {
+    type: Boolean,
+    default: false
+  },
+  // Reference to the master trade (for copy trades)
+  masterTradeId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Trade',
+    default: null
+  },
   tradeId: {
     type: String,
     unique: true,

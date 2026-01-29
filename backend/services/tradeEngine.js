@@ -198,7 +198,9 @@ class TradeEngine {
   }
 
   // Open a new trade
-  async openTrade(userId, tradingAccountId, symbol, segment, side, orderType, quantity, bid, ask, sl = null, tp = null, userLeverage = null, entryPrice = null) {
+  // options: { isCopyTrade, masterTradeId, skipValidation, skipCommissionDeduction }
+  async openTrade(userId, tradingAccountId, symbol, segment, side, orderType, quantity, bid, ask, sl = null, tp = null, userLeverage = null, entryPrice = null, options = {}) {
+    const { isCopyTrade = false, masterTradeId = null, skipValidation = false, skipCommissionDeduction = false } = options
     const account = await TradingAccount.findById(tradingAccountId).populate('accountTypeId')
     if (!account) throw new Error('Trading account not found')
 
@@ -290,11 +292,15 @@ class TradeEngine {
       floatingPnl: 0,
       status: orderType === 'MARKET' ? 'OPEN' : 'PENDING',
       pendingPrice: finalPendingPrice,
-      bookType: userBookType
+      bookType: userBookType,
+      // Copy Trade fields - when isCopyTrade=true, closeTrade skips wallet mutation
+      isCopyTrade: isCopyTrade,
+      masterTradeId: masterTradeId
     })
 
     // Deduct commission from trading account balance when trade opens
-    if (orderType === 'MARKET' && commission > 0) {
+    // SKIP for copy trades - copy trades don't deduct from wallet
+    if (orderType === 'MARKET' && commission > 0 && !isCopyTrade && !skipCommissionDeduction) {
       account.balance -= commission
       if (account.balance < 0) account.balance = 0
       await account.save()
@@ -345,32 +351,42 @@ class TradeEngine {
 
     await trade.save()
 
-    // Update account balance with proper credit handling
-    const account = await TradingAccount.findById(trade.tradingAccountId)
-    
-    if (realizedPnl >= 0) {
-      // Profit: Add to balance only (credit stays the same)
-      account.balance += realizedPnl
+    // ========== COPY TRADE CHECK ==========
+    // If this is a copy trade, DO NOT mutate wallet/balance here
+    // Copy trade P&L is handled by copyTradingEngine using CREDIT only
+    if (trade.isCopyTrade) {
+      console.log(`[TradeEngine] COPY TRADE detected (${trade.tradeId}) - skipping wallet mutation`)
+      console.log(`[TradeEngine] P&L: $${realizedPnl.toFixed(2)} will be handled by copyTradingEngine via CREDIT`)
+      // Skip all balance/credit mutations - copyTradingEngine handles this
     } else {
-      // Loss: First deduct from balance, then from credit if balance insufficient
-      const loss = Math.abs(realizedPnl)
+      // ========== MANUAL TRADE - Normal wallet mutation ==========
+      // Update account balance with proper credit handling
+      const account = await TradingAccount.findById(trade.tradingAccountId)
       
-      if (account.balance >= loss) {
-        // Balance can cover the loss
-        account.balance -= loss
+      if (realizedPnl >= 0) {
+        // Profit: Add to balance only (credit stays the same)
+        account.balance += realizedPnl
       } else {
-        // Balance cannot cover the loss - use credit for remaining
-        const remainingLoss = loss - account.balance
-        account.balance = 0
+        // Loss: First deduct from balance, then from credit if balance insufficient
+        const loss = Math.abs(realizedPnl)
         
-        // Deduct remaining loss from credit
-        if (account.credit > 0) {
-          account.credit = Math.max(0, (account.credit || 0) - remainingLoss)
+        if (account.balance >= loss) {
+          // Balance can cover the loss
+          account.balance -= loss
+        } else {
+          // Balance cannot cover the loss - use credit for remaining
+          const remainingLoss = loss - account.balance
+          account.balance = 0
+          
+          // Deduct remaining loss from credit
+          if (account.credit > 0) {
+            account.credit = Math.max(0, (account.credit || 0) - remainingLoss)
+          }
         }
       }
+      
+      await account.save()
     }
-    
-    await account.save()
 
     // Log admin action if applicable
     if (adminId) {
