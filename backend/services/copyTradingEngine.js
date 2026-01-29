@@ -335,7 +335,7 @@ class CopyTradingEngine {
           console.log(`[CopyTrade CREDIT] ║   Account ID: ${followerAccountId}`)
           console.log(`[CopyTrade CREDIT] ║   Credit:         $${followerCredit.toFixed(4)} (used for copy trading)`)
           console.log(`[CopyTrade CREDIT] ║   Wallet Balance: $${(followerAccount.balance || 0).toFixed(4)} (NOT used)`)
-          console.log(`[CopyTrade CREDIT] ║   Floating P/L:   $${followerFloatingPnl.toFixed(4)} (from ${followerOpenTrades.length} open trades)`)
+          console.log(`[CopyTrade CREDIT] ║   Floating P/L:   $${followerFloatingPnl.toFixed(4)} (from ${followerOpenCopyTrades.length} open copy trades)`)
           console.log(`[CopyTrade CREDIT] ║   ─────────────────────────────────────`)
           console.log(`[CopyTrade CREDIT] ║   COPY EQUITY:    $${followerEquity.toFixed(4)} (Credit + FloatingPnL)`)
           console.log(`[CopyTrade CREDIT] ╠══════════════════════════════════════════════════════════════╣`)
