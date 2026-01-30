@@ -724,7 +724,7 @@ const CopyTradePage = () => {
                             onClick={() => {
                               const accountId = sub.followerAccountId?._id || sub.followerAccountId
                               if (accountId) {
-                                navigate(`/trading/${accountId}`)
+                                navigate(`/trade/${accountId}`)
                               } else {
                                 alert('Copy trading account not found')
                               }
