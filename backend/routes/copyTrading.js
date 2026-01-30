@@ -47,6 +47,11 @@ router.post('/master/apply', async (req, res) => {
       return res.status(400).json({ message: 'Invalid trading account' })
     }
 
+    // Master cannot use a Copy Trading account - must use a regular trading account
+    if (tradingAccount.isCopyTrading) {
+      return res.status(400).json({ message: 'Cannot use a Copy Trading account as master. Please select a regular trading account.' })
+    }
+
     // Check minimum equity
     const minEquityMet = tradingAccount.balance >= settings.masterRequirements.minEquity
 
@@ -240,6 +245,11 @@ router.post('/follow', async (req, res) => {
     const master = await MasterTrader.findById(masterId).populate('tradingAccountId')
     if (!master || master.status !== 'ACTIVE') {
       return res.status(400).json({ message: 'Master trader not available' })
+    }
+
+    // Prevent master from following themselves
+    if (master.userId.toString() === followerUserId) {
+      return res.status(400).json({ message: 'You cannot follow yourself as a master trader' })
     }
 
     // Check follower limit
