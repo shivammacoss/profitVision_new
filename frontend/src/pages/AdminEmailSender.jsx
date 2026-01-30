@@ -1,5 +1,5 @@
-import { useState, useEffect, useContext } from 'react'
-import { ThemeContext } from '../context/ThemeContext'
+import { useState, useEffect } from 'react'
+import { useTheme } from '../context/ThemeContext'
 import AdminLayout from '../components/AdminLayout'
 import { 
   Mail, 
@@ -15,7 +15,7 @@ import {
 import { API_URL } from '../config/api'
 
 const AdminEmailSender = () => {
-  const { isDarkMode } = useContext(ThemeContext)
+  const { isDarkMode } = useTheme()
   const [users, setUsers] = useState([])
   const [filteredUsers, setFilteredUsers] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
