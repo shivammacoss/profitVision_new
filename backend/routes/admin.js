@@ -273,6 +273,7 @@ router.delete('/users/:id', async (req, res) => {
     const MasterTrader = (await import('../models/MasterTrader.js')).default
     const CopyTrade = (await import('../models/CopyTrade.js')).default
     const CreditLedger = (await import('../models/CreditLedger.js')).default
+    const Transaction = (await import('../models/Transaction.js')).default
     
     // Get user's trading accounts
     const tradingAccounts = await TradingAccount.find({ userId })
@@ -302,15 +303,19 @@ router.delete('/users/:id', async (req, res) => {
     const creditLedgerDeleted = await CreditLedger.deleteMany({ userId })
     console.log(`[Admin] Deleted ${creditLedgerDeleted.deletedCount} credit ledger entries`)
     
-    // 6. Delete trading accounts
+    // 6. Delete all transactions (deposits, withdrawals, etc.)
+    const transactionsDeleted = await Transaction.deleteMany({ userId })
+    console.log(`[Admin] Deleted ${transactionsDeleted.deletedCount} transactions`)
+    
+    // 7. Delete trading accounts
     const accountsDeleted = await TradingAccount.deleteMany({ userId })
     console.log(`[Admin] Deleted ${accountsDeleted.deletedCount} trading accounts`)
     
-    // 7. Delete wallet
+    // 8. Delete wallet
     const walletDeleted = await Wallet.deleteMany({ userId })
     console.log(`[Admin] Deleted ${walletDeleted.deletedCount} wallets`)
     
-    // 8. Finally delete the user
+    // 9. Finally delete the user
     await User.findByIdAndDelete(userId)
     console.log(`[Admin] User ${user.email} completely deleted from system`)
     
@@ -323,6 +328,7 @@ router.delete('/users/:id', async (req, res) => {
         followers: followersDeleted.deletedCount,
         masterTrader: masterDeleted.deletedCount,
         creditLedger: creditLedgerDeleted.deletedCount,
+        transactions: transactionsDeleted.deletedCount,
         tradingAccounts: accountsDeleted.deletedCount,
         wallets: walletDeleted.deletedCount
       }
@@ -330,6 +336,106 @@ router.delete('/users/:id', async (req, res) => {
   } catch (error) {
     console.error('[Admin] Error deleting user:', error)
     res.status(500).json({ message: 'Error deleting user', error: error.message })
+  }
+})
+
+// ==================== CLEANUP ORPHANED DATA ====================
+
+// POST /api/admin/cleanup-orphaned-data - Remove orphaned data from deleted users
+router.post('/cleanup-orphaned-data', async (req, res) => {
+  try {
+    console.log('[Admin] Starting orphaned data cleanup...')
+    
+    const TradingAccount = (await import('../models/TradingAccount.js')).default
+    const Wallet = (await import('../models/Wallet.js')).default
+    const Trade = (await import('../models/Trade.js')).default
+    const CopyFollower = (await import('../models/CopyFollower.js')).default
+    const MasterTrader = (await import('../models/MasterTrader.js')).default
+    const CopyTrade = (await import('../models/CopyTrade.js')).default
+    const CreditLedger = (await import('../models/CreditLedger.js')).default
+    const Transaction = (await import('../models/Transaction.js')).default
+    
+    // Get all valid user IDs
+    const validUsers = await User.find({}, '_id')
+    const validUserIds = validUsers.map(u => u._id.toString())
+    
+    console.log(`[Admin] Found ${validUserIds.length} valid users`)
+    
+    // Find and delete orphaned transactions (userId not in valid users)
+    const allTransactions = await Transaction.find({})
+    const orphanedTxnIds = allTransactions
+      .filter(t => !validUserIds.includes(t.userId?.toString()))
+      .map(t => t._id)
+    const txnDeleted = await Transaction.deleteMany({ _id: { $in: orphanedTxnIds } })
+    console.log(`[Admin] Deleted ${txnDeleted.deletedCount} orphaned transactions`)
+    
+    // Find and delete orphaned wallets
+    const allWallets = await Wallet.find({})
+    const orphanedWalletIds = allWallets
+      .filter(w => !validUserIds.includes(w.userId?.toString()))
+      .map(w => w._id)
+    const walletsDeleted = await Wallet.deleteMany({ _id: { $in: orphanedWalletIds } })
+    console.log(`[Admin] Deleted ${walletsDeleted.deletedCount} orphaned wallets`)
+    
+    // Find and delete orphaned trading accounts
+    const allAccounts = await TradingAccount.find({})
+    const orphanedAccountIds = allAccounts
+      .filter(a => !validUserIds.includes(a.userId?.toString()))
+      .map(a => a._id)
+    const accountsDeleted = await TradingAccount.deleteMany({ _id: { $in: orphanedAccountIds } })
+    console.log(`[Admin] Deleted ${accountsDeleted.deletedCount} orphaned trading accounts`)
+    
+    // Find and delete orphaned trades (for deleted accounts)
+    const validAccountIds = (await TradingAccount.find({}, '_id')).map(a => a._id.toString())
+    const allTrades = await Trade.find({})
+    const orphanedTradeIds = allTrades
+      .filter(t => !validAccountIds.includes(t.tradingAccountId?.toString()))
+      .map(t => t._id)
+    const tradesDeleted = await Trade.deleteMany({ _id: { $in: orphanedTradeIds } })
+    console.log(`[Admin] Deleted ${tradesDeleted.deletedCount} orphaned trades`)
+    
+    // Delete orphaned credit ledger entries
+    const allCreditLedger = await CreditLedger.find({})
+    const orphanedCreditIds = allCreditLedger
+      .filter(c => !validUserIds.includes(c.userId?.toString()))
+      .map(c => c._id)
+    const creditDeleted = await CreditLedger.deleteMany({ _id: { $in: orphanedCreditIds } })
+    console.log(`[Admin] Deleted ${creditDeleted.deletedCount} orphaned credit ledger entries`)
+    
+    // Delete orphaned copy followers
+    const allFollowers = await CopyFollower.find({})
+    const orphanedFollowerIds = allFollowers
+      .filter(f => !validUserIds.includes(f.followerId?.toString()))
+      .map(f => f._id)
+    const followersDeleted = await CopyFollower.deleteMany({ _id: { $in: orphanedFollowerIds } })
+    console.log(`[Admin] Deleted ${followersDeleted.deletedCount} orphaned copy followers`)
+    
+    // Delete orphaned master traders
+    const allMasters = await MasterTrader.find({})
+    const orphanedMasterIds = allMasters
+      .filter(m => !validUserIds.includes(m.userId?.toString()))
+      .map(m => m._id)
+    const mastersDeleted = await MasterTrader.deleteMany({ _id: { $in: orphanedMasterIds } })
+    console.log(`[Admin] Deleted ${mastersDeleted.deletedCount} orphaned master traders`)
+    
+    console.log('[Admin] Orphaned data cleanup complete')
+    
+    res.json({
+      success: true,
+      message: 'Orphaned data cleanup complete',
+      cleaned: {
+        transactions: txnDeleted.deletedCount,
+        wallets: walletsDeleted.deletedCount,
+        tradingAccounts: accountsDeleted.deletedCount,
+        trades: tradesDeleted.deletedCount,
+        creditLedger: creditDeleted.deletedCount,
+        copyFollowers: followersDeleted.deletedCount,
+        masterTraders: mastersDeleted.deletedCount
+      }
+    })
+  } catch (error) {
+    console.error('[Admin] Error cleaning up orphaned data:', error)
+    res.status(500).json({ success: false, message: 'Error cleaning up data', error: error.message })
   }
 })
 
