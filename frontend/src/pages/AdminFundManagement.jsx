@@ -155,40 +155,40 @@ const AdminFundManagement = () => {
     <AdminLayout title="Fund Management" subtitle="Manage deposits and withdrawals">
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+        <div className="bg-white dark:bg-dark-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 shadow-sm">
           <div className="flex items-center gap-2 mb-2">
             <ArrowDownRight size={18} className="text-green-500" />
-            <p className="text-gray-500 text-sm">Total Deposits</p>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">Total Deposits</p>
           </div>
-          <p className="text-gray-900 text-2xl font-bold">${stats.deposits.toLocaleString()}</p>
+          <p className="text-gray-900 dark:text-white text-2xl font-bold">${stats.deposits.toLocaleString()}</p>
         </div>
-        <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+        <div className="bg-white dark:bg-dark-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 shadow-sm">
           <div className="flex items-center gap-2 mb-2">
             <ArrowUpRight size={18} className="text-red-500" />
-            <p className="text-gray-500 text-sm">Total Withdrawals</p>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">Total Withdrawals</p>
           </div>
-          <p className="text-gray-900 text-2xl font-bold">${stats.withdrawals.toLocaleString()}</p>
+          <p className="text-gray-900 dark:text-white text-2xl font-bold">${stats.withdrawals.toLocaleString()}</p>
         </div>
-        <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+        <div className="bg-white dark:bg-dark-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 shadow-sm">
           <div className="flex items-center gap-2 mb-2">
             <Clock size={18} className="text-yellow-500" />
-            <p className="text-gray-500 text-sm">Pending Requests</p>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">Pending Requests</p>
           </div>
-          <p className="text-gray-900 text-2xl font-bold">{stats.pending}</p>
+          <p className="text-gray-900 dark:text-white text-2xl font-bold">{stats.pending}</p>
         </div>
-        <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+        <div className="bg-white dark:bg-dark-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 shadow-sm">
           <div className="flex items-center gap-2 mb-2">
             <Wallet size={18} className="text-purple-500" />
-            <p className="text-gray-500 text-sm">Net Balance</p>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">Net Balance</p>
           </div>
-          <p className="text-gray-900 text-2xl font-bold">${stats.net.toLocaleString()}</p>
+          <p className="text-gray-900 dark:text-white text-2xl font-bold">${stats.net.toLocaleString()}</p>
         </div>
       </div>
 
       {/* Transactions Table */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 border-b border-gray-200">
-          <h2 className="text-gray-900 font-semibold text-lg">All Transactions</h2>
+      <div className="bg-white dark:bg-dark-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-gray-900 dark:text-white font-semibold text-lg">All Transactions</h2>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="relative">
               <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
@@ -197,13 +197,13 @@ const AdminFundManagement = () => {
                 placeholder="Search transactions..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full sm:w-64 bg-gray-100 border border-gray-300 rounded-lg pl-10 pr-4 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-gray-400"
+                className="w-full sm:w-64 bg-gray-100 dark:bg-dark-700 border border-gray-300 dark:border-gray-600 rounded-lg pl-10 pr-4 py-2 text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:border-gray-400"
               />
             </div>
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="bg-gray-100 border border-gray-300 rounded-lg px-4 py-2 text-gray-900 focus:outline-none focus:border-gray-400"
+              className="bg-gray-100 dark:bg-dark-700 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:border-gray-400"
             >
               <option value="all">All Types</option>
               <option value="deposit">Deposits</option>
@@ -222,7 +222,7 @@ const AdminFundManagement = () => {
             {/* Mobile Card View */}
             <div className="block lg:hidden p-4 space-y-3">
               {filteredTransactions.map((txn) => (
-                <div key={txn._id} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                <div key={txn._id} className="bg-gray-50 dark:bg-dark-700 rounded-xl p-4 border border-gray-200 dark:border-gray-600">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
@@ -235,7 +235,7 @@ const AdminFundManagement = () => {
                         )}
                       </div>
                       <div>
-                        <p className="text-gray-900 font-medium">{txn.userId?.firstName || txn.userId?.email}</p>
+                        <p className="text-gray-900 dark:text-white font-medium">{txn.userId?.firstName || txn.userId?.email}</p>
                         <p className="text-gray-500 text-xs">{txn.transactionId}</p>
                       </div>
                     </div>
@@ -252,11 +252,11 @@ const AdminFundManagement = () => {
                     </div>
                     <div>
                       <p className="text-gray-500">Method</p>
-                      <p className="text-gray-900">{txn.paymentMethod || '-'}</p>
+                      <p className="text-gray-900 dark:text-white">{txn.paymentMethod || '-'}</p>
                     </div>
                   </div>
                   {isPending(txn.status) && (
-                    <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200">
+                    <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
                       <button onClick={() => handleApprove(txn._id)} className="flex-1 flex items-center justify-center gap-1 py-2 bg-green-500/20 text-green-500 rounded-lg text-sm">
                         <Check size={14} /> Approve
                       </button>
@@ -273,7 +273,7 @@ const AdminFundManagement = () => {
             <div className="hidden lg:block overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-200">
+                  <tr className="border-b border-gray-200 dark:border-gray-700">
                     <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Transaction ID</th>
                     <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">User</th>
                     <th className="text-left text-gray-500 text-sm font-medium py-3 px-4">Type</th>
@@ -286,9 +286,9 @@ const AdminFundManagement = () => {
                 </thead>
                 <tbody>
                   {filteredTransactions.map((txn) => (
-                    <tr key={txn._id} className="border-b border-gray-100 hover:bg-gray-50">
-                      <td className="py-4 px-4 text-gray-900 font-mono text-sm">{txn.transactionId}</td>
-                      <td className="py-4 px-4 text-gray-900">{txn.userId?.firstName || txn.userId?.email}</td>
+                    <tr key={txn._id} className="border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-dark-700">
+                      <td className="py-4 px-4 text-gray-900 dark:text-white font-mono text-sm">{txn.transactionId}</td>
+                      <td className="py-4 px-4 text-gray-900 dark:text-white">{txn.userId?.firstName || txn.userId?.email}</td>
                       <td className="py-4 px-4">
                         <span className={`flex items-center gap-1 ${txn.type?.toUpperCase() === 'DEPOSIT' ? 'text-green-500' : 'text-red-500'}`}>
                           {txn.type?.toUpperCase() === 'DEPOSIT' ? <ArrowDownRight size={14} /> : <ArrowUpRight size={14} />}
@@ -298,27 +298,27 @@ const AdminFundManagement = () => {
                       <td className={`py-4 px-4 font-medium ${txn.type?.toUpperCase() === 'DEPOSIT' ? 'text-green-500' : 'text-red-500'}`}>
                         {txn.type?.toUpperCase() === 'DEPOSIT' ? '+' : '-'}${(txn.amount || 0).toLocaleString()}
                       </td>
-                      <td className="py-4 px-4 text-gray-600">{txn.paymentMethod || '-'}</td>
+                      <td className="py-4 px-4 text-gray-600 dark:text-gray-400">{txn.paymentMethod || '-'}</td>
                       <td className="py-4 px-4">
                         <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(txn.status)}`}>
                           {txn.status}
                         </span>
                       </td>
-                      <td className="py-4 px-4 text-gray-600">{new Date(txn.createdAt).toLocaleString()}</td>
+                      <td className="py-4 px-4 text-gray-600 dark:text-gray-400">{new Date(txn.createdAt).toLocaleString()}</td>
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-1">
                           <button 
                             onClick={() => viewTransactionDetails(txn)}
-                            className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 hover:text-gray-900"
+                            className="p-2 hover:bg-gray-100 dark:hover:bg-dark-600 rounded-lg transition-colors text-gray-500 hover:text-gray-900 dark:hover:text-white"
                           >
                             <Eye size={16} />
                           </button>
                           {isPending(txn.status) && (
                             <>
-                              <button onClick={() => handleApprove(txn._id)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 hover:text-green-500">
+                              <button onClick={() => handleApprove(txn._id)} className="p-2 hover:bg-gray-100 dark:hover:bg-dark-600 rounded-lg transition-colors text-gray-500 hover:text-green-500">
                                 <Check size={16} />
                               </button>
-                              <button onClick={() => handleReject(txn._id)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-500 hover:text-red-500">
+                              <button onClick={() => handleReject(txn._id)} className="p-2 hover:bg-gray-100 dark:hover:bg-dark-600 rounded-lg transition-colors text-gray-500 hover:text-red-500">
                                 <X size={16} />
                               </button>
                             </>
@@ -337,10 +337,10 @@ const AdminFundManagement = () => {
       {/* Transaction Details Modal */}
       {showDetailsModal && selectedTxn && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Transaction Details</h2>
-              <button onClick={closeDetailsModal} className="text-gray-500 hover:text-gray-700">
+          <div className="bg-white dark:bg-dark-800 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Transaction Details</h2>
+              <button onClick={closeDetailsModal} className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
                 <X size={24} />
               </button>
             </div>
@@ -348,7 +348,7 @@ const AdminFundManagement = () => {
             <div className="p-6 space-y-6">
               {/* Transaction Info */}
               <div className="space-y-3">
-                <h3 className="text-gray-900 font-semibold flex items-center gap-2">
+                <h3 className="text-gray-900 dark:text-white font-semibold flex items-center gap-2">
                   {selectedTxn.type?.toLowerCase() === 'withdrawal' ? (
                     <ArrowUpRight size={18} className="text-red-500" />
                   ) : (
@@ -371,63 +371,63 @@ const AdminFundManagement = () => {
                   </div>
                   <div>
                     <p className="text-gray-500">Payment Method</p>
-                    <p className="text-gray-900">{selectedTxn.paymentMethod || '-'}</p>
+                    <p className="text-gray-900 dark:text-white">{selectedTxn.paymentMethod || '-'}</p>
                   </div>
                   <div>
                     <p className="text-gray-500">Date</p>
-                    <p className="text-gray-900">{new Date(selectedTxn.createdAt).toLocaleString()}</p>
+                    <p className="text-gray-900 dark:text-white">{new Date(selectedTxn.createdAt).toLocaleString()}</p>
                   </div>
                   {selectedTxn.transactionRef && (
                     <div className="col-span-2">
                       <p className="text-gray-500">Transaction Reference</p>
-                      <p className="text-gray-900 font-mono">{selectedTxn.transactionRef}</p>
+                      <p className="text-gray-900 dark:text-white font-mono">{selectedTxn.transactionRef}</p>
                     </div>
                   )}
                 </div>
               </div>
 
               {/* User Info */}
-              <div className="border-t border-gray-200 pt-4">
-                <h3 className="text-gray-900 font-semibold mb-3">User Information</h3>
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                <h3 className="text-gray-900 dark:text-white font-semibold mb-3">User Information</h3>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-gray-500">Name</p>
-                    <p className="text-gray-900">{userDetails?.firstName || selectedTxn.userId?.firstName || '-'}</p>
+                    <p className="text-gray-900 dark:text-white">{userDetails?.firstName || selectedTxn.userId?.firstName || '-'}</p>
                   </div>
                   <div>
                     <p className="text-gray-500">Email</p>
-                    <p className="text-gray-900">{userDetails?.email || selectedTxn.userId?.email || '-'}</p>
+                    <p className="text-gray-900 dark:text-white">{userDetails?.email || selectedTxn.userId?.email || '-'}</p>
                   </div>
                 </div>
               </div>
 
               {/* Bank Details (for withdrawals) */}
               {selectedTxn.type?.toLowerCase() === 'withdrawal' && (
-                <div className="border-t border-gray-200 pt-4">
-                  <h3 className="text-gray-900 font-semibold mb-3 flex items-center gap-2">
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                  <h3 className="text-gray-900 dark:text-white font-semibold mb-3 flex items-center gap-2">
                     <Building2 size={16} /> Bank Details
                   </h3>
                   {userDetails?.bankDetails?.accountNumber ? (
-                    <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
+                    <div className="bg-gray-50 dark:bg-dark-700 rounded-lg p-4 space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-500">Bank Name</span>
-                        <span className="text-gray-900">{userDetails.bankDetails.bankName || '-'}</span>
+                        <span className="text-gray-900 dark:text-white">{userDetails.bankDetails.bankName || '-'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">Account Holder</span>
-                        <span className="text-gray-900">{userDetails.bankDetails.accountHolderName || '-'}</span>
+                        <span className="text-gray-900 dark:text-white">{userDetails.bankDetails.accountHolderName || '-'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">Account Number</span>
-                        <span className="text-gray-900 font-mono">{userDetails.bankDetails.accountNumber || '-'}</span>
+                        <span className="text-gray-900 dark:text-white font-mono">{userDetails.bankDetails.accountNumber || '-'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">IFSC Code</span>
-                        <span className="text-gray-900 font-mono">{userDetails.bankDetails.ifscCode || '-'}</span>
+                        <span className="text-gray-900 dark:text-white font-mono">{userDetails.bankDetails.ifscCode || '-'}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-500">Branch</span>
-                        <span className="text-gray-900">{userDetails.bankDetails.branchName || '-'}</span>
+                        <span className="text-gray-900 dark:text-white">{userDetails.bankDetails.branchName || '-'}</span>
                       </div>
                     </div>
                   ) : (

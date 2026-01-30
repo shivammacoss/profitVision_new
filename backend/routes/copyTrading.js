@@ -41,19 +41,21 @@ router.post('/master/apply', async (req, res) => {
       })
     }
 
-    // Validate trading account
+    // Validate trading account - Master MUST use a Copy Trading account
     const tradingAccount = await TradingAccount.findById(tradingAccountId)
     if (!tradingAccount || tradingAccount.userId.toString() !== userId) {
       return res.status(400).json({ message: 'Invalid trading account' })
     }
 
-    // Master cannot use a Copy Trading account - must use a regular trading account
-    if (tradingAccount.isCopyTrading) {
-      return res.status(400).json({ message: 'Cannot use a Copy Trading account as master. Please select a regular trading account.' })
+    // Master MUST use a Copy Trading account - trades from this account will be copied to followers
+    // Personal trades should be done from regular accounts (not copied)
+    if (!tradingAccount.isCopyTrading) {
+      return res.status(400).json({ message: 'Master must use a Copy Trading account. Please create or select a Copy Trading account for master trades.' })
     }
 
-    // Check minimum equity
-    const minEquityMet = tradingAccount.balance >= settings.masterRequirements.minEquity
+    // Check minimum equity (using credit for copy trading accounts)
+    const accountEquity = (tradingAccount.balance || 0) + (tradingAccount.credit || 0)
+    const minEquityMet = accountEquity >= settings.masterRequirements.minEquity
 
     // Check trading history
     const tradeCount = await Trade.countDocuments({ 
@@ -88,6 +90,100 @@ router.post('/master/apply', async (req, res) => {
   } catch (error) {
     console.error('Error applying as master:', error)
     res.status(500).json({ message: 'Error submitting application', error: error.message })
+  }
+})
+
+// POST /api/copy/create-master-account - Create a Copy Trading account for becoming a master
+router.post('/create-master-account', async (req, res) => {
+  try {
+    const { userId, depositAmount } = req.body
+
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID is required' })
+    }
+
+    const deposit = parseFloat(depositAmount) || 0
+
+    // Get user and wallet
+    const user = await User.findById(userId)
+    if (!user) {
+      return res.status(400).json({ message: 'User not found' })
+    }
+
+    let wallet = await Wallet.findOne({ userId })
+    if (!wallet) {
+      wallet = new Wallet({ userId, balance: 0 })
+      await wallet.save()
+    }
+
+    if (deposit > 0 && (wallet.balance || 0) < deposit) {
+      return res.status(400).json({ 
+        message: `Insufficient wallet balance. You have $${wallet.balance || 0}, need $${deposit}`,
+        code: 'INSUFFICIENT_WALLET'
+      })
+    }
+
+    // Get or create Copy Trading account type
+    let copyAccountType = await AccountType.findOne({ name: 'Copy Trading' })
+    if (!copyAccountType) {
+      copyAccountType = await AccountType.create({
+        name: 'Copy Trading',
+        description: 'Account for copy trading',
+        minDeposit: 0,
+        leverage: '1:100',
+        exposureLimit: 0,
+        minSpread: 0,
+        commission: 0,
+        isActive: true,
+        isDemo: false
+      })
+    }
+
+    // Deduct from wallet if deposit > 0
+    if (deposit > 0) {
+      wallet.balance = (wallet.balance || 0) - deposit
+      await wallet.save()
+
+      await Transaction.create({
+        userId,
+        type: 'Transfer_To_Account',
+        amount: deposit,
+        status: 'Completed',
+        paymentMethod: 'System',
+        adminRemarks: 'Copy Trading account deposit for master trading'
+      })
+    }
+
+    // Create copy trading account
+    const accountId = await TradingAccount.generateAccountId()
+    const copyTradingAccount = await TradingAccount.create({
+      userId,
+      accountTypeId: copyAccountType._id,
+      accountId,
+      pin: '1234',
+      balance: 0,
+      credit: deposit,
+      leverage: '1:100',
+      exposureLimit: 0,
+      status: 'Active',
+      isDemo: false,
+      isCopyTrading: true
+    })
+
+    res.status(201).json({
+      success: true,
+      message: 'Copy Trading account created successfully',
+      account: {
+        _id: copyTradingAccount._id,
+        accountId: copyTradingAccount.accountId,
+        credit: copyTradingAccount.credit,
+        isCopyTrading: true
+      }
+    })
+
+  } catch (error) {
+    console.error('Error creating master account:', error)
+    res.status(500).json({ message: 'Error creating account', error: error.message })
   }
 })
 
@@ -229,7 +325,7 @@ router.get('/master/commissions/:masterId', async (req, res) => {
 // New flow: User deposits funds -> Auto-create copy trading account -> Funds go to credit
 router.post('/follow', async (req, res) => {
   try {
-    const { followerUserId, masterId, depositAmount, maxLotSize, maxDailyLoss } = req.body
+    const { followerUserId, masterId, depositAmount, maxLotSize, maxDailyLoss, existingAccountId } = req.body
     
     // Force EQUITY_BASED mode - this is the only mode supported
     const copyMode = 'EQUITY_BASED'
@@ -302,52 +398,92 @@ router.post('/follow', async (req, res) => {
 
     // copyMode is now hardcoded to EQUITY_BASED - no validation needed
 
-    // Get or create a Copy Trading account type
-    let copyAccountType = await AccountType.findOne({ name: 'Copy Trading' })
-    if (!copyAccountType) {
-      copyAccountType = await AccountType.create({
-        name: 'Copy Trading',
-        description: 'Account for copy trading followers',
-        minDeposit: 0,
+    let copyTradingAccount
+
+    // Check if user wants to use an existing copy trading account
+    if (existingAccountId) {
+      // Validate the existing account
+      copyTradingAccount = await TradingAccount.findById(existingAccountId)
+      if (!copyTradingAccount) {
+        return res.status(400).json({ message: 'Selected account not found' })
+      }
+      if (copyTradingAccount.userId.toString() !== followerUserId) {
+        return res.status(400).json({ message: 'Account does not belong to you' })
+      }
+      if (!copyTradingAccount.isCopyTrading) {
+        return res.status(400).json({ message: 'Selected account is not a copy trading account' })
+      }
+      
+      // Add deposit to existing account's credit
+      if (depositAmount > 0) {
+        // Deduct from user wallet
+        wallet.balance = (wallet.balance || 0) - depositAmount
+        await wallet.save()
+
+        // Create transaction record for wallet deduction
+        await Transaction.create({
+          userId: followerUserId,
+          type: 'Transfer_To_Account',
+          amount: depositAmount,
+          status: 'Completed',
+          paymentMethod: 'System',
+          adminRemarks: `Copy Trading deposit for following ${master.displayName}`
+        })
+
+        // Add to existing account's credit
+        copyTradingAccount.credit = (copyTradingAccount.credit || 0) + depositAmount
+        copyTradingAccount.copyTradingMasterId = masterId
+        await copyTradingAccount.save()
+      }
+    } else {
+      // Create new copy trading account
+      // Get or create a Copy Trading account type
+      let copyAccountType = await AccountType.findOne({ name: 'Copy Trading' })
+      if (!copyAccountType) {
+        copyAccountType = await AccountType.create({
+          name: 'Copy Trading',
+          description: 'Account for copy trading followers',
+          minDeposit: 0,
+          leverage: '1:100',
+          exposureLimit: 0,
+          minSpread: 0,
+          commission: 0,
+          isActive: true,
+          isDemo: false
+        })
+      }
+
+      // Deduct from user wallet
+      wallet.balance = (wallet.balance || 0) - depositAmount
+      await wallet.save()
+
+      // Create transaction record for wallet deduction
+      await Transaction.create({
+        userId: followerUserId,
+        type: 'Transfer_To_Account',
+        amount: depositAmount,
+        status: 'Completed',
+        paymentMethod: 'System',
+        adminRemarks: `Copy Trading deposit for following ${master.displayName}`
+      })
+
+      // Create copy trading account for the user
+      const accountId = await TradingAccount.generateAccountId()
+      copyTradingAccount = await TradingAccount.create({
+        userId: followerUserId,
+        accountTypeId: copyAccountType._id,
+        accountId,
+        pin: '1234', // Default PIN, user can change later
+        balance: 0, // Balance starts at 0 (profits go here)
+        credit: depositAmount, // Deposit goes to credit (non-withdrawable)
         leverage: '1:100',
         exposureLimit: 0,
-        minSpread: 0,
-        commission: 0,
-        isActive: true,
-        isDemo: false
+        status: 'Active',
+        isDemo: false,
+        isCopyTrading: true,
+        copyTradingMasterId: masterId
       })
     }
-
-    // Deduct from user wallet
-    wallet.balance = (wallet.balance || 0) - depositAmount
-    await wallet.save()
-
-    // Create transaction record for wallet deduction
-    await Transaction.create({
-      userId: followerUserId,
-      type: 'Transfer_To_Account',
-      amount: depositAmount,
-      status: 'Completed',
-      paymentMethod: 'System',
-      adminRemarks: `Copy Trading deposit for following ${master.displayName}`
-    })
-
-    // Create copy trading account for the user
-    const accountId = await TradingAccount.generateAccountId()
-    const copyTradingAccount = await TradingAccount.create({
-      userId: followerUserId,
-      accountTypeId: copyAccountType._id,
-      accountId,
-      pin: '1234', // Default PIN, user can change later
-      balance: 0, // Balance starts at 0 (profits go here)
-      credit: depositAmount, // Deposit goes to credit (non-withdrawable)
-      leverage: '1:100',
-      exposureLimit: 0,
-      status: 'Active',
-      isDemo: false,
-      isCopyTrading: true,
-      copyTradingMasterId: masterId
-    })
 
     // Create follower subscription
     const follower = await CopyFollower.create({

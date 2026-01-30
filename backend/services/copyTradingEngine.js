@@ -276,51 +276,54 @@ class CopyTradingEngine {
         console.log(`[CopyTrade CREDIT]   Copy Trade Floating P/L: $${followerFloatingPnl.toFixed(2)} (from ${followerOpenCopyTrades.length} open copy trades)`)
         console.log(`[CopyTrade CREDIT]   Copy Equity: $${followerEquity.toFixed(2)}`)
 
-        // ========== NEW LOT CALCULATION FORMULA ==========
+        // ========== EQUITY-BASED LOT CALCULATION (NOT PROPORTIONAL) ==========
         // Formula: followerLot = followerEquity / 10000
         // Rule: Every $100 equity = 0.01 lot
-        // Master equity is IGNORED - lot is based ONLY on follower equity
-        // Broker rules: Min lot = 0.01, Lot step = 0.01, Round DOWN (floor)
-        // This applies to ALL copy modes (BALANCE_BASED, EQUITY_BASED, MULTIPLIER, AUTO)
+        // Master lot size is IGNORED - lot is based ONLY on follower equity
+        // Master is only a signal provider (open/close timing)
+        // Broker rules: Min lot = 0.01, Max lot = 100, Lot step = 0.01, Round DOWN (floor)
         
         const LOT_DIVISOR = 10000  // $10,000 equity = 1.0 lot, $100 = 0.01 lot
         const MIN_LOT = 0.01
+        const MAX_LOT = 100
         const LOT_STEP = 0.01
         
-        // Calculate lot based on follower equity ONLY (ignore master equity completely)
+        // Calculate lot based on follower equity ONLY (ignore master lot completely)
         const calculatedLotRaw = followerEquity / LOT_DIVISOR
         // Round DOWN to nearest lot step (floor) - never round up
         const roundedLot = Math.floor(calculatedLotRaw / LOT_STEP) * LOT_STEP
         // Ensure 2 decimal places
         const roundedLot2dp = Math.round(roundedLot * 100) / 100
-        // Apply minimum lot
-        followerLotSize = Math.max(MIN_LOT, roundedLot2dp)
+        // Apply minimum and maximum lot limits
+        followerLotSize = Math.min(MAX_LOT, Math.max(MIN_LOT, roundedLot2dp))
         
         console.log(`[CopyTrade LOT] ╔══════════════════════════════════════════════════════════════╗`)
-        console.log(`[CopyTrade LOT] ║     LOT CALCULATION (EQUITY/10000 - MASTER INDEPENDENT)     ║`)
+        console.log(`[CopyTrade LOT] ║     EQUITY-BASED LOT CALCULATION (NOT PROPORTIONAL)         ║`)
         console.log(`[CopyTrade LOT] ╠══════════════════════════════════════════════════════════════╣`)
         console.log(`[CopyTrade LOT] ║   Formula: followerLot = followerEquity / 10000             ║`)
         console.log(`[CopyTrade LOT] ║   Rule: Every $100 equity = 0.01 lot                        ║`)
+        console.log(`[CopyTrade LOT] ║   Master lot is IGNORED (signal provider only)             ║`)
         console.log(`[CopyTrade LOT] ╠══════════════════════════════════════════════════════════════╣`)
+        console.log(`[CopyTrade LOT] ║   Master Lot (ignored):  ${masterTrade.quantity}`)
         console.log(`[CopyTrade LOT] ║   Follower Credit:       $${followerCredit.toFixed(2)}`)
         console.log(`[CopyTrade LOT] ║   Follower Floating P/L: $${followerFloatingPnl.toFixed(2)}`)
         console.log(`[CopyTrade LOT] ║   Follower Equity:       $${followerEquity.toFixed(2)}`)
         console.log(`[CopyTrade LOT] ║   ─────────────────────────────────────`)
         console.log(`[CopyTrade LOT] ║   Calculated Lot (raw):  ${calculatedLotRaw.toFixed(4)}`)
         console.log(`[CopyTrade LOT] ║   After Floor Rounding:  ${roundedLot2dp}`)
-        console.log(`[CopyTrade LOT] ║   After Min 0.01 Applied: ${followerLotSize}`)
+        console.log(`[CopyTrade LOT] ║   After Min/Max Applied: ${followerLotSize}`)
         console.log(`[CopyTrade LOT] ╠══════════════════════════════════════════════════════════════╣`)
         
-        // Apply max lot size limit if set by user
+        // Apply max lot size limit if set by user (additional user-defined limit)
         if (follower.maxLotSize && follower.maxLotSize > 0 && followerLotSize > follower.maxLotSize) {
           const beforeMaxLimit = followerLotSize
           followerLotSize = follower.maxLotSize
-          console.log(`[CopyTrade LOT] ║   Max Lot Limit Applied: ${follower.maxLotSize} (was ${beforeMaxLimit})`)
+          console.log(`[CopyTrade LOT] ║   User Max Lot Applied:  ${follower.maxLotSize} (was ${beforeMaxLimit})`)
         }
         
         console.log(`[CopyTrade LOT] ║ ✅ FINAL LOT SIZE: ${followerLotSize}`)
         console.log(`[CopyTrade LOT] ╚══════════════════════════════════════════════════════════════╝`)
-        console.log(`[CopyTrade LOT] Copy Mode: ${follower.copyMode} (all modes use equity/10000 formula)`)
+        console.log(`[CopyTrade LOT] Copy Mode: EQUITY_BASED (followerEquity/10000, master is signal only)`)
         
         console.log(`[CopyTrade DEBUG] ========== PRE-EXECUTION LOT SIZE: ${followerLotSize} ==========`)
 

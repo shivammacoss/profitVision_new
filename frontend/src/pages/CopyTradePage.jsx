@@ -29,6 +29,8 @@ const CopyTradePage = () => {
   const [copyValue, setCopyValue] = useState('1')
   const [depositAmount, setDepositAmount] = useState('')
   const [accounts, setAccounts] = useState([])
+  const [useExistingAccount, setUseExistingAccount] = useState(false)
+  const [selectedExistingAccount, setSelectedExistingAccount] = useState('')
   const [selectedAccount, setSelectedAccount] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [walletBalance, setWalletBalance] = useState(0)
@@ -230,14 +232,23 @@ const CopyTradePage = () => {
   }
 
   const handleApplyMaster = async () => {
-    const accountId = masterForm.tradingAccountId || (accounts.length > 0 ? accounts[0]._id : '')
+    // Get Copy Trading accounts only
+    const copyTradingAccounts = accounts.filter(a => a.isCopyTrading)
+    const accountId = masterForm.tradingAccountId || (copyTradingAccounts.length > 0 ? copyTradingAccounts[0]._id : '')
     
     if (!masterForm.displayName.trim()) {
       alert('Please enter a display name')
       return
     }
     if (!accountId) {
-      alert('Please select a trading account')
+      alert('Please select a Copy Trading account. You need a Copy Trading account to become a master.')
+      return
+    }
+    
+    // Verify selected account is a Copy Trading account
+    const selectedAccount = accounts.find(a => a._id === accountId)
+    if (!selectedAccount?.isCopyTrading) {
+      alert('Master must use a Copy Trading account. Please select a valid Copy Trading account.')
       return
     }
     
@@ -290,23 +301,35 @@ const CopyTradePage = () => {
     }
 
     try {
+      const requestBody = {
+        followerUserId: user._id,
+        masterId: selectedMaster._id,
+        depositAmount: deposit,
+        copyMode,
+        copyValue: parseFloat(copyValue)
+      }
+      
+      // Add existing account ID if user selected one
+      if (useExistingAccount && selectedExistingAccount) {
+        requestBody.existingAccountId = selectedExistingAccount
+      }
+
       const res = await fetch(`${API_URL}/copy/follow`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          followerUserId: user._id,
-          masterId: selectedMaster._id,
-          depositAmount: deposit,
-          copyMode,
-          copyValue: parseFloat(copyValue)
-        })
+        body: JSON.stringify(requestBody)
       })
 
       const data = await res.json()
       if (data.success) {
-        alert(`Successfully following ${selectedMaster.displayName}! A copy trading account has been created with $${deposit} credit.`)
+        const message = useExistingAccount 
+          ? `Successfully following ${selectedMaster.displayName}! $${deposit} credit added to your existing account.`
+          : `Successfully following ${selectedMaster.displayName}! A copy trading account has been created with $${deposit} credit.`
+        alert(message)
         setShowFollowModal(false)
         setDepositAmount('')
+        setUseExistingAccount(false)
+        setSelectedExistingAccount('')
         fetchMySubscriptions()
         fetchWalletBalance()
         fetchAccounts()
@@ -1086,24 +1109,63 @@ const CopyTradePage = () => {
                 </div>
               </div>
 
+              {/* Use Existing Account Option */}
+              {accounts.filter(acc => acc.isCopyTrading).length > 0 && (
+                <div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={useExistingAccount}
+                      onChange={(e) => {
+                        setUseExistingAccount(e.target.checked)
+                        if (!e.target.checked) setSelectedExistingAccount('')
+                      }}
+                      className="w-4 h-4 accent-accent-green"
+                    />
+                    <span className={`text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      Use existing copy trading account
+                    </span>
+                  </label>
+                  
+                  {useExistingAccount && (
+                    <select
+                      value={selectedExistingAccount}
+                      onChange={(e) => setSelectedExistingAccount(e.target.value)}
+                      className={`w-full mt-2 px-4 py-3 ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg focus:outline-none focus:border-accent-green`}
+                    >
+                      <option value="">Select an account</option>
+                      {accounts.filter(acc => acc.isCopyTrading).map(acc => (
+                        <option key={acc._id} value={acc._id}>
+                          {acc.accountId} - Credit: ${(acc.credit || 0).toFixed(2)}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              )}
+
               {/* Deposit Amount Input */}
               <div>
-                <label className="text-gray-500 text-sm mb-1 block">Deposit Amount *</label>
+                <label className="text-gray-500 text-sm mb-1 block">
+                  {useExistingAccount ? 'Additional Deposit (optional)' : 'Deposit Amount *'}
+                </label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
                   <input
                     type="number"
                     value={depositAmount}
                     onChange={(e) => setDepositAmount(e.target.value)}
-                    min={selectedMaster.minimumFollowerDeposit || 0}
-                    placeholder={`Min: $${selectedMaster.minimumFollowerDeposit || 0}`}
+                    min={useExistingAccount ? 0 : (selectedMaster.minimumFollowerDeposit || 0)}
+                    placeholder={useExistingAccount ? 'Optional' : `Min: $${selectedMaster.minimumFollowerDeposit || 0}`}
                     className={`w-full pl-8 pr-4 py-3 ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg text-lg focus:outline-none focus:border-accent-green`}
                   />
                 </div>
                 <p className="text-gray-500 text-xs mt-1">
-                  This amount will be deducted from your wallet and added as credit to your copy trading account
+                  {useExistingAccount 
+                    ? 'Add more credit to your existing account (optional)'
+                    : 'This amount will be deducted from your wallet and added as credit to your copy trading account'}
                 </p>
-                {selectedMaster.minimumFollowerDeposit > 0 && (
+                {!useExistingAccount && selectedMaster.minimumFollowerDeposit > 0 && (
                   <p className="text-yellow-500 text-xs mt-1">
                     Minimum deposit required: ${selectedMaster.minimumFollowerDeposit}
                   </p>
@@ -1134,10 +1196,10 @@ const CopyTradePage = () => {
               </div>
 
               {/* Info Box */}
-              <div className="bg-red-500/10 border border-blue-500/30 rounded-lg p-3">
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3">
                 <p className="text-blue-500 text-sm font-medium mb-2">How it works:</p>
                 <ul className="text-blue-500/80 text-xs space-y-1">
-                  <li>• A new Copy Trading account will be created for you</li>
+                  <li>• {useExistingAccount ? 'Your selected account will be used' : 'A new Copy Trading account will be created for you'}</li>
                   <li>• Your deposit goes to Credit (non-withdrawable)</li>
                   <li>• Profits from copied trades go to Balance (withdrawable)</li>
                   <li>• Losses and commissions are deducted from Credit</li>
@@ -1147,14 +1209,14 @@ const CopyTradePage = () => {
 
             <div className="flex gap-3 mt-6">
               <button
-                onClick={() => { setShowFollowModal(false); setDepositAmount(''); }}
+                onClick={() => { setShowFollowModal(false); setDepositAmount(''); setUseExistingAccount(false); setSelectedExistingAccount(''); }}
                 className={`flex-1 ${isDarkMode ? 'bg-dark-700 text-white hover:bg-dark-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'} py-2 rounded-lg`}
               >
                 Cancel
               </button>
               <button
                 onClick={handleFollow}
-                disabled={!depositAmount || parseFloat(depositAmount) < (selectedMaster.minimumFollowerDeposit || 0)}
+                disabled={useExistingAccount ? (useExistingAccount && !selectedExistingAccount) : (!depositAmount || parseFloat(depositAmount) < (selectedMaster.minimumFollowerDeposit || 0))}
                 className="flex-1 bg-accent-green text-black py-2 rounded-lg font-medium hover:bg-accent-green/90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Deposit & Follow
@@ -1202,18 +1264,55 @@ const CopyTradePage = () => {
               </div>
 
               <div>
-                <label className="text-gray-500 text-sm mb-1 block">Trading Account *</label>
+                <label className="text-gray-500 text-sm mb-1 block">Copy Trading Account *</label>
                 <select
-                  value={masterForm.tradingAccountId || (accounts.length > 0 ? accounts[0]._id : '')}
+                  value={masterForm.tradingAccountId || (accounts.filter(a => a.isCopyTrading).length > 0 ? accounts.filter(a => a.isCopyTrading)[0]._id : '')}
                   onChange={(e) => setMasterForm(prev => ({ ...prev, tradingAccountId: e.target.value }))}
                   className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-3 py-2`}
                 >
-                  {accounts.length === 0 && <option value="">No accounts available</option>}
-                  {accounts.map(acc => (
-                    <option key={acc._id} value={acc._id}>{acc.accountId} - ${acc.balance?.toFixed(2)}</option>
+                  {accounts.filter(a => a.isCopyTrading).length === 0 && <option value="">No Copy Trading accounts available</option>}
+                  {accounts.filter(a => a.isCopyTrading).map(acc => (
+                    <option key={acc._id} value={acc._id}>{acc.accountId} - Credit: ${(acc.credit || 0).toFixed(2)}</option>
                   ))}
                 </select>
-                <p className="text-gray-500 text-xs mt-1">Trades from this account will be copied to followers</p>
+                <p className="text-gray-500 text-xs mt-1">
+                  Master must use a Copy Trading account. Trades from this account will be copied to followers.
+                </p>
+                {accounts.filter(a => a.isCopyTrading).length === 0 && (
+                  <div className="mt-2">
+                    <p className="text-yellow-500 text-xs mb-2">
+                      You need a Copy Trading account to become a master.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const deposit = prompt('Enter deposit amount for your master Copy Trading account (from wallet):')
+                        if (deposit === null) return
+                        const depositAmount = parseFloat(deposit) || 0
+                        try {
+                          const res = await fetch(`${API_URL}/copy/create-master-account`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ userId: user._id, depositAmount })
+                          })
+                          const data = await res.json()
+                          if (data.success) {
+                            alert('Copy Trading account created! You can now apply as master.')
+                            fetchAccounts()
+                            fetchWalletBalance()
+                          } else {
+                            alert(data.message || 'Failed to create account')
+                          }
+                        } catch (err) {
+                          alert('Error creating account')
+                        }
+                      }}
+                      className="w-full bg-accent-green text-black py-2 rounded-lg text-sm font-medium hover:bg-accent-green/90"
+                    >
+                      Create Copy Trading Account
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Commission Info - Fixed 50/50 Split */}

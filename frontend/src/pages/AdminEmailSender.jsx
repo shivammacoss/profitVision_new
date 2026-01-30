@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useContext } from 'react'
+import { ThemeContext } from '../context/ThemeContext'
 import AdminLayout from '../components/AdminLayout'
 import { 
   Mail, 
@@ -14,6 +15,7 @@ import {
 import { API_URL } from '../config/api'
 
 const AdminEmailSender = () => {
+  const { isDarkMode } = useContext(ThemeContext)
   const [users, setUsers] = useState([])
   const [filteredUsers, setFilteredUsers] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -133,9 +135,9 @@ const AdminEmailSender = () => {
     <AdminLayout title="Email Sender" subtitle="Send emails to users">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* User Selection */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-gray-200">
-            <h2 className="text-gray-900 font-semibold flex items-center gap-2">
+        <div className={`${isDarkMode ? 'bg-dark-800 border-gray-700' : 'bg-white border-gray-200'} rounded-xl border shadow-sm overflow-hidden`}>
+          <div className={`p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <h2 className={`${isDarkMode ? 'text-white' : 'text-gray-900'} font-semibold flex items-center gap-2`}>
               <Users size={18} /> Select Recipients
             </h2>
           </div>
@@ -148,7 +150,7 @@ const AdminEmailSender = () => {
                 className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
                   sendMode === 'selected'
                     ? 'bg-red-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    : isDarkMode ? 'bg-dark-700 text-gray-300 hover:bg-dark-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
                 Selected Users
@@ -158,7 +160,7 @@ const AdminEmailSender = () => {
                 className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors ${
                   sendMode === 'all'
                     ? 'bg-red-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    : isDarkMode ? 'bg-dark-700 text-gray-300 hover:bg-dark-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
               >
                 All Users
@@ -175,7 +177,7 @@ const AdminEmailSender = () => {
                     placeholder="Search users..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full bg-gray-100 border border-gray-300 rounded-lg pl-10 pr-4 py-2 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-gray-400"
+                    className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} rounded-lg pl-10 pr-4 py-2 placeholder-gray-500 focus:outline-none focus:border-gray-400`}
                   />
                 </div>
 
@@ -205,8 +207,8 @@ const AdminEmailSender = () => {
                         onClick={() => toggleUserSelection(user._id)}
                         className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-colors ${
                           selectedUsers.includes(user._id)
-                            ? 'bg-blue-50 border border-blue-200'
-                            : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
+                            ? isDarkMode ? 'bg-blue-500/20 border border-blue-500/50' : 'bg-blue-50 border border-blue-200'
+                            : isDarkMode ? 'bg-dark-700 border border-gray-600 hover:bg-dark-600' : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
                         }`}
                       >
                         <div className={`w-5 h-5 rounded border flex items-center justify-center ${
@@ -219,7 +221,7 @@ const AdminEmailSender = () => {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-gray-900 font-medium truncate">{user.firstName || 'No Name'}</p>
+                          <p className={`${isDarkMode ? 'text-white' : 'text-gray-900'} font-medium truncate`}>{user.firstName || 'No Name'}</p>
                           <p className="text-gray-500 text-sm truncate">{user.email}</p>
                         </div>
                       </div>
@@ -230,7 +232,7 @@ const AdminEmailSender = () => {
             )}
 
             {sendMode === 'all' && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <div className={`${isDarkMode ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-yellow-50 border-yellow-200'} border rounded-lg p-4`}>
                 <div className="flex items-start gap-2">
                   <AlertCircle size={18} className="text-yellow-600 shrink-0 mt-0.5" />
                   <div>
@@ -246,9 +248,9 @@ const AdminEmailSender = () => {
         </div>
 
         {/* Email Composer */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-gray-200">
-            <h2 className="text-gray-900 font-semibold flex items-center gap-2">
+        <div className={`${isDarkMode ? 'bg-dark-800 border-gray-700' : 'bg-white border-gray-200'} rounded-xl border shadow-sm overflow-hidden`}>
+          <div className={`p-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <h2 className={`${isDarkMode ? 'text-white' : 'text-gray-900'} font-semibold flex items-center gap-2`}>
               <Mail size={18} /> Compose Email
             </h2>
           </div>
@@ -256,25 +258,25 @@ const AdminEmailSender = () => {
           <div className="p-4 space-y-4">
             {/* Subject */}
             <div>
-              <label className="block text-gray-600 text-sm mb-2">Subject</label>
+              <label className={`block ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} text-sm mb-2`}>Subject</label>
               <input
                 type="text"
                 placeholder="Enter email subject"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                className="w-full bg-gray-100 border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-gray-400"
+                className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} rounded-lg px-4 py-3 placeholder-gray-500 focus:outline-none focus:border-gray-400`}
               />
             </div>
 
             {/* Content */}
             <div>
-              <label className="block text-gray-600 text-sm mb-2">Message</label>
+              <label className={`block ${isDarkMode ? 'text-gray-400' : 'text-gray-600'} text-sm mb-2`}>Message</label>
               <textarea
                 placeholder="Enter your message (HTML supported)"
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 rows={8}
-                className="w-full bg-gray-100 border border-gray-300 rounded-lg px-4 py-3 text-gray-900 placeholder-gray-500 focus:outline-none focus:border-gray-400 resize-none"
+                className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} rounded-lg px-4 py-3 placeholder-gray-500 focus:outline-none focus:border-gray-400 resize-none`}
               />
               <p className="text-gray-500 text-xs mt-1">
                 You can use HTML tags like &lt;b&gt;, &lt;i&gt;, &lt;a href=""&gt;, &lt;br&gt; for formatting.
