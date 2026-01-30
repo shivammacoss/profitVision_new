@@ -295,7 +295,19 @@ router.delete('/users/:id', async (req, res) => {
     const followersDeleted = await CopyFollower.deleteMany({ followerId: userId })
     console.log(`[Admin] Deleted ${followersDeleted.deletedCount} follower records`)
     
-    // 4. Delete master trader record if exists
+    // 4. Delete master trader record if exists AND delete all followers of this master
+    const masterRecord = await MasterTrader.findOne({ userId })
+    let followersOfMasterDeleted = { deletedCount: 0 }
+    let copyTradesOfMasterDeleted = { deletedCount: 0 }
+    if (masterRecord) {
+      // Delete all CopyFollower records where other users are following this master
+      followersOfMasterDeleted = await CopyFollower.deleteMany({ masterId: masterRecord._id })
+      console.log(`[Admin] Deleted ${followersOfMasterDeleted.deletedCount} followers of this master`)
+      
+      // Delete all CopyTrade records for this master
+      copyTradesOfMasterDeleted = await CopyTrade.deleteMany({ masterId: masterRecord._id })
+      console.log(`[Admin] Deleted ${copyTradesOfMasterDeleted.deletedCount} copy trades from this master`)
+    }
     const masterDeleted = await MasterTrader.deleteMany({ userId })
     console.log(`[Admin] Deleted ${masterDeleted.deletedCount} master trader records`)
     
@@ -326,6 +338,8 @@ router.delete('/users/:id', async (req, res) => {
         trades: tradesDeleted.deletedCount,
         copyTrades: copyTradesDeleted.deletedCount,
         followers: followersDeleted.deletedCount,
+        followersOfMaster: followersOfMasterDeleted.deletedCount,
+        copyTradesOfMaster: copyTradesOfMasterDeleted.deletedCount,
         masterTrader: masterDeleted.deletedCount,
         creditLedger: creditLedgerDeleted.deletedCount,
         transactions: transactionsDeleted.deletedCount,
@@ -418,6 +432,22 @@ router.post('/cleanup-orphaned-data', async (req, res) => {
     const mastersDeleted = await MasterTrader.deleteMany({ _id: { $in: orphanedMasterIds } })
     console.log(`[Admin] Deleted ${mastersDeleted.deletedCount} orphaned master traders`)
     
+    // Delete CopyFollower records that reference deleted masters
+    const validMasterIds = (await MasterTrader.find({}, '_id')).map(m => m._id.toString())
+    const followersWithDeletedMaster = allFollowers
+      .filter(f => !validMasterIds.includes(f.masterId?.toString()))
+      .map(f => f._id)
+    const followersOfDeletedMastersDeleted = await CopyFollower.deleteMany({ _id: { $in: followersWithDeletedMaster } })
+    console.log(`[Admin] Deleted ${followersOfDeletedMastersDeleted.deletedCount} followers of deleted masters`)
+    
+    // Delete CopyTrade records that reference deleted masters
+    const copyTradesWithDeletedMaster = await CopyTrade.find({})
+    const orphanedCopyTradeIds = copyTradesWithDeletedMaster
+      .filter(ct => !validMasterIds.includes(ct.masterId?.toString()))
+      .map(ct => ct._id)
+    const copyTradesOfDeletedMastersDeleted = await CopyTrade.deleteMany({ _id: { $in: orphanedCopyTradeIds } })
+    console.log(`[Admin] Deleted ${copyTradesOfDeletedMastersDeleted.deletedCount} copy trades of deleted masters`)
+    
     console.log('[Admin] Orphaned data cleanup complete')
     
     res.json({
@@ -430,6 +460,8 @@ router.post('/cleanup-orphaned-data', async (req, res) => {
         trades: tradesDeleted.deletedCount,
         creditLedger: creditDeleted.deletedCount,
         copyFollowers: followersDeleted.deletedCount,
+        followersOfDeletedMasters: followersOfDeletedMastersDeleted.deletedCount,
+        copyTradesOfDeletedMasters: copyTradesOfDeletedMastersDeleted.deletedCount,
         masterTraders: mastersDeleted.deletedCount
       }
     })
