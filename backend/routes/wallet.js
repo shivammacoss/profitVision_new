@@ -218,7 +218,11 @@ router.get('/admin/transactions', async (req, res) => {
     const transactions = await Transaction.find()
       .populate('userId', 'firstName lastName email')
       .sort({ createdAt: -1 })
-    res.json({ transactions })
+    
+    // Filter out orphaned transactions (where user was deleted)
+    const validTransactions = transactions.filter(t => t.userId !== null)
+    
+    res.json({ transactions: validTransactions })
   } catch (error) {
     res.status(500).json({ message: 'Error fetching transactions', error: error.message })
   }
