@@ -252,15 +252,83 @@ router.put('/users/:id/ban', async (req, res) => {
   }
 })
 
-// DELETE /api/admin/users/:id - Delete user
+// DELETE /api/admin/users/:id - Delete user (COMPLETE CASCADING DELETE)
 router.delete('/users/:id', async (req, res) => {
   try {
-    const user = await User.findByIdAndDelete(req.params.id)
+    const userId = req.params.id
+    
+    // First check if user exists
+    const user = await User.findById(userId)
     if (!user) {
       return res.status(404).json({ message: 'User not found' })
     }
-    res.json({ message: 'User deleted successfully' })
+    
+    console.log(`[Admin] Starting complete deletion for user: ${user.email} (${userId})`)
+    
+    // Import all required models
+    const TradingAccount = (await import('../models/TradingAccount.js')).default
+    const Wallet = (await import('../models/Wallet.js')).default
+    const Trade = (await import('../models/Trade.js')).default
+    const CopyFollower = (await import('../models/CopyFollower.js')).default
+    const MasterTrader = (await import('../models/MasterTrader.js')).default
+    const CopyTrade = (await import('../models/CopyTrade.js')).default
+    const CreditLedger = (await import('../models/CreditLedger.js')).default
+    
+    // Get user's trading accounts
+    const tradingAccounts = await TradingAccount.find({ userId })
+    const accountIds = tradingAccounts.map(acc => acc._id)
+    
+    console.log(`[Admin] Found ${tradingAccounts.length} trading accounts to delete`)
+    
+    // Delete in order to maintain data integrity
+    
+    // 1. Delete all trades for user's accounts
+    const tradesDeleted = await Trade.deleteMany({ tradingAccountId: { $in: accountIds } })
+    console.log(`[Admin] Deleted ${tradesDeleted.deletedCount} trades`)
+    
+    // 2. Delete copy trades where user is follower
+    const copyTradesDeleted = await CopyTrade.deleteMany({ followerId: userId })
+    console.log(`[Admin] Deleted ${copyTradesDeleted.deletedCount} copy trade records`)
+    
+    // 3. Delete copy follower records (where user is following someone)
+    const followersDeleted = await CopyFollower.deleteMany({ followerId: userId })
+    console.log(`[Admin] Deleted ${followersDeleted.deletedCount} follower records`)
+    
+    // 4. Delete master trader record if exists
+    const masterDeleted = await MasterTrader.deleteMany({ userId })
+    console.log(`[Admin] Deleted ${masterDeleted.deletedCount} master trader records`)
+    
+    // 5. Delete credit ledger entries
+    const creditLedgerDeleted = await CreditLedger.deleteMany({ userId })
+    console.log(`[Admin] Deleted ${creditLedgerDeleted.deletedCount} credit ledger entries`)
+    
+    // 6. Delete trading accounts
+    const accountsDeleted = await TradingAccount.deleteMany({ userId })
+    console.log(`[Admin] Deleted ${accountsDeleted.deletedCount} trading accounts`)
+    
+    // 7. Delete wallet
+    const walletDeleted = await Wallet.deleteMany({ userId })
+    console.log(`[Admin] Deleted ${walletDeleted.deletedCount} wallets`)
+    
+    // 8. Finally delete the user
+    await User.findByIdAndDelete(userId)
+    console.log(`[Admin] User ${user.email} completely deleted from system`)
+    
+    res.json({ 
+      success: true,
+      message: 'User and all related data deleted successfully',
+      deletedData: {
+        trades: tradesDeleted.deletedCount,
+        copyTrades: copyTradesDeleted.deletedCount,
+        followers: followersDeleted.deletedCount,
+        masterTrader: masterDeleted.deletedCount,
+        creditLedger: creditLedgerDeleted.deletedCount,
+        tradingAccounts: accountsDeleted.deletedCount,
+        wallets: walletDeleted.deletedCount
+      }
+    })
   } catch (error) {
+    console.error('[Admin] Error deleting user:', error)
     res.status(500).json({ message: 'Error deleting user', error: error.message })
   }
 })

@@ -367,7 +367,8 @@ const AdminUserManagement = () => {
     setActionLoading(true)
     try {
       const response = await fetch(`${API_URL}/admin/users/${selectedUser._id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: getAuthHeaders()
       })
       
       if (response.ok) {
