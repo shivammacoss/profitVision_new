@@ -253,9 +253,14 @@ class CopyTradingEngine {
         }
         const masterEquity = masterAccount ? (masterAccount.balance + (masterAccount.credit || 0) + masterFloatingPnl) : 0
         
-        // CREDIT-BASED: For copy trading, follower's "equity" is based on CREDIT only
-        // wallet_balance is NOT used for copy trading exposure calculation
+        // WALLET-BASED LOT SIZING: Lot size is calculated from USER'S WALLET BALANCE
+        // This allows larger position sizes based on user's total available funds
+        // Credit is still used for margin/exposure tracking, but lot sizing uses wallet
         const followerCredit = followerAccount.credit || 0
+        
+        // Get follower's wallet balance for lot calculation
+        const followerWallet = await Wallet.findOne({ userId: follower.followerId })
+        const followerWalletBalance = followerWallet ? followerWallet.balance : 0
         
         // IMPORTANT: Only include floating P/L from COPY TRADES (isCopyTrade=true)
         // Manual trade P/L must NOT affect copy equity calculation
@@ -268,13 +273,16 @@ class CopyTradingEngine {
         for (const trade of followerOpenCopyTrades) {
           followerFloatingPnl += trade.currentPnl || 0
         }
-        // Follower's copy trading equity = Credit + Copy Trade Floating P/L (NOT wallet balance, NOT manual trade P/L)
-        const followerEquity = followerCredit + followerFloatingPnl
         
-        console.log(`[CopyTrade CREDIT] Follower equity calculation:`)
-        console.log(`[CopyTrade CREDIT]   Credit: $${followerCredit.toFixed(2)}`)
-        console.log(`[CopyTrade CREDIT]   Copy Trade Floating P/L: $${followerFloatingPnl.toFixed(2)} (from ${followerOpenCopyTrades.length} open copy trades)`)
-        console.log(`[CopyTrade CREDIT]   Copy Equity: $${followerEquity.toFixed(2)}`)
+        // Follower's equity for LOT SIZING = Wallet Balance (NOT credit)
+        // This allows users to trade larger lots based on their wallet funds
+        const followerEquity = followerWalletBalance + followerFloatingPnl
+        
+        console.log(`[CopyTrade EQUITY] Follower equity calculation (WALLET-BASED):`)
+        console.log(`[CopyTrade EQUITY]   Wallet Balance: $${followerWalletBalance.toFixed(2)} (used for lot sizing)`)
+        console.log(`[CopyTrade EQUITY]   Credit Balance: $${followerCredit.toFixed(2)} (used for margin only)`)
+        console.log(`[CopyTrade EQUITY]   Copy Trade Floating P/L: $${followerFloatingPnl.toFixed(2)} (from ${followerOpenCopyTrades.length} open copy trades)`)
+        console.log(`[CopyTrade EQUITY]   Total Equity for Lot Sizing: $${followerEquity.toFixed(2)}`)
 
         // ========== EQUITY-BASED LOT CALCULATION (NOT PROPORTIONAL) ==========
         // Formula: followerLot = followerEquity / 10000
@@ -298,16 +306,17 @@ class CopyTradingEngine {
         followerLotSize = Math.min(MAX_LOT, Math.max(MIN_LOT, roundedLot2dp))
         
         console.log(`[CopyTrade LOT] ╔══════════════════════════════════════════════════════════════╗`)
-        console.log(`[CopyTrade LOT] ║     EQUITY-BASED LOT CALCULATION (NOT PROPORTIONAL)         ║`)
+        console.log(`[CopyTrade LOT] ║     WALLET-BASED LOT CALCULATION (NOT PROPORTIONAL)         ║`)
         console.log(`[CopyTrade LOT] ╠══════════════════════════════════════════════════════════════╣`)
-        console.log(`[CopyTrade LOT] ║   Formula: followerLot = followerEquity / 10000             ║`)
-        console.log(`[CopyTrade LOT] ║   Rule: Every $100 equity = 0.01 lot                        ║`)
+        console.log(`[CopyTrade LOT] ║   Formula: followerLot = walletBalance / 10000              ║`)
+        console.log(`[CopyTrade LOT] ║   Rule: Every $100 wallet = 0.01 lot                        ║`)
         console.log(`[CopyTrade LOT] ║   Master lot is IGNORED (signal provider only)             ║`)
         console.log(`[CopyTrade LOT] ╠══════════════════════════════════════════════════════════════╣`)
         console.log(`[CopyTrade LOT] ║   Master Lot (ignored):  ${masterTrade.quantity}`)
-        console.log(`[CopyTrade LOT] ║   Follower Credit:       $${followerCredit.toFixed(2)}`)
+        console.log(`[CopyTrade LOT] ║   Follower Wallet:       $${followerWalletBalance.toFixed(2)} (used for lot)`)
+        console.log(`[CopyTrade LOT] ║   Follower Credit:       $${followerCredit.toFixed(2)} (used for margin)`)
         console.log(`[CopyTrade LOT] ║   Follower Floating P/L: $${followerFloatingPnl.toFixed(2)}`)
-        console.log(`[CopyTrade LOT] ║   Follower Equity:       $${followerEquity.toFixed(2)}`)
+        console.log(`[CopyTrade LOT] ║   Total Equity:          $${followerEquity.toFixed(2)}`)
         console.log(`[CopyTrade LOT] ║   ─────────────────────────────────────`)
         console.log(`[CopyTrade LOT] ║   Calculated Lot (raw):  ${calculatedLotRaw.toFixed(4)}`)
         console.log(`[CopyTrade LOT] ║   After Floor Rounding:  ${roundedLot2dp}`)
@@ -323,7 +332,7 @@ class CopyTradingEngine {
         
         console.log(`[CopyTrade LOT] ║ ✅ FINAL LOT SIZE: ${followerLotSize}`)
         console.log(`[CopyTrade LOT] ╚══════════════════════════════════════════════════════════════╝`)
-        console.log(`[CopyTrade LOT] Copy Mode: EQUITY_BASED (followerEquity/10000, master is signal only)`)
+        console.log(`[CopyTrade LOT] Copy Mode: WALLET_BASED (walletBalance/10000, master is signal only)`)
         
         console.log(`[CopyTrade DEBUG] ========== PRE-EXECUTION LOT SIZE: ${followerLotSize} ==========`)
 
