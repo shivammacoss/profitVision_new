@@ -107,7 +107,7 @@ const AdminOverview = () => {
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {statCards.map((stat, index) => (
-          <div key={index} className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+          <div key={index} className="bg-white dark:bg-dark-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 shadow-sm">
             <div className="flex items-center justify-between mb-3">
               <div className={`w-10 h-10 bg-${stat.color}-500/20 rounded-lg flex items-center justify-center`}>
                 <stat.icon size={20} className={`text-${stat.color}-500`} />
@@ -117,8 +117,8 @@ const AdminOverview = () => {
                 {stat.change}
               </div>
             </div>
-            <p className="text-gray-500 text-sm mb-1">{stat.title}</p>
-            <p className="text-gray-900 text-2xl font-bold">{stat.value}</p>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mb-1">{stat.title}</p>
+            <p className="text-gray-900 dark:text-white text-2xl font-bold">{stat.value}</p>
           </div>
         ))}
       </div>
@@ -126,9 +126,9 @@ const AdminOverview = () => {
       {/* Two Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent Users */}
-        <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+        <div className="bg-white dark:bg-dark-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-gray-900 font-semibold">Recent Users</h2>
+            <h2 className="text-gray-900 dark:text-white font-semibold">Recent Users</h2>
             <button 
               onClick={fetchData}
               className="p-2 hover:bg-dark-700 rounded-lg transition-colors"
@@ -145,7 +145,7 @@ const AdminOverview = () => {
               <p className="text-gray-500 text-center py-4">No users registered yet</p>
             ) : (
               users.slice(0, 5).map((user, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-dark-700 rounded-lg border border-gray-100 dark:border-gray-600">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-accent-green/20 rounded-full flex items-center justify-center">
                       <span className="text-accent-green font-medium">
@@ -153,8 +153,8 @@ const AdminOverview = () => {
                       </span>
                     </div>
                     <div>
-                      <p className="text-gray-900 font-medium">{user.firstName || 'Unknown'}</p>
-                      <p className="text-gray-500 text-sm">{user.email}</p>
+                      <p className="text-gray-900 dark:text-white font-medium">{user.firstName || 'Unknown'}</p>
+                      <p className="text-gray-500 dark:text-gray-400 text-sm">{user.email}</p>
                     </div>
                   </div>
                   <span className="text-gray-500 text-sm">{formatDate(user.createdAt)}</span>
@@ -165,44 +165,44 @@ const AdminOverview = () => {
         </div>
 
         {/* Quick Stats */}
-        <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-          <h2 className="text-gray-900 font-semibold mb-4">Platform Overview</h2>
+        <div className="bg-white dark:bg-dark-800 rounded-xl p-5 border border-gray-200 dark:border-gray-700 shadow-sm">
+          <h2 className="text-gray-900 dark:text-white font-semibold mb-4">Platform Overview</h2>
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-dark-700 rounded-lg border border-gray-100 dark:border-gray-600">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center">
                   <Users size={18} className="text-blue-500" />
                 </div>
                 <span className="text-gray-400">New Users This Week</span>
               </div>
-              <span className="text-gray-900 font-semibold">{stats.newThisWeek}</span>
+              <span className="text-gray-900 dark:text-white font-semibold">{stats.newThisWeek}</span>
             </div>
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-dark-700 rounded-lg border border-gray-100 dark:border-gray-600">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-yellow-500/20 rounded-lg flex items-center justify-center">
                   <Calendar size={18} className="text-yellow-500" />
                 </div>
                 <span className="text-gray-400">Pending KYC</span>
               </div>
-              <span className="text-gray-900 font-semibold">{stats.pendingKYC}</span>
+              <span className="text-gray-900 dark:text-white font-semibold">{stats.pendingKYC}</span>
             </div>
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-dark-700 rounded-lg border border-gray-100 dark:border-gray-600">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
                   <TrendingUp size={18} className="text-green-500" />
                 </div>
                 <span className="text-gray-400">Active Trades</span>
               </div>
-              <span className="text-gray-900 font-semibold">156</span>
+              <span className="text-gray-900 dark:text-white font-semibold">156</span>
             </div>
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+            <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-dark-700 rounded-lg border border-gray-100 dark:border-gray-600">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
                   <Wallet size={18} className="text-purple-500" />
                 </div>
                 <span className="text-gray-400">Pending Withdrawals</span>
               </div>
-              <span className="text-gray-900 font-semibold">12</span>
+              <span className="text-gray-900 dark:text-white font-semibold">12</span>
             </div>
           </div>
         </div>
