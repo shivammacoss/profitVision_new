@@ -84,16 +84,38 @@ class CopyTradingEngine {
     // Process followers in batches of 10 to avoid overwhelming the database
     // This ensures ALL followers get processed reliably
     const BATCH_SIZE = 10
+    
+    // Log all followers that will be processed
+    console.log(`[CopyTrade] ╔══════════════════════════════════════════════════════════════╗`)
+    console.log(`[CopyTrade] ║ FOLLOWER LIST - TOTAL: ${followers.length} followers                           ║`)
+    console.log(`[CopyTrade] ╠══════════════════════════════════════════════════════════════╣`)
+    followers.forEach((f, idx) => {
+      const accountId = f.followerAccountId?._id || f.followerAccountId
+      console.log(`[CopyTrade] ║ ${idx + 1}. Follower: ${f._id} | Account: ${accountId}`)
+    })
+    console.log(`[CopyTrade] ╚══════════════════════════════════════════════════════════════╝`)
+    
     for (let i = 0; i < followers.length; i += BATCH_SIZE) {
       const batch = followers.slice(i, i + BATCH_SIZE)
       console.log(`[CopyTrade] Processing batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(followers.length/BATCH_SIZE)} (${batch.length} followers)`)
       
+      // Log each follower in this batch
+      batch.forEach((f, idx) => {
+        const accountId = f.followerAccountId?._id || f.followerAccountId
+        console.log(`[CopyTrade]   -> Batch item ${idx + 1}: Follower ${f._id}, Account ${accountId}`)
+      })
+      
       // Process batch in parallel
       const batchResults = await Promise.all(batch.map(async (follower) => {
+        const followerAccountId = follower.followerAccountId?._id || follower.followerAccountId
+        console.log(`[CopyTrade] >>> STARTING copy for follower ${follower._id}, account ${followerAccountId}`)
         try {
-          return await this._copyTradeToSingleFollower(masterTrade, master, follower, tradingDay)
+          const result = await this._copyTradeToSingleFollower(masterTrade, master, follower, tradingDay)
+          console.log(`[CopyTrade] <<< COMPLETED copy for follower ${follower._id}: ${result.status} - ${result.reason || 'OK'}`)
+          return result
         } catch (error) {
-          console.error(`[CopyTrade] Unexpected error for follower ${follower._id}:`, error)
+          console.error(`[CopyTrade] <<< EXCEPTION for follower ${follower._id}:`, error.message)
+          console.error(`[CopyTrade] Stack:`, error.stack)
           return {
             followerId: follower._id,
             status: 'FAILED',
@@ -102,6 +124,7 @@ class CopyTradingEngine {
         }
       }))
       
+      console.log(`[CopyTrade] Batch ${Math.floor(i/BATCH_SIZE) + 1} complete: ${batchResults.filter(r => r.status === 'SUCCESS').length} success, ${batchResults.filter(r => r.status === 'FAILED').length} failed`)
       allResults.push(...batchResults)
       
       // Small delay between batches to prevent database overload
@@ -251,37 +274,22 @@ class CopyTradingEngine {
           // In real scenario, you'd get live prices
           masterFloatingPnl += trade.currentPnl || 0
         }
-        const masterEquity = masterAccount ? (masterAccount.balance + (masterAccount.credit || 0) + masterFloatingPnl) : 0
+        // CREDIT-BASED: Master credit for lot ratio calculation
+        const masterCredit = masterAccount?.credit || 0
         
-        // PROPORTIONAL LOT SIZING: Follower lot scales with equity ratio to master
-        // Formula: followerLot = masterLot × (followerEquity / masterEquity)
-        // Example: Master equity $1000, Follower equity $9000, Master lot 0.01
-        //          Follower lot = 0.01 × (9000/1000) = 0.01 × 9 = 0.09
+        // ========== CREDIT-BASED PROPORTIONAL LOT SIZING ==========
+        // Formula: followerLot = masterLot × (followerCredit / masterCredit)
+        // Credit is non-withdrawable, used only for copy trading
+        // Wallet balance is NOT used for lot sizing
         
-        // Calculate follower equity (Balance + Credit + Floating P/L)
         const followerCredit = followerAccount.credit || 0
-        const followerAccountBalance = followerAccount.balance || 0
         
-        let followerFloatingPnl = 0
-        const followerOpenTrades = await Trade.find({ 
-          tradingAccountId: followerAccountId,
-          status: 'OPEN'
-        })
-        for (const trade of followerOpenTrades) {
-          followerFloatingPnl += trade.currentPnl || 0
-        }
-        
-        const followerEquity = followerAccountBalance + followerCredit + followerFloatingPnl
-        
-        console.log(`[CopyTrade EQUITY] Follower equity calculation:`)
-        console.log(`[CopyTrade EQUITY]   Account Balance: $${followerAccountBalance.toFixed(2)}`)
-        console.log(`[CopyTrade EQUITY]   Credit Balance: $${followerCredit.toFixed(2)}`)
-        console.log(`[CopyTrade EQUITY]   Floating P/L: $${followerFloatingPnl.toFixed(2)} (from ${followerOpenTrades.length} open trades)`)
-        console.log(`[CopyTrade EQUITY]   Follower Equity: $${followerEquity.toFixed(2)}`)
-        console.log(`[CopyTrade EQUITY]   Master Equity: $${masterEquity.toFixed(2)}`)
+        console.log(`[CopyTrade CREDIT] ========== CREDIT-BASED LOT SIZING ==========`)
+        console.log(`[CopyTrade CREDIT] Master Credit: $${masterCredit.toFixed(2)}`)
+        console.log(`[CopyTrade CREDIT] Follower Credit: $${followerCredit.toFixed(2)}`)
 
-        // ========== PROPORTIONAL LOT CALCULATION ==========
-        // Formula: followerLot = masterLot × (followerEquity / masterEquity)
+        // ========== PROPORTIONAL LOT CALCULATION (CREDIT-BASED) ==========
+        // Formula: followerLot = masterLot × (followerCredit / masterCredit)
         // Broker rules: Min lot = 0.01, Max lot = 100, Lot step = 0.01, Round DOWN (floor)
         
         const MIN_LOT = 0.01
@@ -289,8 +297,8 @@ class CopyTradingEngine {
         const LOT_STEP = 0.01
         
         const masterLot = masterTrade.quantity
-        const equityRatio = masterEquity > 0 ? (followerEquity / masterEquity) : 0
-        const calculatedLotRaw = masterLot * equityRatio
+        const creditRatio = masterCredit > 0 ? (followerCredit / masterCredit) : 0
+        const calculatedLotRaw = masterLot * creditRatio
         
         // Round DOWN to nearest lot step (floor) - never round up
         const roundedLot = Math.floor(calculatedLotRaw / LOT_STEP) * LOT_STEP
@@ -300,14 +308,14 @@ class CopyTradingEngine {
         followerLotSize = Math.min(MAX_LOT, Math.max(MIN_LOT, roundedLot2dp))
         
         console.log(`[CopyTrade LOT] ╔══════════════════════════════════════════════════════════════╗`)
-        console.log(`[CopyTrade LOT] ║     PROPORTIONAL LOT CALCULATION                             ║`)
+        console.log(`[CopyTrade LOT] ║     CREDIT-BASED PROPORTIONAL LOT CALCULATION                ║`)
         console.log(`[CopyTrade LOT] ╠══════════════════════════════════════════════════════════════╣`)
-        console.log(`[CopyTrade LOT] ║   Formula: followerLot = masterLot × (followerEq/masterEq)  ║`)
+        console.log(`[CopyTrade LOT] ║   Formula: followerLot = masterLot × (followerCr/masterCr)  ║`)
         console.log(`[CopyTrade LOT] ╠══════════════════════════════════════════════════════════════╣`)
         console.log(`[CopyTrade LOT] ║   Master Lot:            ${masterLot}`)
-        console.log(`[CopyTrade LOT] ║   Master Equity:         $${masterEquity.toFixed(2)}`)
-        console.log(`[CopyTrade LOT] ║   Follower Equity:       $${followerEquity.toFixed(2)}`)
-        console.log(`[CopyTrade LOT] ║   Equity Ratio:          ${equityRatio.toFixed(4)}x`)
+        console.log(`[CopyTrade LOT] ║   Master Credit:         $${masterCredit.toFixed(2)}`)
+        console.log(`[CopyTrade LOT] ║   Follower Credit:       $${followerCredit.toFixed(2)}`)
+        console.log(`[CopyTrade LOT] ║   Credit Ratio:          ${creditRatio.toFixed(4)}x`)
         console.log(`[CopyTrade LOT] ║   ─────────────────────────────────────`)
         console.log(`[CopyTrade LOT] ║   Calculated Lot (raw):  ${calculatedLotRaw.toFixed(4)}`)
         console.log(`[CopyTrade LOT] ║   After Floor Rounding:  ${roundedLot2dp}`)
@@ -323,12 +331,12 @@ class CopyTradingEngine {
         
         console.log(`[CopyTrade LOT] ║ ✅ FINAL LOT SIZE: ${followerLotSize}`)
         console.log(`[CopyTrade LOT] ╚══════════════════════════════════════════════════════════════╝`)
-        console.log(`[CopyTrade LOT] Copy Mode: PROPORTIONAL (masterLot × equityRatio)`)
+        console.log(`[CopyTrade LOT] Copy Mode: CREDIT-BASED PROPORTIONAL`)
         
         console.log(`[CopyTrade DEBUG] ========== PRE-EXECUTION LOT SIZE: ${followerLotSize} ==========`)
 
-        // ========== EQUITY-BASED MARGIN CHECK ==========
-        // Copy trading uses account BALANCE (equity) for margin
+        // ========== CREDIT-BASED MARGIN CHECK ==========
+        // Copy trading uses CREDIT for margin (not wallet balance)
         const contractSize = tradeEngine.getContractSize(masterTrade.symbol)
         const marginRequired = tradeEngine.calculateMargin(
           followerLotSize,
@@ -337,19 +345,20 @@ class CopyTradingEngine {
           contractSize
         )
 
-        // Calculate used margin from existing open trades on this account
+        // Calculate used margin from existing open copy trades on this account
         const existingTrades = await Trade.find({ 
           tradingAccountId: followerAccountId,
-          status: 'OPEN'
+          status: 'OPEN',
+          isCopyTrade: true
         })
         const usedMargin = existingTrades.reduce((sum, t) => sum + (t.marginUsed || 0), 0)
         
-        // FREE MARGIN = Account Balance - Used Margin
-        const freeMargin = followerEquity - usedMargin
+        // FREE CREDIT = Credit - Used Margin
+        const freeCredit = followerCredit - usedMargin
         
         // MARGIN CHECK LOGGING
         console.log(`[CopyTrade] ╔══════════════════════════════════════════════════════════════╗`)
-        console.log(`[CopyTrade] ║ EQUITY-BASED MARGIN CHECK                                    ║`)
+        console.log(`[CopyTrade] ║ CREDIT-BASED MARGIN CHECK                                    ║`)
         console.log(`[CopyTrade] ║   Symbol:              ${masterTrade.symbol}`)
         console.log(`[CopyTrade] ║   Lot Size:            ${followerLotSize}`)
         console.log(`[CopyTrade] ║   Contract Size:       ${contractSize}`)
@@ -357,15 +366,15 @@ class CopyTradingEngine {
         console.log(`[CopyTrade] ║   Open Price:          ${masterTrade.openPrice}`)
         console.log(`[CopyTrade] ║   ─────────────────────────────────────`)
         console.log(`[CopyTrade] ║   Margin Required:     $${marginRequired.toFixed(4)}`)
-        console.log(`[CopyTrade] ║   Account Equity:      $${followerEquity.toFixed(4)}`)
-        console.log(`[CopyTrade] ║   Used Margin:         $${usedMargin.toFixed(4)} (${existingTrades.length} open trades)`)
-        console.log(`[CopyTrade] ║   Free Margin:         $${freeMargin.toFixed(4)}`)
-        console.log(`[CopyTrade] ║   Margin Available:    ${marginRequired <= freeMargin ? '✅ YES' : '❌ NO'}`)
+        console.log(`[CopyTrade] ║   Follower Credit:     $${followerCredit.toFixed(4)}`)
+        console.log(`[CopyTrade] ║   Used Margin:         $${usedMargin.toFixed(4)} (${existingTrades.length} open copy trades)`)
+        console.log(`[CopyTrade] ║   Free Credit:         $${freeCredit.toFixed(4)}`)
+        console.log(`[CopyTrade] ║   Margin Available:    ${marginRequired <= freeCredit ? '✅ YES' : '❌ NO'}`)
         console.log(`[CopyTrade] ╚══════════════════════════════════════════════════════════════╝`)
         
-        // CRITICAL: Block copy trading if equity is zero
-        if (followerEquity <= 0) {
-          console.log(`[CopyTrade] ❌ BLOCKED: Zero equity. Copy trading requires funds.`)
+        // CRITICAL: Block copy trading if credit is zero or depleted
+        if (followerCredit <= 0) {
+          console.log(`[CopyTrade] ❌ BLOCKED: Zero credit. Copy trading requires credit.`)
           
           await CopyTrade.create({
             masterTradeId: masterTrade._id,
@@ -383,19 +392,19 @@ class CopyTradingEngine {
             masterOpenPrice: masterTrade.openPrice,
             followerOpenPrice: 0,
             status: 'FAILED',
-            failureReason: 'Zero equity - insufficient funds',
+            failureReason: 'Zero credit - copy trading stopped',
             tradingDay
           })
           
           return {
             followerId: follower._id,
             status: 'FAILED',
-            reason: 'Zero equity. Please add funds to your copy trading account.',
-            equityDepleted: true
+            reason: 'Zero credit. Copy trading stopped. Please add credit to continue.',
+            creditDepleted: true
           }
         }
         
-        if (marginRequired > freeMargin) {
+        if (marginRequired > freeCredit) {
           // Record failed copy trade
           await CopyTrade.create({
             masterTradeId: masterTrade._id,
@@ -420,7 +429,7 @@ class CopyTradingEngine {
           return {
             followerId: follower._id,
             status: 'FAILED',
-            reason: `Insufficient margin. Required: $${marginRequired.toFixed(2)}, Available: $${freeMargin.toFixed(2)}`
+            reason: `Insufficient credit. Required: $${marginRequired.toFixed(2)}, Available: $${freeCredit.toFixed(2)}`
           }
         }
 
@@ -480,11 +489,11 @@ class CopyTradingEngine {
 
         console.log(`[CopyTrade DEBUG] Trade created successfully: ${followerTrade._id}`)
 
-        // Calculate equity ratio for storage
-        const equityRatioForStorage = masterEquity > 0 ? followerEquity / masterEquity : 0
-        const calculatedLotBeforeRounding = masterTrade.quantity * equityRatioForStorage
+        // Calculate credit ratio for storage (using credit-based system)
+        const creditRatioForStorage = masterCredit > 0 ? followerCredit / masterCredit : 0
+        const calculatedLotBeforeRounding = masterTrade.quantity * creditRatioForStorage
 
-        // Record successful copy trade with equity snapshots
+        // Record successful copy trade with credit snapshots
         await CopyTrade.create({
           masterTradeId: masterTrade._id,
           masterId: masterId,
@@ -500,11 +509,11 @@ class CopyTradingEngine {
           copyValue: follower.copyValue,
           masterOpenPrice: masterTrade.openPrice,
           followerOpenPrice: followerTrade.openPrice,
-          // Store equity snapshots for audit/proof
-          masterEquitySnapshot: masterEquity,
-          followerEquitySnapshot: followerEquity,
+          // Store credit snapshots for audit/proof (credit-based system)
+          masterEquitySnapshot: masterCredit,
+          followerEquitySnapshot: followerCredit,
           calculatedLotBeforeRounding: calculatedLotBeforeRounding,
-          equityRatio: equityRatioForStorage,
+          equityRatio: creditRatioForStorage,
           status: 'OPEN',
           tradingDay
         })
@@ -715,58 +724,69 @@ class CopyTradingEngine {
           continue
         }
         
+        // Get follower's wallet for profit crediting
+        let followerWallet = await Wallet.findOne({ userId: copyTrade.followerUserId })
+        if (!followerWallet) {
+          followerWallet = await Wallet.create({ userId: copyTrade.followerUserId, balance: 0 })
+        }
+        
         let masterShare = 0
         let followerShare = 0
-        let balanceChange = 0
+        let creditChange = 0
+        let walletCredited = 0
         
-        const balanceBefore = followerAccount.balance || 0
+        const creditBefore = followerAccount.credit || 0
+        const walletBefore = followerWallet.balance || 0
         
-        console.log(`[CopyTrade] ========== EQUITY-BASED SETTLEMENT ==========`)
+        console.log(`[CopyTrade] ========== CREDIT-BASED SETTLEMENT ==========`)
         console.log(`[CopyTrade] Share Percentage (Master): ${sharePercentage}%`)
         console.log(`[CopyTrade] Raw P/L: $${rawPnl.toFixed(2)}`)
-        console.log(`[CopyTrade] Follower Account Balance BEFORE: $${balanceBefore.toFixed(2)}`)
+        console.log(`[CopyTrade] Follower Credit BEFORE: $${creditBefore.toFixed(2)}`)
+        console.log(`[CopyTrade] Follower Wallet BEFORE: $${walletBefore.toFixed(2)}`)
         
         if (rawPnl < 0) {
           // ========== LOSS CASE ==========
-          // Loss is deducted from account BALANCE (equity) directly
+          // Loss is deducted from CREDIT only (not wallet)
           // Master does NOT share in losses - follower bears full loss
+          // Credit cannot go below 0
           
           const lossAmount = Math.abs(rawPnl)
           
           console.log(`[CopyTrade] ========== LOSS HANDLING ==========`)
           console.log(`[CopyTrade] Loss Amount: $${lossAmount.toFixed(2)}`)
-          console.log(`[CopyTrade] RULE: Loss deducted from account BALANCE (equity)`)
+          console.log(`[CopyTrade] RULE: Loss deducted from CREDIT only (capped at 0)`)
           
-          // Deduct loss from account BALANCE directly
-          const newBalance = Math.max(0, balanceBefore - lossAmount)
-          followerAccount.balance = newBalance
+          // Deduct loss from CREDIT (cap at 0, no negative credit)
+          const newCredit = Math.max(0, creditBefore - lossAmount)
+          followerAccount.credit = newCredit
           await followerAccount.save()
-          balanceChange = -lossAmount
+          creditChange = newCredit - creditBefore // Will be negative
           
-          console.log(`[CopyTrade] Balance Before: $${balanceBefore.toFixed(2)}`)
+          console.log(`[CopyTrade] Credit Before: $${creditBefore.toFixed(2)}`)
           console.log(`[CopyTrade] Loss Deducted: $${lossAmount.toFixed(2)}`)
-          console.log(`[CopyTrade] Balance After: $${newBalance.toFixed(2)}`)
+          console.log(`[CopyTrade] Credit After: $${newCredit.toFixed(2)}`)
+          console.log(`[CopyTrade] Wallet: $${walletBefore.toFixed(2)} (UNCHANGED)`)
           
-          // Check if balance is depleted - auto-stop copy trading
-          if (newBalance <= 0) {
-            console.log(`[CopyTrade] ⚠️ Balance depleted! Auto-stopping copy trading.`)
+          // Check if credit is depleted - auto-stop copy trading
+          if (newCredit <= 0) {
+            console.log(`[CopyTrade] ⚠️ Credit depleted! Auto-stopping copy trading.`)
             // Update follower status to STOPPED
-            const CopyFollower = (await import('../models/CopyFollower.js')).default
             await CopyFollower.updateOne(
               { followerAccountId: copyTrade.followerAccountId },
-              { status: 'STOPPED', stoppedReason: 'Balance depleted from trade loss' }
+              { status: 'STOPPED', stoppedReason: 'Credit depleted from trade loss' }
             )
           }
           
-          // For loss, master doesn't get anything, follower bears full loss
+          // For loss, master doesn't get anything, follower bears full loss from credit
           masterShare = 0
           followerShare = rawPnl // Negative value
           
         } else if (rawPnl > 0) {
           // ========== PROFIT CASE ==========
-          // Profit is split between follower and master
-          // - Follower's share added to account balance
+          // Profit is split 50/50 between follower and master
+          // - Follower's share goes to MAIN WALLET (withdrawable)
           // - Master's share goes to pendingCommission
+          // - Credit is NOT increased (it's for exposure only)
           
           masterShare = rawPnl * (sharePercentage / 100)
           followerShare = rawPnl - masterShare
@@ -776,15 +796,15 @@ class CopyTradingEngine {
           console.log(`[CopyTrade] Master Share (${sharePercentage}%): $${masterShare.toFixed(2)}`)
           console.log(`[CopyTrade] Follower Share (${100 - sharePercentage}%): $${followerShare.toFixed(2)}`)
           
-          // Credit follower's share to account BALANCE
-          const newBalance = balanceBefore + followerShare
-          followerAccount.balance = newBalance
-          await followerAccount.save()
-          balanceChange = followerShare
+          // Credit follower's share to MAIN WALLET (not credit)
+          followerWallet.balance = walletBefore + followerShare
+          await followerWallet.save()
+          walletCredited = followerShare
           
-          console.log(`[CopyTrade] Balance Before: $${balanceBefore.toFixed(2)}`)
-          console.log(`[CopyTrade] Follower Share Added: $${followerShare.toFixed(2)}`)
-          console.log(`[CopyTrade] Balance After: $${newBalance.toFixed(2)}`)
+          console.log(`[CopyTrade] Wallet Before: $${walletBefore.toFixed(2)}`)
+          console.log(`[CopyTrade] Follower Share to Wallet: $${followerShare.toFixed(2)}`)
+          console.log(`[CopyTrade] Wallet After: $${followerWallet.balance.toFixed(2)}`)
+          console.log(`[CopyTrade] Credit: $${creditBefore.toFixed(2)} (UNCHANGED)`)
           
           // Credit master's share
           if (master) {
@@ -796,16 +816,17 @@ class CopyTradingEngine {
           }
         }
         
-        // Get final balance for tracking
+        // Get final credit for tracking
         const finalAccount = await TradingAccount.findById(copyTrade.followerAccountId)
-        const balanceAfter = finalAccount?.balance || 0
+        const creditAfter = finalAccount?.credit || 0
         
         console.log(`[CopyTrade] ========== FINAL SETTLEMENT ==========`)
         console.log(`[CopyTrade] Raw P/L: $${rawPnl.toFixed(2)}`)
         console.log(`[CopyTrade] Master Share: $${masterShare.toFixed(2)}`)
         console.log(`[CopyTrade] Follower Share: $${followerShare.toFixed(2)}`)
-        console.log(`[CopyTrade] Balance Change: $${balanceChange.toFixed(2)}`)
-        console.log(`[CopyTrade] Balance After: $${balanceAfter.toFixed(2)}`)
+        console.log(`[CopyTrade] Credit Change: $${creditChange.toFixed(2)}`)
+        console.log(`[CopyTrade] Wallet Credited: $${walletCredited.toFixed(2)}`)
+        console.log(`[CopyTrade] Credit After: $${creditAfter.toFixed(2)}`)
 
         // Update copy trade record
         copyTrade.masterClosePrice = masterClosePrice
@@ -813,9 +834,10 @@ class CopyTradingEngine {
         copyTrade.rawPnl = rawPnl
         copyTrade.followerPnl = followerShare
         copyTrade.masterPnl = masterShare
-        copyTrade.balanceBefore = balanceBefore
-        copyTrade.balanceAfter = balanceAfter
-        copyTrade.balanceChange = balanceChange
+        copyTrade.creditBefore = creditBefore
+        copyTrade.creditAfter = creditAfter
+        copyTrade.creditChange = creditChange
+        copyTrade.walletCredited = walletCredited
         copyTrade.status = 'CLOSED'
         copyTrade.closedAt = new Date()
         copyTrade.commissionApplied = true

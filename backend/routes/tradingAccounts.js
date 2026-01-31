@@ -233,8 +233,11 @@ router.post('/:id/transfer', async (req, res) => {
   try {
     const { userId, amount, pin, direction, skipPinVerification } = req.body
 
+    console.log(`[Transfer] Request: userId=${userId}, amount=${amount}, direction=${direction}, accountId=${req.params.id}`)
+
     // Validate amount
     if (!amount || amount <= 0) {
+      console.log(`[Transfer] ERROR: Invalid amount: ${amount}`)
       return res.status(400).json({ message: 'Invalid amount' })
     }
 
@@ -298,12 +301,41 @@ router.post('/:id/transfer', async (req, res) => {
       })
     } else if (direction === 'withdraw') {
       // Transfer from Account Wallet to Main Wallet
+      console.log(`[Transfer] Withdraw: account.balance=${account.balance}, requested=${amount}`)
+      
       if (account.balance < amount) {
+        console.log(`[Transfer] ERROR: Insufficient balance. Has: ${account.balance}, Requested: ${amount}`)
         return res.status(400).json({ message: 'Insufficient account balance' })
+      }
+
+      // Check free margin - can only withdraw what's not being used as margin
+      const Trade = (await import('../models/Trade.js')).default
+      const openTrades = await Trade.find({
+        tradingAccountId: account._id,
+        status: 'OPEN'
+      })
+      
+      const usedMargin = openTrades.reduce((sum, trade) => sum + (trade.marginUsed || 0), 0)
+      const floatingPnl = openTrades.reduce((sum, trade) => sum + (trade.currentPnl || 0), 0)
+      const equity = account.balance + (account.credit || 0) + floatingPnl
+      const freeMargin = equity - usedMargin
+      
+      // Can only withdraw up to free margin, and only from balance (not credit)
+      const maxWithdrawable = Math.min(freeMargin, account.balance)
+      
+      console.log(`[Transfer] Margin check: equity=${equity}, usedMargin=${usedMargin}, freeMargin=${freeMargin}, maxWithdrawable=${maxWithdrawable}`)
+      
+      if (amount > maxWithdrawable) {
+        console.log(`[Transfer] ERROR: Insufficient free margin. Max: ${maxWithdrawable}, Requested: ${amount}`)
+        return res.status(400).json({ 
+          message: `Insufficient free margin. Maximum withdrawable: $${maxWithdrawable.toFixed(2)}` 
+        })
       }
 
       account.balance -= amount
       wallet.balance += amount
+      
+      console.log(`[Transfer] SUCCESS: Withdrawn ${amount}. New account balance: ${account.balance}, New wallet balance: ${wallet.balance}`)
       
       await account.save()
       await wallet.save()

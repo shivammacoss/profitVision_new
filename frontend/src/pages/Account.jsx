@@ -892,9 +892,9 @@ const Account = () => {
                   <div className={`${isMobile ? 'p-3' : 'p-4'}`}>
                     <div className="text-center mb-3">
                       <p className={`font-bold ${isMobile ? 'text-2xl' : 'text-3xl'} ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                        ${(account.balance || 0).toLocaleString()}
+                        ${account.isCopyTrading ? (account.credit || 0).toLocaleString() : (account.balance || 0).toLocaleString()}
                       </p>
-                      <p className="text-gray-500 text-sm mt-1">Balance</p>
+                      <p className="text-gray-500 text-sm mt-1">{account.isCopyTrading ? 'Credit' : 'Balance'}</p>
                     </div>
                     
                     {/* Account Details Grid */}
@@ -904,8 +904,8 @@ const Account = () => {
                         <p className={`font-medium text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{account.leverage || '1:100'}</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-gray-500 text-xs">Credit</p>
-                        <p className={`font-medium text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>${(account.credit || 0).toLocaleString()}</p>
+                        <p className="text-gray-500 text-xs">{account.isCopyTrading ? 'Balance' : 'Credit'}</p>
+                        <p className={`font-medium text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>${account.isCopyTrading ? (account.balance || 0).toLocaleString() : (account.credit || 0).toLocaleString()}</p>
                       </div>
                       <div className="text-center">
                         <p className="text-gray-500 text-xs">Min Deposit</p>
