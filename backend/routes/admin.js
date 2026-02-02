@@ -5,7 +5,7 @@ import { authenticateAdmin } from '../middleware/auth.js'
 
 const router = express.Router()
 
-// Apply admin authentication to all routes
+// Apply admin authentication to 
 router.use(authenticateAdmin)
 
 // GET /api/admin/users - Get all users
