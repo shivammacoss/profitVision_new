@@ -222,7 +222,7 @@ const AdminUserManagement = () => {
     try {
       const response = await fetch(`${API_URL}/admin/users/${selectedUser._id}/password`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ password: newPassword })
       })
       
@@ -249,7 +249,7 @@ const AdminUserManagement = () => {
     try {
       const response = await fetch(`${API_URL}/admin/users/${selectedUser._id}/deduct`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ 
           amount: parseFloat(deductAmount),
           reason: deductReason || 'Admin deduction'
@@ -283,7 +283,7 @@ const AdminUserManagement = () => {
     try {
       const response = await fetch(`${API_URL}/admin/users/${selectedUser._id}/add-fund`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ 
           amount: parseFloat(addFundAmount),
           reason: addFundReason || 'Admin fund addition'
@@ -312,7 +312,7 @@ const AdminUserManagement = () => {
     try {
       const response = await fetch(`${API_URL}/admin/users/${selectedUser._id}/block`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ 
           blocked: !selectedUser.isBlocked,
           reason: blockReason || 'Blocked by admin'
@@ -340,7 +340,7 @@ const AdminUserManagement = () => {
     try {
       const response = await fetch(`${API_URL}/admin/users/${selectedUser._id}/ban`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ 
           banned: !selectedUser.isBanned,
           reason: blockReason || 'Banned by admin'
@@ -401,7 +401,7 @@ const AdminUserManagement = () => {
     try {
       const response = await fetch(`${API_URL}/admin/trading-account/${selectedAccountId}/add-credit`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ 
           amount: parseFloat(creditAmount),
           reason: creditReason || 'Admin credit/bonus',
@@ -442,7 +442,7 @@ const AdminUserManagement = () => {
     try {
       const response = await fetch(`${API_URL}/admin/trading-account/${selectedAccountId}/remove-credit`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ 
           amount: parseFloat(creditAmount),
           reason: creditReason || 'Admin credit removal',
@@ -485,7 +485,7 @@ const AdminUserManagement = () => {
     try {
       const response = await fetch(`${API_URL}/admin/trading-account/${selectedAccountId}/add-fund`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ 
           amount: parseFloat(accountFundAmount),
           reason: accountFundReason || 'Admin fund addition'
@@ -524,7 +524,7 @@ const AdminUserManagement = () => {
     try {
       const response = await fetch(`${API_URL}/admin/trading-account/${selectedAccountId}/deduct`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ 
           amount: parseFloat(accountFundAmount),
           reason: accountFundReason || 'Admin deduction'
@@ -553,7 +553,7 @@ const AdminUserManagement = () => {
     try {
       const response = await fetch(`${API_URL}/admin/login-as-user/${selectedUser._id}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ adminId: adminUser._id })
       })
       
