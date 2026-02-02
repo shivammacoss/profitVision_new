@@ -16,8 +16,26 @@ jobs:
     runs-on: self-hosted
     
     steps:
+      - name: Backup .env file
+        run: |
+          if [ -f ~/profitVision_new/frontend/.env ]; then
+            cp ~/profitVision_new/frontend/.env /tmp/frontend-env-backup
+            echo "Backed up .env file"
+          else
+            echo "No .env file to backup"
+          fi
+
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Restore .env file to source
+        run: |
+          if [ -f /tmp/frontend-env-backup ]; then
+            cp /tmp/frontend-env-backup ./frontend/.env
+            echo "Restored .env file for build"
+          else
+            echo "No .env backup found"
+          fi
 
       - name: Install frontend dependencies
         working-directory: ./frontend
@@ -34,3 +52,10 @@ jobs:
           rm -rf ~/profitVision_new/frontend/dist
           cp -r ./frontend/dist ~/profitVision_new/frontend/
           echo "Frontend deployed successfully!"
+
+      - name: Restore .env to production
+        run: |
+          if [ -f /tmp/frontend-env-backup ]; then
+            cp /tmp/frontend-env-backup ~/profitVision_new/frontend/.env
+            echo "Restored .env file to production"
+          fi
