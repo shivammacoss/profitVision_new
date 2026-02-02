@@ -1,0 +1,56 @@
+
+# Backend file
+
+name: Deploy Backend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    
+    steps:
+      - name: Backup .env file
+        run: |
+          if [ -f ~/profitVision_new/backend/.env ]; then
+            cp ~/profitVision_new/backend/.env /tmp/backend-env-backup
+            echo "Backed up .env file"
+          else
+            echo "No .env file to backup"
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Restore .env file
+        run: |
+          if [ -f /tmp/backend-env-backup ]; then
+            cp /tmp/backend-env-backup ./backend/.env
+            echo "Restored .env file"
+          else
+            echo "No .env backup found"
+          fi
+
+      - name: Copy to production path
+        run: |
+          cp -r ./backend/* ~/profitVision_new/backend/
+          echo "Copied backend files to production"
+
+      - name: Install backend dependencies
+        run: |
+          cd ~/profitVision_new/backend
+          npm install --production
+
+      - name: Restart backend server
+        run: |
+          cd ~/profitVision_new/backend
+          pm2 restart profitvision-api || pm2 start server.js --name profitvision-api --cwd ~/profitVision_new/backend
+          pm2 save
+          echo "Backend deployed successfully!"

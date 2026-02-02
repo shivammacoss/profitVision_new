@@ -1,0 +1,36 @@
+# frontend file
+
+name: Deploy Frontend
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm install
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: |
+          npm run build
+          echo "Frontend built successfully!"
+
+      - name: Deploy to production path
+        run: |
+          rm -rf ~/profitVision_new/frontend/dist
+          cp -r ./frontend/dist ~/profitVision_new/frontend/
+          echo "Frontend deployed successfully!"
