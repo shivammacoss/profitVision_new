@@ -1016,12 +1016,12 @@ const Account = () => {
                 {createAccountTab === 'demo' ? 'Select Demo Account Type' : 'Select Live Account Type'}
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-1">
-                {accountTypes.filter(t => createAccountTab === 'demo' ? t.isDemo : !t.isDemo).length === 0 ? (
+                {accountTypes.filter(t => (createAccountTab === 'demo' ? t.isDemo : !t.isDemo) && !t.isCopyTrading).length === 0 ? (
                   <p className="text-gray-500 text-sm text-center py-8 col-span-2">
                     No {createAccountTab === 'demo' ? 'demo' : 'live'} account types available
                   </p>
                 ) : (
-                  accountTypes.filter(t => createAccountTab === 'demo' ? t.isDemo : !t.isDemo).map((type) => {
+                  accountTypes.filter(t => (createAccountTab === 'demo' ? t.isDemo : !t.isDemo) && !t.isCopyTrading).map((type) => {
                     const isSelected = selectedType?._id === type._id
                     const icons = {
                       'DEMO': '💳',
