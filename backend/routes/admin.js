@@ -492,7 +492,9 @@ router.post('/trading-account/:id/add-credit', async (req, res) => {
     await account.save()
     
     // Log the credit addition (optional - don't fail if logging fails)
-    if (adminId) {
+    // Only log if adminId is a valid MongoDB ObjectId (24 hex chars)
+    const isValidObjectId = adminId && /^[0-9a-fA-F]{24}$/.test(adminId)
+    if (isValidObjectId) {
       try {
         const AdminLog = (await import('../models/AdminLog.js')).default
         await AdminLog.create({
@@ -545,7 +547,9 @@ router.post('/trading-account/:id/remove-credit', async (req, res) => {
     await account.save()
     
     // Log the credit removal (optional)
-    if (adminId) {
+    // Only log if adminId is a valid MongoDB ObjectId (24 hex chars)
+    const isValidObjectId = adminId && /^[0-9a-fA-F]{24}$/.test(adminId)
+    if (isValidObjectId) {
       try {
         const AdminLog = (await import('../models/AdminLog.js')).default
         await AdminLog.create({
@@ -629,7 +633,9 @@ router.post('/login-as-user/:userId', async (req, res) => {
     }
     
     // Log the admin login as user action (optional)
-    if (adminId) {
+    // Only log if adminId is a valid MongoDB ObjectId (24 hex chars)
+    const isValidObjectId = adminId && /^[0-9a-fA-F]{24}$/.test(adminId)
+    if (isValidObjectId) {
       try {
         const AdminLog = (await import('../models/AdminLog.js')).default
         await AdminLog.create({
