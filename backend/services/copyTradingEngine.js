@@ -259,27 +259,29 @@ class CopyTradingEngine {
         
         console.log(`[CopyTrade] Follower account validated: ${followerAccount.accountId}, balance: ${followerAccount.balance}, credit: ${followerAccount.credit}`)
 
-        // Get master's account for balance comparison
+        // Get master's account for equity comparison
         const masterAccount = await TradingAccount.findById(master.tradingAccountId)
         
-        // MASTER: Uses REGULAR account - Equity = Balance (manual deposit, no credit)
-        // FOLLOWER: Uses Copy Trading account - Equity = Credit (admin-granted, no balance)
+        // MASTER: Uses REGULAR account - Equity = Balance + Credit (if admin adds credit)
+        // FOLLOWER: Uses Copy Trading account - Equity = Credit only (admin-granted, no balance)
         const masterBalance = masterAccount?.balance || 0
-        const masterEquity = masterBalance // Master Equity = Balance only (regular account)
+        const masterCredit = masterAccount?.credit || 0
+        const masterEquity = masterBalance + masterCredit // Master Equity = Balance + Credit
         
         const followerCredit = followerAccount.credit || 0
         const followerEquity = followerCredit // Follower Equity = Credit only (copy trading account)
         
         // ========== PROPORTIONAL LOT SIZING ==========
-        // Formula: followerLot = masterLot × (followerCredit / masterBalance)
-        // Master uses Balance (regular account), Follower uses Credit (copy trading account)
+        // Formula: followerLot = masterLot × (followerCredit / masterEquity)
+        // Master uses Balance + Credit, Follower uses Credit only
         
         console.log(`[CopyTrade] ========== PROPORTIONAL LOT SIZING ==========`)
-        console.log(`[CopyTrade] Master Balance: $${masterBalance.toFixed(2)} (Equity = Balance for Master)`)
+        console.log(`[CopyTrade] Master Balance: $${masterBalance.toFixed(2)}, Credit: $${masterCredit.toFixed(2)}, Equity: $${masterEquity.toFixed(2)}`)
         console.log(`[CopyTrade] Follower Credit: $${followerCredit.toFixed(2)} (Equity = Credit for Follower)`)
 
         // ========== PROPORTIONAL LOT CALCULATION ==========
-        // Formula: followerLot = masterLot × (followerCredit / masterBalance)
+        // Formula: followerLot = masterLot × (followerCredit / masterEquity)
+        // Master Equity = Balance + Credit, Follower Equity = Credit only
         // Broker rules: Min lot = 0.01, Max lot = 100, Lot step = 0.01, Round DOWN (floor)
         
         const MIN_LOT = 0.01
@@ -300,10 +302,10 @@ class CopyTradingEngine {
         console.log(`[CopyTrade LOT] ╔══════════════════════════════════════════════════════════════╗`)
         console.log(`[CopyTrade LOT] ║     PROPORTIONAL LOT CALCULATION                             ║`)
         console.log(`[CopyTrade LOT] ╠══════════════════════════════════════════════════════════════╣`)
-        console.log(`[CopyTrade LOT] ║   Formula: followerLot = masterLot × (followerCr/masterBal) ║`)
+        console.log(`[CopyTrade LOT] ║   Formula: followerLot = masterLot × (followerCr/masterEq)  ║`)
         console.log(`[CopyTrade LOT] ╠══════════════════════════════════════════════════════════════╣`)
         console.log(`[CopyTrade LOT] ║   Master Lot:            ${masterLot}`)
-        console.log(`[CopyTrade LOT] ║   Master Balance:        $${masterBalance.toFixed(2)} (Equity = Balance)`)
+        console.log(`[CopyTrade LOT] ║   Master Equity:         $${masterEquity.toFixed(2)} (Bal: $${masterBalance.toFixed(2)} + Cr: $${masterCredit.toFixed(2)})`)
         console.log(`[CopyTrade LOT] ║   Follower Credit:       $${followerCredit.toFixed(2)} (Equity = Credit)`)
         console.log(`[CopyTrade LOT] ║   Ratio:                 ${equityRatio.toFixed(4)}x`)
         console.log(`[CopyTrade LOT] ║   ─────────────────────────────────────`)
@@ -321,7 +323,7 @@ class CopyTradingEngine {
         
         console.log(`[CopyTrade LOT] ║ ✅ FINAL LOT SIZE: ${followerLotSize}`)
         console.log(`[CopyTrade LOT] ╚══════════════════════════════════════════════════════════════╝`)
-        console.log(`[CopyTrade LOT] Copy Mode: PROPORTIONAL (Master Balance vs Follower Credit)`)
+        console.log(`[CopyTrade LOT] Copy Mode: PROPORTIONAL (Master Equity vs Follower Credit)`)
         
         console.log(`[CopyTrade DEBUG] ========== PRE-EXECUTION LOT SIZE: ${followerLotSize} ==========`)
 
