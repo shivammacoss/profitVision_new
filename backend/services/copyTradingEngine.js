@@ -259,28 +259,29 @@ class CopyTradingEngine {
         
         console.log(`[CopyTrade] Follower account validated: ${followerAccount.accountId}, balance: ${followerAccount.balance}, credit: ${followerAccount.credit}`)
 
-        // Get master's account for balance/equity comparison
+        // Get master's account for credit comparison
         const masterAccount = await TradingAccount.findById(master.tradingAccountId)
         
-        // EQUITY-BASED: Equity = Balance + Credit (admin grants credit)
+        // CREDIT-BASED: For Copy Trading accounts, Equity = Credit only (no manual deposits allowed)
+        // Balance is always 0 for copy trading accounts, admin grants credit only
         const masterBalance = masterAccount?.balance || 0
         const masterCredit = masterAccount?.credit || 0
-        const masterEquity = masterBalance + masterCredit
+        const masterEquity = masterCredit // Equity = Credit only for copy trading
         
         const followerBalance = followerAccount.balance || 0
         const followerCredit = followerAccount.credit || 0
-        const followerEquity = followerBalance + followerCredit
+        const followerEquity = followerCredit // Equity = Credit only for copy trading
         
-        // ========== EQUITY-BASED PROPORTIONAL LOT SIZING ==========
-        // Formula: followerLot = masterLot × (followerEquity / masterEquity)
-        // Equity = Balance + Credit (Credit is admin-granted, non-withdrawable)
+        // ========== CREDIT-BASED PROPORTIONAL LOT SIZING ==========
+        // Formula: followerLot = masterLot × (followerCredit / masterCredit)
+        // Copy Trading accounts use Credit only (admin-granted, no manual deposits)
         
-        console.log(`[CopyTrade EQUITY] ========== EQUITY-BASED LOT SIZING ==========`)
-        console.log(`[CopyTrade EQUITY] Master Balance: $${masterBalance.toFixed(2)}, Credit: $${masterCredit.toFixed(2)}, Equity: $${masterEquity.toFixed(2)}`)
-        console.log(`[CopyTrade EQUITY] Follower Balance: $${followerBalance.toFixed(2)}, Credit: $${followerCredit.toFixed(2)}, Equity: $${followerEquity.toFixed(2)}`)
+        console.log(`[CopyTrade CREDIT] ========== CREDIT-BASED LOT SIZING ==========`)
+        console.log(`[CopyTrade CREDIT] Master Balance: $${masterBalance.toFixed(2)} (ignored), Credit: $${masterCredit.toFixed(2)}, Equity: $${masterEquity.toFixed(2)}`)
+        console.log(`[CopyTrade CREDIT] Follower Balance: $${followerBalance.toFixed(2)} (ignored), Credit: $${followerCredit.toFixed(2)}, Equity: $${followerEquity.toFixed(2)}`)
 
-        // ========== PROPORTIONAL LOT CALCULATION (EQUITY-BASED) ==========
-        // Formula: followerLot = masterLot × (followerEquity / masterEquity)
+        // ========== PROPORTIONAL LOT CALCULATION (CREDIT-BASED) ==========
+        // Formula: followerLot = masterLot × (followerCredit / masterCredit)
         // Broker rules: Min lot = 0.01, Max lot = 100, Lot step = 0.01, Round DOWN (floor)
         
         const MIN_LOT = 0.01
@@ -299,14 +300,14 @@ class CopyTradingEngine {
         followerLotSize = Math.min(MAX_LOT, Math.max(MIN_LOT, roundedLot2dp))
         
         console.log(`[CopyTrade LOT] ╔══════════════════════════════════════════════════════════════╗`)
-        console.log(`[CopyTrade LOT] ║     EQUITY-BASED PROPORTIONAL LOT CALCULATION                ║`)
+        console.log(`[CopyTrade LOT] ║     CREDIT-BASED PROPORTIONAL LOT CALCULATION                ║`)
         console.log(`[CopyTrade LOT] ╠══════════════════════════════════════════════════════════════╣`)
-        console.log(`[CopyTrade LOT] ║   Formula: followerLot = masterLot × (followerEq/masterEq)  ║`)
+        console.log(`[CopyTrade LOT] ║   Formula: followerLot = masterLot × (followerCr/masterCr)  ║`)
         console.log(`[CopyTrade LOT] ╠══════════════════════════════════════════════════════════════╣`)
         console.log(`[CopyTrade LOT] ║   Master Lot:            ${masterLot}`)
-        console.log(`[CopyTrade LOT] ║   Master Equity:         $${masterEquity.toFixed(2)} (Bal: $${masterBalance.toFixed(2)} + Cr: $${masterCredit.toFixed(2)})`)
-        console.log(`[CopyTrade LOT] ║   Follower Equity:       $${followerEquity.toFixed(2)} (Bal: $${followerBalance.toFixed(2)} + Cr: $${followerCredit.toFixed(2)})`)
-        console.log(`[CopyTrade LOT] ║   Equity Ratio:          ${equityRatio.toFixed(4)}x`)
+        console.log(`[CopyTrade LOT] ║   Master Credit:         $${masterCredit.toFixed(2)} (Equity = Credit only)`)
+        console.log(`[CopyTrade LOT] ║   Follower Credit:       $${followerCredit.toFixed(2)} (Equity = Credit only)`)
+        console.log(`[CopyTrade LOT] ║   Credit Ratio:          ${equityRatio.toFixed(4)}x`)
         console.log(`[CopyTrade LOT] ║   ─────────────────────────────────────`)
         console.log(`[CopyTrade LOT] ║   Calculated Lot (raw):  ${calculatedLotRaw.toFixed(4)}`)
         console.log(`[CopyTrade LOT] ║   After Floor Rounding:  ${roundedLot2dp}`)
@@ -322,12 +323,12 @@ class CopyTradingEngine {
         
         console.log(`[CopyTrade LOT] ║ ✅ FINAL LOT SIZE: ${followerLotSize}`)
         console.log(`[CopyTrade LOT] ╚══════════════════════════════════════════════════════════════╝`)
-        console.log(`[CopyTrade LOT] Copy Mode: EQUITY-BASED PROPORTIONAL`)
+        console.log(`[CopyTrade LOT] Copy Mode: CREDIT-BASED PROPORTIONAL`)
         
         console.log(`[CopyTrade DEBUG] ========== PRE-EXECUTION LOT SIZE: ${followerLotSize} ==========`)
 
-        // ========== EQUITY-BASED MARGIN CHECK ==========
-        // Copy trading uses EQUITY (Balance + Credit) for margin
+        // ========== CREDIT-BASED MARGIN CHECK ==========
+        // Copy trading uses CREDIT only for margin (no manual deposits allowed)
         const contractSize = tradeEngine.getContractSize(masterTrade.symbol)
         const marginRequired = tradeEngine.calculateMargin(
           followerLotSize,
@@ -349,7 +350,7 @@ class CopyTradingEngine {
         
         // MARGIN CHECK LOGGING
         console.log(`[CopyTrade] ╔══════════════════════════════════════════════════════════════╗`)
-        console.log(`[CopyTrade] ║ EQUITY-BASED MARGIN CHECK                                    ║`)
+        console.log(`[CopyTrade] ║ CREDIT-BASED MARGIN CHECK                                    ║`)
         console.log(`[CopyTrade] ║   Symbol:              ${masterTrade.symbol}`)
         console.log(`[CopyTrade] ║   Lot Size:            ${followerLotSize}`)
         console.log(`[CopyTrade] ║   Contract Size:       ${contractSize}`)
@@ -357,15 +358,15 @@ class CopyTradingEngine {
         console.log(`[CopyTrade] ║   Open Price:          ${masterTrade.openPrice}`)
         console.log(`[CopyTrade] ║   ─────────────────────────────────────`)
         console.log(`[CopyTrade] ║   Margin Required:     $${marginRequired.toFixed(4)}`)
-        console.log(`[CopyTrade] ║   Follower Equity:     $${followerEquity.toFixed(4)} (Bal: $${followerBalance.toFixed(2)} + Cr: $${followerCredit.toFixed(2)})`)
+        console.log(`[CopyTrade] ║   Follower Credit:     $${followerCredit.toFixed(4)} (Credit = Equity for Copy Trading)`)
         console.log(`[CopyTrade] ║   Used Margin:         $${usedMargin.toFixed(4)} (${existingTrades.length} open copy trades)`)
         console.log(`[CopyTrade] ║   Free Margin:         $${freeMargin.toFixed(4)}`)
         console.log(`[CopyTrade] ║   Margin Available:    ${marginRequired <= freeMargin ? '✅ YES' : '❌ NO'}`)
         console.log(`[CopyTrade] ╚══════════════════════════════════════════════════════════════╝`)
         
-        // CRITICAL: Block copy trading if equity is zero or depleted
+        // CRITICAL: Block copy trading if credit is zero or depleted
         if (followerEquity <= 0) {
-          console.log(`[CopyTrade] ❌ BLOCKED: Zero equity. Copy trading requires funds.`)
+          console.log(`[CopyTrade] ❌ BLOCKED: Zero credit. Copy trading requires admin-granted credit.`)
           
           await CopyTrade.create({
             masterTradeId: masterTrade._id,
@@ -383,15 +384,15 @@ class CopyTradingEngine {
             masterOpenPrice: masterTrade.openPrice,
             followerOpenPrice: 0,
             status: 'FAILED',
-            failureReason: 'Zero equity - copy trading stopped',
+            failureReason: 'Zero credit - copy trading stopped',
             tradingDay
           })
           
           return {
             followerId: follower._id,
             status: 'FAILED',
-            reason: 'Zero equity. Copy trading stopped. Please add funds or credit.',
-            equityDepleted: true
+            reason: 'Zero credit. Copy trading stopped. Please contact admin to add credit.',
+            creditDepleted: true
           }
         }
         

@@ -271,6 +271,13 @@ router.post('/:id/transfer', async (req, res) => {
     }
 
     if (direction === 'deposit') {
+      // Block deposits to Copy Trading accounts - they use credit only (admin-granted)
+      if (account.isCopyTrading) {
+        return res.status(400).json({ 
+          message: 'Copy Trading accounts cannot receive deposits. Credit is managed by admin only.' 
+        })
+      }
+      
       // Transfer from Main Wallet to Account Wallet
       if (wallet.balance < amount) {
         return res.status(400).json({ message: 'Insufficient wallet balance' })
@@ -423,6 +430,13 @@ router.post('/account-transfer', async (req, res) => {
 
     if (toAccount.status !== 'Active') {
       return res.status(400).json({ message: 'Target account is not active' })
+    }
+
+    // Block transfers TO Copy Trading accounts - they use credit only (admin-granted)
+    if (toAccount.isCopyTrading) {
+      return res.status(400).json({ 
+        message: 'Cannot transfer funds to Copy Trading accounts. Credit is managed by admin only.' 
+      })
     }
 
     // Perform transfer

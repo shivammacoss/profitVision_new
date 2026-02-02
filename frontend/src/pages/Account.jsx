@@ -934,6 +934,14 @@ const Account = () => {
                       >
                         <RefreshCw size={isMobile ? 12 : 16} /> Reset
                       </button>
+                    ) : account.isCopyTrading ? (
+                      // Copy Trading account - only show Withdraw (no deposits allowed, credit managed by admin)
+                      <button
+                        onClick={() => { setSelectedAccount(account); setShowWithdrawModal(true); }}
+                        className={`flex-1 flex items-center justify-center gap-1 ${isMobile ? 'py-2 text-xs' : 'py-3'} text-gray-400 hover:text-white hover:bg-dark-700 transition-colors border-l border-gray-800`}
+                      >
+                        <Minus size={isMobile ? 12 : 16} /> Withdraw Profits
+                      </button>
                     ) : (
                       // Real account - show Deposit/Withdraw/Transfer
                       <>
