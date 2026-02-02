@@ -130,7 +130,7 @@ const HomePage = () => {
                 onClick={() => window.location.href = 'https://trade.profitvisionfx.com/user/signup'}
                 className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2.5 rounded-full font-medium transition-all transform hover:scale-105"
               >
-                Get
+                Get Started
               </button>
             </div>
           </div>
@@ -184,6 +184,7 @@ const HomePage = () => {
             </div>
             
             <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-6 leading-tight">
+              Trade Smarter with
               <span className="block bg-gradient-to-r from-red-400 via-red-500 to-orange-500 bg-clip-text text-transparent">
                 ProfitVisionFX
               </span>
