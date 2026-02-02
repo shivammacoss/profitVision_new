@@ -232,23 +232,23 @@ const CopyTradePage = () => {
   }
 
   const handleApplyMaster = async () => {
-    // Get Copy Trading accounts only
-    const copyTradingAccounts = accounts.filter(a => a.isCopyTrading)
-    const accountId = masterForm.tradingAccountId || (copyTradingAccounts.length > 0 ? copyTradingAccounts[0]._id : '')
+    // Get REGULAR accounts only (not Copy Trading, not Demo)
+    const regularAccounts = accounts.filter(a => !a.isCopyTrading && !a.isDemo && !a.accountTypeId?.isDemo)
+    const accountId = masterForm.tradingAccountId || (regularAccounts.length > 0 ? regularAccounts[0]._id : '')
     
     if (!masterForm.displayName.trim()) {
       alert('Please enter a display name')
       return
     }
     if (!accountId) {
-      alert('Please select a Copy Trading account. You need a Copy Trading account to become a master.')
+      alert('Please select a trading account. You need a regular trading account to become a master.')
       return
     }
     
-    // Verify selected account is a Copy Trading account
+    // Verify selected account is NOT a Copy Trading account
     const selectedAccount = accounts.find(a => a._id === accountId)
-    if (!selectedAccount?.isCopyTrading) {
-      alert('Master must use a Copy Trading account. Please select a valid Copy Trading account.')
+    if (selectedAccount?.isCopyTrading) {
+      alert('Master cannot use a Copy Trading account. Please select a regular trading account.')
       return
     }
     
@@ -1264,54 +1264,24 @@ const CopyTradePage = () => {
               </div>
 
               <div>
-                <label className="text-gray-500 text-sm mb-1 block">Copy Trading Account *</label>
+                <label className="text-gray-500 text-sm mb-1 block">Trading Account *</label>
                 <select
-                  value={masterForm.tradingAccountId || (accounts.filter(a => a.isCopyTrading).length > 0 ? accounts.filter(a => a.isCopyTrading)[0]._id : '')}
+                  value={masterForm.tradingAccountId || (accounts.filter(a => !a.isCopyTrading && !a.isDemo && !a.accountTypeId?.isDemo).length > 0 ? accounts.filter(a => !a.isCopyTrading && !a.isDemo && !a.accountTypeId?.isDemo)[0]._id : '')}
                   onChange={(e) => setMasterForm(prev => ({ ...prev, tradingAccountId: e.target.value }))}
                   className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-3 py-2`}
                 >
-                  {accounts.filter(a => a.isCopyTrading).length === 0 && <option value="">No Copy Trading accounts available</option>}
-                  {accounts.filter(a => a.isCopyTrading).map(acc => (
-                    <option key={acc._id} value={acc._id}>{acc.accountId} - Credit: ${(acc.credit || 0).toFixed(2)}</option>
+                  {accounts.filter(a => !a.isCopyTrading && !a.isDemo && !a.accountTypeId?.isDemo).length === 0 && <option value="">No trading accounts available</option>}
+                  {accounts.filter(a => !a.isCopyTrading && !a.isDemo && !a.accountTypeId?.isDemo).map(acc => (
+                    <option key={acc._id} value={acc._id}>{acc.accountId} - Balance: ${(acc.balance || 0).toFixed(2)}</option>
                   ))}
                 </select>
                 <p className="text-gray-500 text-xs mt-1">
-                  Master must use a Copy Trading account. Trades from this account will be copied to followers.
+                  Select a regular trading account. Trades from this account will be copied to followers. Your balance is your equity.
                 </p>
-                {accounts.filter(a => a.isCopyTrading).length === 0 && (
-                  <div className="mt-2">
-                    <p className="text-yellow-500 text-xs mb-2">
-                      You need a Copy Trading account to become a master.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const deposit = prompt('Enter deposit amount for your master Copy Trading account (from wallet):')
-                        if (deposit === null) return
-                        const depositAmount = parseFloat(deposit) || 0
-                        try {
-                          const res = await fetch(`${API_URL}/copy/create-master-account`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ userId: user._id, depositAmount })
-                          })
-                          const data = await res.json()
-                          if (data.success) {
-                            alert('Copy Trading account created! You can now apply as master.')
-                            fetchAccounts()
-                            fetchWalletBalance()
-                          } else {
-                            alert(data.message || 'Failed to create account')
-                          }
-                        } catch (err) {
-                          alert('Error creating account')
-                        }
-                      }}
-                      className="w-full bg-accent-green text-black py-2 rounded-lg text-sm font-medium hover:bg-accent-green/90"
-                    >
-                      Create Copy Trading Account
-                    </button>
-                  </div>
+                {accounts.filter(a => !a.isCopyTrading && !a.isDemo && !a.accountTypeId?.isDemo).length === 0 && (
+                  <p className="text-yellow-500 text-xs mt-2">
+                    You need a regular trading account with balance to become a master. Please create an account first.
+                  </p>
                 )}
               </div>
 

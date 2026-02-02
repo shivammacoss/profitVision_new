@@ -41,20 +41,20 @@ router.post('/master/apply', async (req, res) => {
       })
     }
 
-    // Validate trading account - Master MUST use a Copy Trading account
+    // Validate trading account - Master uses a REGULAR account (not Copy Trading)
     const tradingAccount = await TradingAccount.findById(tradingAccountId)
     if (!tradingAccount || tradingAccount.userId.toString() !== userId) {
       return res.status(400).json({ message: 'Invalid trading account' })
     }
 
-    // Master MUST use a Copy Trading account - trades from this account will be copied to followers
-    // Personal trades should be done from regular accounts (not copied)
-    if (!tradingAccount.isCopyTrading) {
-      return res.status(400).json({ message: 'Master must use a Copy Trading account. Please create or select a Copy Trading account for master trades.' })
+    // Master uses REGULAR account - trades from this account will be copied to followers
+    // Master's equity = Balance (manual deposit), NOT credit
+    if (tradingAccount.isCopyTrading) {
+      return res.status(400).json({ message: 'Master cannot use a Copy Trading account. Please select a regular trading account.' })
     }
 
-    // Check minimum equity (using credit for copy trading accounts)
-    const accountEquity = (tradingAccount.balance || 0) + (tradingAccount.credit || 0)
+    // Check minimum equity (using BALANCE for master - master deposits manually)
+    const accountEquity = tradingAccount.balance || 0
     const minEquityMet = accountEquity >= settings.masterRequirements.minEquity
 
     // Check trading history
