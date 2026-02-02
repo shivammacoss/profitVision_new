@@ -130,7 +130,7 @@ const HomePage = () => {
                 onClick={() => window.location.href = 'https://trade.profitvisionfx.com/user/signup'}
                 className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-6 py-2.5 rounded-full font-medium transition-all transform hover:scale-105"
               >
-                Get Started
+                Get
               </button>
             </div>
           </div>
