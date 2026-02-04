@@ -562,8 +562,19 @@ class TradeEngine {
 
       const trigger = trade.checkSlTp(prices.bid, prices.ask)
       if (trigger) {
-        const result = await this.closeTrade(trade._id, prices.bid, prices.ask, trigger)
-        triggeredTrades.push({ trade: result.trade, trigger, pnl: result.realizedPnl })
+        try {
+          const result = await this.closeTrade(trade._id, prices.bid, prices.ask, trigger)
+          triggeredTrades.push({ trade: result.trade, trigger, pnl: result.realizedPnl })
+        } catch (error) {
+          // Trade may have been closed by another process (race condition)
+          // This is expected behavior - just skip and continue
+          if (error.message === 'Trade is not open' || error.message === 'Trade not found') {
+            console.log(`[SL/TP Check] Trade ${trade.tradeId} already closed, skipping`)
+            continue
+          }
+          // Re-throw unexpected errors
+          throw error
+        }
       }
     }
 
