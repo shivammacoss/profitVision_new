@@ -3,13 +3,12 @@ import nodemailer from 'nodemailer'
 // Create transporter with SMTP settings
 const createTransporter = () => {
   return nodemailer.createTransport({
-    service: 'gmail',
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT) || 587,
-    secure: false,
+    host: process.env.EMAIL_HOST || 'smtp.hostinger.com',
+    port: parseInt(process.env.EMAIL_PORT) || 465,
+    secure: process.env.EMAIL_SECURE === 'true',
     auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS
     },
     tls: {
       rejectUnauthorized: false
@@ -28,7 +27,7 @@ export const sendOTPEmail = async (email, otp, name) => {
     const transporter = createTransporter()
     
     const mailOptions = {
-      from: `"ProfitVisionFX" <${process.env.SMTP_USER}>`,
+      from: `"ProfitVisionFX" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
       to: email,
       subject: 'Verify Your Email - ProfitVisionFX',
       html: `
@@ -95,7 +94,7 @@ export const sendWelcomeEmail = async (email, name) => {
     const transporter = createTransporter()
     
     const mailOptions = {
-      from: `"ProfitVisionFX" <${process.env.SMTP_USER}>`,
+      from: `"ProfitVisionFX" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
       to: email,
       subject: 'Welcome to ProfitVisionFX! 🎉',
       html: `
@@ -172,7 +171,7 @@ export const sendAdminEmail = async (to, subject, htmlContent) => {
     const transporter = createTransporter()
     
     const mailOptions = {
-      from: `"ProfitVisionFX Admin" <${process.env.SMTP_USER}>`,
+      from: `"ProfitVisionFX Admin" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
       to: Array.isArray(to) ? to.join(', ') : to,
       subject: subject,
       html: `
@@ -222,7 +221,7 @@ export const sendPasswordResetOTP = async (email, otp, name) => {
     const transporter = createTransporter()
     
     const mailOptions = {
-      from: `"ProfitVisionFX" <${process.env.SMTP_USER}>`,
+      from: `"ProfitVisionFX" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
       to: email,
       subject: 'Password Reset OTP - ProfitVisionFX',
       html: `
