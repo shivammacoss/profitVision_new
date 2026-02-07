@@ -54,6 +54,14 @@ const CopyTradePage = () => {
   const [editAccount, setEditAccount] = useState('')
   const [editCopyMode, setEditCopyMode] = useState('EQUITY_BASED')
   const [editCopyValue, setEditCopyValue] = useState('1')
+  
+  // Refill/Deposit modal states
+  const [showRefillModal, setShowRefillModal] = useState(false)
+  const [refillSubscription, setRefillSubscription] = useState(null)
+  const [refillAmount, setRefillAmount] = useState('')
+  const [refillInfo, setRefillInfo] = useState(null)
+  const [refillLoading, setRefillLoading] = useState(false)
+  const [refillProcessing, setRefillProcessing] = useState(false)
 
   const user = JSON.parse(localStorage.getItem('user') || '{}')
 
@@ -435,6 +443,77 @@ const CopyTradePage = () => {
     }
   }
 
+  const handleOpenRefillModal = async (subscription) => {
+    setRefillSubscription(subscription)
+    setRefillAmount('')
+    setRefillInfo(null)
+    setShowRefillModal(true)
+    setRefillLoading(true)
+    
+    try {
+      const res = await fetch(`${API_URL}/copy/refill-info/${subscription._id}?userId=${user._id}`)
+      const data = await res.json()
+      if (data.success) {
+        setRefillInfo(data.data)
+      } else {
+        alert(data.message || 'Failed to fetch balance info')
+        setShowRefillModal(false)
+      }
+    } catch (error) {
+      console.error('Error fetching refill info:', error)
+      alert('Failed to fetch balance info')
+      setShowRefillModal(false)
+    }
+    setRefillLoading(false)
+  }
+
+  const handleRefillDeposit = async () => {
+    if (!refillSubscription || !refillAmount) return
+    
+    const amount = parseFloat(refillAmount)
+    if (isNaN(amount) || amount <= 0) {
+      alert('Please enter a valid amount')
+      return
+    }
+    
+    if (refillInfo && amount > refillInfo.walletBalance) {
+      alert(`Insufficient wallet balance. Available: $${refillInfo.walletBalance.toFixed(2)}`)
+      return
+    }
+    
+    if (!confirm(`Deposit $${amount.toFixed(2)} from your wallet to copy trading account?`)) return
+    
+    setRefillProcessing(true)
+    try {
+      const res = await fetch(`${API_URL}/copy/refill`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user._id,
+          subscriptionId: refillSubscription._id,
+          amount
+        })
+      })
+      const data = await res.json()
+      
+      if (data.success) {
+        alert(`Successfully deposited $${amount.toFixed(2)} to your copy trading account!`)
+        setShowRefillModal(false)
+        setRefillSubscription(null)
+        setRefillAmount('')
+        setRefillInfo(null)
+        fetchMySubscriptions()
+        fetchWalletBalance()
+      } else {
+        alert(data.message || 'Failed to process deposit')
+      }
+    } catch (error) {
+      console.error('Error processing refill:', error)
+      alert('Failed to process deposit')
+    }
+    setRefillProcessing(false)
+  }
+
   const handleLogout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
@@ -723,22 +802,30 @@ const CopyTradePage = () => {
                             {sub.status}
                           </span>
                           <button
+                            onClick={() => handleOpenRefillModal(sub)}
+                            className={`px-3 py-1.5 ${isDarkMode ? 'bg-blue-500/20 hover:bg-blue-500/30' : 'bg-blue-100 hover:bg-blue-200'} text-blue-500 rounded-lg text-xs font-medium flex items-center gap-1`}
+                            title="Refill / Deposit"
+                          >
+                            <DollarSign size={14} />
+                            Refill
+                          </button>
+                          <button
                             onClick={() => handleEditSubscription(sub)}
-                            className="p-2 bg-dark-700 rounded-lg hover:bg-red-500/20"
+                            className={`p-2 ${isDarkMode ? 'bg-dark-700 hover:bg-dark-600' : 'bg-gray-100 hover:bg-gray-200'} rounded-lg`}
                             title="Edit Settings"
                           >
                             <Star size={16} className="text-blue-500" />
                           </button>
                           <button
                             onClick={() => handlePauseResume(sub._id, sub.status)}
-                            className="p-2 bg-dark-700 rounded-lg hover:bg-dark-600"
+                            className={`p-2 ${isDarkMode ? 'bg-dark-700 hover:bg-dark-600' : 'bg-gray-100 hover:bg-gray-200'} rounded-lg`}
                             title={sub.status === 'ACTIVE' ? 'Pause' : 'Resume'}
                           >
                             {sub.status === 'ACTIVE' ? <Pause size={16} className="text-yellow-500" /> : <Play size={16} className="text-green-500" />}
                           </button>
                           <button
                             onClick={() => handleUnfollow(sub._id)}
-                            className="p-2 bg-dark-700 rounded-lg hover:bg-red-500/20"
+                            className={`p-2 ${isDarkMode ? 'bg-dark-700 hover:bg-red-500/20' : 'bg-gray-100 hover:bg-red-100'} rounded-lg`}
                             title="Unfollow"
                           >
                             <X size={16} className="text-red-500" />
@@ -1337,6 +1424,151 @@ const CopyTradePage = () => {
                 className="flex-1 bg-yellow-500 text-black py-2.5 rounded-lg font-medium hover:bg-yellow-400 disabled:opacity-50 text-sm sm:text-base"
               >
                 {applyingMaster ? 'Submitting...' : 'Submit'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Refill/Deposit Modal */}
+      {showRefillModal && refillSubscription && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className={`${isDarkMode ? 'bg-dark-800 border-gray-700' : 'bg-white border-gray-200'} rounded-xl p-4 sm:p-6 w-full max-w-md border`}>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
+                <DollarSign size={20} className="text-blue-500" />
+              </div>
+              <div>
+                <h2 className={`text-base sm:text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Refill Copy Trading</h2>
+                <p className="text-gray-500 text-xs sm:text-sm">Following: {refillSubscription.masterId?.displayName}</p>
+              </div>
+            </div>
+
+            {refillLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-3"></div>
+                <p className="text-gray-500 text-sm">Loading balance info...</p>
+              </div>
+            ) : refillInfo ? (
+              <div className="space-y-4">
+                {/* Balance Display */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className={`${isDarkMode ? 'bg-dark-700' : 'bg-gray-100'} rounded-lg p-3`}>
+                    <p className="text-gray-500 text-xs mb-1">Main Wallet</p>
+                    <p className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                      ${refillInfo.walletBalance.toFixed(2)}
+                    </p>
+                    <p className="text-gray-500 text-xs">Available</p>
+                  </div>
+                  <div className={`${isDarkMode ? 'bg-dark-700' : 'bg-gray-100'} rounded-lg p-3`}>
+                    <p className="text-gray-500 text-xs mb-1">Copy Trading</p>
+                    <p className="text-lg font-bold text-blue-500">
+                      ${refillInfo.copyTradingEquity.toFixed(2)}
+                    </p>
+                    <p className="text-gray-500 text-xs">
+                      Credit: ${refillInfo.copyTradingCredit.toFixed(2)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Amount Input */}
+                <div>
+                  <label className="text-gray-500 text-sm mb-1 block">Deposit Amount ($)</label>
+                  <input
+                    type="number"
+                    value={refillAmount}
+                    onChange={(e) => setRefillAmount(e.target.value)}
+                    placeholder="Enter amount"
+                    min="1"
+                    max={refillInfo.walletBalance}
+                    className={`w-full ${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-3 py-2 text-lg`}
+                  />
+                  {refillAmount && parseFloat(refillAmount) > refillInfo.walletBalance && (
+                    <p className="text-red-500 text-xs mt-1">Insufficient wallet balance</p>
+                  )}
+                </div>
+
+                {/* Quick Amount Buttons */}
+                <div className="flex gap-2">
+                  {[50, 100, 250, 500].map(amt => (
+                    <button
+                      key={amt}
+                      onClick={() => setRefillAmount(Math.min(amt, refillInfo.walletBalance).toString())}
+                      disabled={refillInfo.walletBalance < amt}
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium ${
+                        isDarkMode 
+                          ? 'bg-dark-700 text-gray-300 hover:bg-dark-600 disabled:opacity-50' 
+                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300 disabled:opacity-50'
+                      }`}
+                    >
+                      ${amt}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Max Button */}
+                <button
+                  onClick={() => setRefillAmount(refillInfo.walletBalance.toString())}
+                  disabled={refillInfo.walletBalance <= 0}
+                  className={`w-full py-2 rounded-lg text-sm font-medium ${
+                    isDarkMode 
+                      ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30' 
+                      : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                  } disabled:opacity-50`}
+                >
+                  Use Max (${refillInfo.walletBalance.toFixed(2)})
+                </button>
+
+                {/* Info Box */}
+                <div className={`${isDarkMode ? 'bg-blue-500/10 border-blue-500/30' : 'bg-blue-50 border-blue-200'} rounded-lg p-3 border`}>
+                  <p className="text-blue-500 text-sm font-medium mb-1">How it works:</p>
+                  <ul className="text-blue-500/80 text-xs space-y-1">
+                    <li>• Amount will be deducted from your Main Wallet</li>
+                    <li>• Funds will be added to Copy Trading Credit</li>
+                    <li>• Credit is used for margin and losses</li>
+                    <li>• Profits go to Balance (withdrawable)</li>
+                  </ul>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-red-500">Failed to load balance info</p>
+              </div>
+            )}
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowRefillModal(false)
+                  setRefillSubscription(null)
+                  setRefillAmount('')
+                  setRefillInfo(null)
+                }}
+                className={`flex-1 ${isDarkMode ? 'bg-dark-700 text-white hover:bg-dark-600' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'} py-2.5 rounded-lg text-sm sm:text-base`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRefillDeposit}
+                disabled={
+                  refillProcessing || 
+                  !refillAmount || 
+                  parseFloat(refillAmount) <= 0 || 
+                  (refillInfo && parseFloat(refillAmount) > refillInfo.walletBalance)
+                }
+                className="flex-1 bg-blue-500 text-white py-2.5 rounded-lg font-medium hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base flex items-center justify-center gap-2"
+              >
+                {refillProcessing ? (
+                  <>
+                    <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <DollarSign size={16} />
+                    Deposit
+                  </>
+                )}
               </button>
             </div>
           </div>

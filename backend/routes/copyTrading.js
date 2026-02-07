@@ -688,6 +688,195 @@ router.delete('/follow/:id/unfollow', async (req, res) => {
   }
 })
 
+// POST /api/copy/refill - Refill/Deposit funds to copy trading account from main wallet
+router.post('/refill', async (req, res) => {
+  const session = await mongoose.startSession()
+  session.startTransaction()
+  
+  try {
+    const { userId, subscriptionId, amount } = req.body
+
+    // Validate required fields
+    if (!userId || !subscriptionId || !amount) {
+      await session.abortTransaction()
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Missing required fields: userId, subscriptionId, amount' 
+      })
+    }
+
+    // Validate amount
+    const depositAmount = parseFloat(amount)
+    if (isNaN(depositAmount) || depositAmount <= 0) {
+      await session.abortTransaction()
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Amount must be a positive number' 
+      })
+    }
+
+    // Get user
+    const user = await User.findById(userId).session(session)
+    if (!user) {
+      await session.abortTransaction()
+      return res.status(404).json({ success: false, message: 'User not found' })
+    }
+
+    // Get wallet
+    let wallet = await Wallet.findOne({ userId }).session(session)
+    if (!wallet) {
+      await session.abortTransaction()
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Wallet not found. Please deposit funds first.' 
+      })
+    }
+
+    // Check wallet balance
+    if ((wallet.balance || 0) < depositAmount) {
+      await session.abortTransaction()
+      return res.status(400).json({ 
+        success: false, 
+        message: `Insufficient wallet balance. Available: $${(wallet.balance || 0).toFixed(2)}, Required: $${depositAmount.toFixed(2)}`,
+        code: 'INSUFFICIENT_BALANCE',
+        available: wallet.balance || 0,
+        required: depositAmount
+      })
+    }
+
+    // Get subscription and copy trading account
+    const subscription = await CopyFollower.findById(subscriptionId)
+      .populate('followerAccountId')
+      .populate('masterId', 'displayName')
+      .session(session)
+    
+    if (!subscription) {
+      await session.abortTransaction()
+      return res.status(404).json({ success: false, message: 'Subscription not found' })
+    }
+
+    // Verify subscription belongs to user
+    if (subscription.followerId.toString() !== userId) {
+      await session.abortTransaction()
+      return res.status(403).json({ success: false, message: 'Unauthorized: Subscription does not belong to you' })
+    }
+
+    const copyTradingAccount = subscription.followerAccountId
+    if (!copyTradingAccount) {
+      await session.abortTransaction()
+      return res.status(400).json({ success: false, message: 'Copy trading account not found' })
+    }
+
+    // Deduct from wallet
+    const previousWalletBalance = wallet.balance
+    wallet.balance = (wallet.balance || 0) - depositAmount
+    await wallet.save({ session })
+
+    // Add to copy trading account credit
+    const previousCredit = copyTradingAccount.credit || 0
+    copyTradingAccount.credit = previousCredit + depositAmount
+    await copyTradingAccount.save({ session })
+
+    // Create transaction record
+    const transaction = await Transaction.create([{
+      userId,
+      walletId: wallet._id,
+      type: 'Transfer_To_Account',
+      amount: depositAmount,
+      status: 'Completed',
+      paymentMethod: 'System',
+      tradingAccountId: copyTradingAccount._id,
+      adminRemarks: `Copy Trading refill for ${subscription.masterId?.displayName || 'master'}`,
+      metadata: {
+        source: 'main_wallet',
+        destination: 'copy_trading',
+        subscriptionId: subscriptionId,
+        copyTradingAccountId: copyTradingAccount._id,
+        previousWalletBalance,
+        newWalletBalance: wallet.balance,
+        previousCredit,
+        newCredit: copyTradingAccount.credit
+      }
+    }], { session })
+
+    // Commit transaction
+    await session.commitTransaction()
+
+    res.json({
+      success: true,
+      message: `Successfully deposited $${depositAmount.toFixed(2)} to copy trading account`,
+      data: {
+        transactionId: transaction[0]._id,
+        amount: depositAmount,
+        walletBalance: wallet.balance,
+        copyTradingCredit: copyTradingAccount.credit,
+        copyTradingAccountId: copyTradingAccount.accountId
+      }
+    })
+
+  } catch (error) {
+    await session.abortTransaction()
+    console.error('Error processing copy trading refill:', error)
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error processing deposit', 
+      error: error.message 
+    })
+  } finally {
+    session.endSession()
+  }
+})
+
+// GET /api/copy/refill-info/:subscriptionId - Get refill info (balances) for a subscription
+router.get('/refill-info/:subscriptionId', async (req, res) => {
+  try {
+    const { subscriptionId } = req.params
+    const { userId } = req.query
+
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'userId is required' })
+    }
+
+    // Get subscription
+    const subscription = await CopyFollower.findById(subscriptionId)
+      .populate('followerAccountId', 'accountId balance credit')
+      .populate('masterId', 'displayName')
+
+    if (!subscription) {
+      return res.status(404).json({ success: false, message: 'Subscription not found' })
+    }
+
+    // Verify subscription belongs to user
+    if (subscription.followerId.toString() !== userId) {
+      return res.status(403).json({ success: false, message: 'Unauthorized' })
+    }
+
+    // Get wallet balance
+    const wallet = await Wallet.findOne({ userId })
+    const walletBalance = wallet?.balance || 0
+
+    const copyAccount = subscription.followerAccountId
+    const copyTradingBalance = copyAccount?.balance || 0
+    const copyTradingCredit = copyAccount?.credit || 0
+
+    res.json({
+      success: true,
+      data: {
+        walletBalance,
+        copyTradingBalance,
+        copyTradingCredit,
+        copyTradingEquity: copyTradingBalance + copyTradingCredit,
+        copyTradingAccountId: copyAccount?.accountId,
+        masterName: subscription.masterId?.displayName
+      }
+    })
+
+  } catch (error) {
+    console.error('Error fetching refill info:', error)
+    res.status(500).json({ success: false, message: 'Error fetching info', error: error.message })
+  }
+})
+
 // GET /api/copy/my-subscriptions/:userId - Get user's copy subscriptions
 router.get('/my-subscriptions/:userId', async (req, res) => {
   try {
