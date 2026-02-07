@@ -690,15 +690,11 @@ router.delete('/follow/:id/unfollow', async (req, res) => {
 
 // POST /api/copy/refill - Refill/Deposit funds to copy trading account from main wallet
 router.post('/refill', async (req, res) => {
-  const session = await mongoose.startSession()
-  session.startTransaction()
-  
   try {
     const { userId, subscriptionId, amount } = req.body
 
     // Validate required fields
     if (!userId || !subscriptionId || !amount) {
-      await session.abortTransaction()
       return res.status(400).json({ 
         success: false, 
         message: 'Missing required fields: userId, subscriptionId, amount' 
@@ -708,7 +704,6 @@ router.post('/refill', async (req, res) => {
     // Validate amount
     const depositAmount = parseFloat(amount)
     if (isNaN(depositAmount) || depositAmount <= 0) {
-      await session.abortTransaction()
       return res.status(400).json({ 
         success: false, 
         message: 'Amount must be a positive number' 
@@ -716,16 +711,14 @@ router.post('/refill', async (req, res) => {
     }
 
     // Get user
-    const user = await User.findById(userId).session(session)
+    const user = await User.findById(userId)
     if (!user) {
-      await session.abortTransaction()
       return res.status(404).json({ success: false, message: 'User not found' })
     }
 
     // Get wallet
-    let wallet = await Wallet.findOne({ userId }).session(session)
+    let wallet = await Wallet.findOne({ userId })
     if (!wallet) {
-      await session.abortTransaction()
       return res.status(400).json({ 
         success: false, 
         message: 'Wallet not found. Please deposit funds first.' 
@@ -734,7 +727,6 @@ router.post('/refill', async (req, res) => {
 
     // Check wallet balance
     if ((wallet.balance || 0) < depositAmount) {
-      await session.abortTransaction()
       return res.status(400).json({ 
         success: false, 
         message: `Insufficient wallet balance. Available: $${(wallet.balance || 0).toFixed(2)}, Required: $${depositAmount.toFixed(2)}`,
@@ -748,37 +740,49 @@ router.post('/refill', async (req, res) => {
     const subscription = await CopyFollower.findById(subscriptionId)
       .populate('followerAccountId')
       .populate('masterId', 'displayName')
-      .session(session)
     
     if (!subscription) {
-      await session.abortTransaction()
       return res.status(404).json({ success: false, message: 'Subscription not found' })
     }
 
     // Verify subscription belongs to user
     if (subscription.followerId.toString() !== userId) {
-      await session.abortTransaction()
       return res.status(403).json({ success: false, message: 'Unauthorized: Subscription does not belong to you' })
     }
 
     const copyTradingAccount = subscription.followerAccountId
     if (!copyTradingAccount) {
-      await session.abortTransaction()
       return res.status(400).json({ success: false, message: 'Copy trading account not found' })
     }
 
-    // Deduct from wallet
+    // Store previous values for transaction record
     const previousWalletBalance = wallet.balance
-    wallet.balance = (wallet.balance || 0) - depositAmount
-    await wallet.save({ session })
+    const previousCredit = copyTradingAccount.credit || 0
+
+    // Deduct from wallet using findOneAndUpdate for atomicity
+    const updatedWallet = await Wallet.findOneAndUpdate(
+      { _id: wallet._id, balance: { $gte: depositAmount } },
+      { $inc: { balance: -depositAmount } },
+      { new: true }
+    )
+
+    if (!updatedWallet) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Insufficient balance or wallet was modified. Please try again.',
+        code: 'CONCURRENT_MODIFICATION'
+      })
+    }
 
     // Add to copy trading account credit
-    const previousCredit = copyTradingAccount.credit || 0
-    copyTradingAccount.credit = previousCredit + depositAmount
-    await copyTradingAccount.save({ session })
+    const updatedAccount = await TradingAccount.findByIdAndUpdate(
+      copyTradingAccount._id,
+      { $inc: { credit: depositAmount } },
+      { new: true }
+    )
 
     // Create transaction record
-    const transaction = await Transaction.create([{
+    const transaction = await Transaction.create({
       userId,
       walletId: wallet._id,
       type: 'Transfer_To_Account',
@@ -793,37 +797,31 @@ router.post('/refill', async (req, res) => {
         subscriptionId: subscriptionId,
         copyTradingAccountId: copyTradingAccount._id,
         previousWalletBalance,
-        newWalletBalance: wallet.balance,
+        newWalletBalance: updatedWallet.balance,
         previousCredit,
-        newCredit: copyTradingAccount.credit
+        newCredit: updatedAccount.credit
       }
-    }], { session })
-
-    // Commit transaction
-    await session.commitTransaction()
+    })
 
     res.json({
       success: true,
       message: `Successfully deposited $${depositAmount.toFixed(2)} to copy trading account`,
       data: {
-        transactionId: transaction[0]._id,
+        transactionId: transaction._id,
         amount: depositAmount,
-        walletBalance: wallet.balance,
-        copyTradingCredit: copyTradingAccount.credit,
+        walletBalance: updatedWallet.balance,
+        copyTradingCredit: updatedAccount.credit,
         copyTradingAccountId: copyTradingAccount.accountId
       }
     })
 
   } catch (error) {
-    await session.abortTransaction()
     console.error('Error processing copy trading refill:', error)
     res.status(500).json({ 
       success: false, 
       message: 'Error processing deposit', 
       error: error.message 
     })
-  } finally {
-    session.endSession()
   }
 })
 
