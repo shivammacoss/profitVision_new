@@ -1307,7 +1307,7 @@ const TradingPage = () => {
                         </div>
                         <div className="text-gray-600 text-[9px]">Bid</div>
                       </div>
-                      <div className="bg-[#2a2a2a] px-1.5 py-0.5 rounded text-cyan-400 text-[10px] font-medium min-w-[28px] text-center mx-2">
+                      <div className={`${isDarkMode ? 'bg-[#2a2a2a] text-cyan-400' : 'bg-gray-200 text-cyan-600'} px-1.5 py-0.5 rounded text-[10px] font-medium min-w-[28px] text-center mx-2`}>
                         {/* Show admin-set spread if available, otherwise show market spread */}
                         {adminSpreads[inst.symbol]?.spread > 0 ? (
                           // Convert admin spread to pips for display
