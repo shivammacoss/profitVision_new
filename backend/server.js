@@ -70,6 +70,7 @@ const priceCache = new Map()
 const BINANCE_SYMBOLS = {
   'BTCUSD': 'BTCUSDT', 'ETHUSD': 'ETHUSDT', 'BNBUSD': 'BNBUSDT',
   'SOLUSD': 'SOLUSDT', 'XRPUSD': 'XRPUSDT', 'ADAUSD': 'ADAUSDT',
+  'MATICUSD': 'POLUSDT', 'POLUSD': 'POLUSDT',
   'DOGEUSD': 'DOGEUSDT', 'DOTUSD': 'DOTUSDT', 'LTCUSD': 'LTCUSDT'
 }
 // Priority order - XAUUSD first as it's most traded
