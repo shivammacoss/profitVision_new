@@ -927,19 +927,22 @@ router.post('/admin/verify-payment/:trackId', authenticateSuperAdmin, async (req
       return res.status(404).json({ success: false, message: 'Payment not found in OxaPay' })
     }
     
-    // Check payment status
-    if (payment.status !== 'Paid') {
+    // Check payment status (OxaPay returns status in different formats)
+    const paymentStatus = payment.status || payment.paymentStatus
+    if (paymentStatus !== 'Paid' && paymentStatus !== 'paid') {
       return res.status(400).json({ 
         success: false, 
-        message: `Payment status is "${payment.status}", not "Paid". Cannot verify.`,
-        oxapayStatus: payment.status
+        message: `Payment status is "${paymentStatus}", not "Paid". Cannot verify.`,
+        oxapayStatus: paymentStatus,
+        fullResponse: payment
       })
     }
     
-    // Extract userId from order_id or use provided userId
+    // Extract userId from order_id or orderId or use provided userId
+    const orderId = payment.order_id || payment.orderId
     let targetUserId = userId
-    if (!targetUserId && payment.order_id) {
-      const parts = payment.order_id.split('-')
+    if (!targetUserId && orderId) {
+      const parts = orderId.split('-')
       if (parts.length >= 3 && parts[0] === 'DEP') {
         targetUserId = parts[1]
       }
@@ -964,6 +967,12 @@ router.post('/admin/verify-payment/:trackId', authenticateSuperAdmin, async (req
     const amount = parseFloat(payment.amount)
     
     // Create transaction as Auto-Verified (admin can then approve)
+    const txHash = payment.txHash || payment.txs?.[0]?.tx_hash || null
+    const senderAddress = payment.senderAddress || payment.txs?.[0]?.address || null
+    const confirmations = payment.confirmations || payment.txs?.[0]?.confirmations || 0
+    const cryptoCurrency = payment.currency || payment.cryptoCurrency || null
+    const cryptoNetwork = payment.network || payment.cryptoNetwork || null
+    
     transaction = new Transaction({
       userId: user._id,
       walletId: wallet._id,
@@ -972,16 +981,16 @@ router.post('/admin/verify-payment/:trackId', authenticateSuperAdmin, async (req
       paymentMethod: 'Crypto (OxaPay)',
       transactionRef: trackId,
       oxapayTrackId: trackId,
-      oxapayOrderId: payment.order_id,
-      cryptoCurrency: payment.currency,
-      cryptoNetwork: payment.network,
-      cryptoTxHash: payment.txs?.[0]?.tx_hash || null,
-      cryptoSenderAddress: payment.txs?.[0]?.address || null,
-      cryptoConfirmations: payment.txs?.[0]?.confirmations || 0,
+      oxapayOrderId: orderId,
+      cryptoCurrency: cryptoCurrency,
+      cryptoNetwork: cryptoNetwork,
+      cryptoTxHash: txHash,
+      cryptoSenderAddress: senderAddress,
+      cryptoConfirmations: confirmations,
       status: 'Auto-Verified',
       autoVerified: true,
       autoVerifiedAt: new Date(),
-      adminRemarks: `Manually verified by admin. OxaPay status: ${payment.status}. TxHash: ${payment.txs?.[0]?.tx_hash || 'N/A'}`
+      adminRemarks: `Manually verified by admin. OxaPay status: ${paymentStatus}. TxHash: ${txHash || 'N/A'}`
     })
     await transaction.save()
     

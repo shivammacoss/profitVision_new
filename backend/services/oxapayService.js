@@ -108,24 +108,26 @@ class OxaPayService {
     }
 
     try {
-      const response = await fetch(`${OXAPAY_API_URL}/payment/inquiry`, {
+      const response = await fetch(`${OXAPAY_API_URL}/merchants/inquiry`, {
         method: 'POST',
         headers: {
-          'merchant_api_key': this.merchantApiKey,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ track_id: trackId })
+        body: JSON.stringify({ 
+          merchant: this.merchantApiKey,
+          trackId: trackId 
+        })
       })
 
       const data = await response.json()
 
-      if (data.status !== 200) {
+      if (data.result !== 100) {
         throw new Error(data.message || 'Failed to get payment info')
       }
 
       return {
         success: true,
-        data: data.data
+        data: data
       }
     } catch (error) {
       console.error('[OxaPay] Error getting payment info:', error)
