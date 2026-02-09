@@ -71,15 +71,31 @@ const AdminFundManagement = () => {
     setLoading(false)
   }
 
-  const handleApprove = async (txnId) => {
+  const handleApprove = async (txn) => {
+    const txnId = txn._id || txn
+    const isCryptoDeposit = txn.paymentMethod === 'Crypto (OxaPay)'
+    
     try {
-      const res = await fetch(`${API_URL}/wallet/transaction/${txnId}/approve`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminRemarks: '' })
-      })
+      let res
+      if (isCryptoDeposit) {
+        // Use OxaPay admin endpoint for crypto deposits
+        res = await fetch(`${API_URL}/oxapay/admin/approve-crypto-deposit/${txnId}`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('adminToken') || localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({ adminRemarks: '' })
+        })
+      } else {
+        res = await fetch(`${API_URL}/wallet/transaction/${txnId}/approve`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adminRemarks: '' })
+        })
+      }
       const data = await res.json()
-      if (res.ok) {
+      if (res.ok || data.success) {
         alert('Transaction approved successfully!')
         fetchTransactions()
       } else {
@@ -91,16 +107,36 @@ const AdminFundManagement = () => {
     }
   }
 
-  const handleReject = async (txnId) => {
-    const remarks = prompt('Enter rejection reason (optional):')
+  const handleReject = async (txn) => {
+    const txnId = txn._id || txn
+    const isCryptoDeposit = txn.paymentMethod === 'Crypto (OxaPay)'
+    const remarks = prompt('Enter rejection reason:')
+    if (!remarks && isCryptoDeposit) {
+      alert('Rejection reason is required for crypto deposits')
+      return
+    }
+    
     try {
-      const res = await fetch(`${API_URL}/wallet/transaction/${txnId}/reject`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ adminRemarks: remarks || '' })
-      })
+      let res
+      if (isCryptoDeposit) {
+        // Use OxaPay admin endpoint for crypto deposits
+        res = await fetch(`${API_URL}/oxapay/admin/reject-crypto-deposit/${txnId}`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('adminToken') || localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({ reason: remarks || 'Rejected by admin' })
+        })
+      } else {
+        res = await fetch(`${API_URL}/wallet/transaction/${txnId}/reject`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adminRemarks: remarks || '' })
+        })
+      }
       const data = await res.json()
-      if (res.ok) {
+      if (res.ok || data.success) {
         alert('Transaction rejected!')
         fetchTransactions()
       } else {
@@ -123,11 +159,16 @@ const AdminFundManagement = () => {
     const s = status?.toLowerCase()
     if (s === 'approved') return 'bg-green-500/20 text-green-500'
     if (s === 'pending') return 'bg-yellow-500/20 text-yellow-500'
+    if (s === 'auto-verified') return 'bg-blue-500/20 text-blue-500'
+    if (s === 'confirming') return 'bg-orange-500/20 text-orange-500'
     if (s === 'rejected') return 'bg-red-500/20 text-red-500'
     return 'bg-gray-500/20 text-gray-400'
   }
 
-  const isPending = (status) => status?.toLowerCase() === 'pending'
+  const isPending = (status) => {
+    const s = status?.toLowerCase()
+    return s === 'pending' || s === 'auto-verified'
+  }
 
   const viewTransactionDetails = async (txn) => {
     setSelectedTxn(txn)
@@ -257,10 +298,10 @@ const AdminFundManagement = () => {
                   </div>
                   {isPending(txn.status) && (
                     <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
-                      <button onClick={() => handleApprove(txn._id)} className="flex-1 flex items-center justify-center gap-1 py-2 bg-green-500/20 text-green-500 rounded-lg text-sm">
+                      <button onClick={() => handleApprove(txn)} className="flex-1 flex items-center justify-center gap-1 py-2 bg-green-500/20 text-green-500 rounded-lg text-sm">
                         <Check size={14} /> Approve
                       </button>
-                      <button onClick={() => handleReject(txn._id)} className="flex-1 flex items-center justify-center gap-1 py-2 bg-red-500/20 text-red-500 rounded-lg text-sm">
+                      <button onClick={() => handleReject(txn)} className="flex-1 flex items-center justify-center gap-1 py-2 bg-red-500/20 text-red-500 rounded-lg text-sm">
                         <X size={14} /> Reject
                       </button>
                     </div>
@@ -315,10 +356,10 @@ const AdminFundManagement = () => {
                           </button>
                           {isPending(txn.status) && (
                             <>
-                              <button onClick={() => handleApprove(txn._id)} className="p-2 hover:bg-gray-100 dark:hover:bg-dark-600 rounded-lg transition-colors text-gray-500 hover:text-green-500">
+                              <button onClick={() => handleApprove(txn)} className="p-2 hover:bg-gray-100 dark:hover:bg-dark-600 rounded-lg transition-colors text-gray-500 hover:text-green-500">
                                 <Check size={16} />
                               </button>
-                              <button onClick={() => handleReject(txn._id)} className="p-2 hover:bg-gray-100 dark:hover:bg-dark-600 rounded-lg transition-colors text-gray-500 hover:text-red-500">
+                              <button onClick={() => handleReject(txn)} className="p-2 hover:bg-gray-100 dark:hover:bg-dark-600 rounded-lg transition-colors text-gray-500 hover:text-red-500">
                                 <X size={16} />
                               </button>
                             </>
@@ -459,13 +500,13 @@ const AdminFundManagement = () => {
               {isPending(selectedTxn.status) && (
                 <div className="flex gap-3 pt-4 border-t border-gray-200">
                   <button
-                    onClick={() => { handleReject(selectedTxn._id); closeDetailsModal(); }}
+                    onClick={() => { handleReject(selectedTxn); closeDetailsModal(); }}
                     className="flex-1 py-2 bg-red-500/20 text-red-500 rounded-lg hover:bg-red-500/30 flex items-center justify-center gap-2"
                   >
                     <X size={16} /> Reject
                   </button>
                   <button
-                    onClick={() => { handleApprove(selectedTxn._id); closeDetailsModal(); }}
+                    onClick={() => { handleApprove(selectedTxn); closeDetailsModal(); }}
                     className="flex-1 py-2 bg-green-500/20 text-green-500 rounded-lg hover:bg-green-500/30 flex items-center justify-center gap-2"
                   >
                     <Check size={16} /> Approve
