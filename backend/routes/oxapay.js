@@ -728,7 +728,10 @@ router.post('/admin/approve-crypto-deposit/:transactionId', authenticateSuperAdm
     transaction.walletCredited = true
     transaction.walletCreditedAt = new Date()
     transaction.processedAt = new Date()
-    transaction.processedBy = req.admin.id
+    // Only set processedBy if it's a valid ObjectId (not super-admin string)
+    if (req.admin.id && req.admin.id !== 'super-admin' && /^[0-9a-fA-F]{24}$/.test(req.admin.id)) {
+      transaction.processedBy = req.admin.id
+    }
     transaction.adminRemarks = adminRemarks || `Approved by admin. TxHash: ${transaction.cryptoTxHash || 'N/A'}`
     await transaction.save()
     
