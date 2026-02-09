@@ -24,7 +24,9 @@ const creditLedgerSchema = new mongoose.Schema({
       'TRADE_LOSS',        // Loss deducted from credit
       'MARGIN_HOLD',       // Margin held for open trade
       'MARGIN_RELEASE',    // Margin released when trade closes
-      'EXPOSURE_ADJUST'    // Exposure adjustment
+      'EXPOSURE_ADJUST',   // Exposure adjustment
+      'PROFIT_REFILL',     // Profit used to auto-refill credit (when below minimum)
+      'REFILL_COMPLETE'    // Credit restored to minimum, refill mode ended
     ],
     required: true
   },

@@ -8,11 +8,19 @@ import TradingAccount from '../models/TradingAccount.js'
 import Wallet from '../models/Wallet.js'
 import tradeEngine from './tradeEngine.js'
 import creditService from './creditService.js'
+import creditRefillService from './creditRefillService.js'
 import CreditLedger from '../models/CreditLedger.js'
 
 class CopyTradingEngine {
   constructor() {
     this.CONTRACT_SIZE = 100000
+    this.io = null // Socket.IO instance for real-time updates
+  }
+  
+  // Set Socket.IO instance for real-time balance updates
+  setSocketIO(io) {
+    this.io = io
+    console.log('[CopyTradingEngine] Socket.IO instance set for real-time updates')
   }
 
   // Get today's date string
@@ -700,125 +708,60 @@ class CopyTradingEngine {
           continue
         }
         
-        // ========== EQUITY-BASED P/L SYSTEM ==========
-        // LOSS: Deducted from account BALANCE (equity) directly
-        // PROFIT: Split between follower and master based on sharePercentage
-        // - Follower's share added to account balance
-        // - Master's share goes to pendingCommission
+        // ========== AUTO-REFILL CREDIT SYSTEM ==========
+        // Uses creditRefillService for production-grade settlement with:
+        // - Minimum credit maintenance (default 1000)
+        // - Auto-refill from profits when below minimum
+        // - Atomic operations to prevent race conditions
+        // - Full ledger-based accounting history
         
         const master = await MasterTrader.findById(copyTrade.masterId)
         const sharePercentage = master?.approvedCommissionPercentage || 50
         
-        const followerAccount = await TradingAccount.findById(copyTrade.followerAccountId)
-        if (!followerAccount) {
-          console.log(`[CopyTrade] ERROR: Follower account not found: ${copyTrade.followerAccountId}`)
-          results.push({ copyTradeId: copyTrade._id, status: 'FAILED', reason: 'Follower account not found' })
-          continue
-        }
+        // Process trade close through credit refill service
+        const refillResult = await creditRefillService.processTradeClose({
+          copyFollowerId: copyTrade.followerId,
+          tradingAccountId: copyTrade.followerAccountId,
+          userId: copyTrade.followerUserId,
+          masterId: copyTrade.masterId,
+          rawPnl: rawPnl,
+          masterSharePercentage: sharePercentage,
+          tradeId: copyTrade.followerTradeId,
+          copyTradeId: copyTrade._id,
+          metadata: {
+            symbol: copyTrade.symbol,
+            side: copyTrade.side,
+            lotSize: copyTrade.followerLotSize,
+            openPrice: copyTrade.followerOpenPrice,
+            closePrice: result.trade.closePrice
+          },
+          io: this.io // Pass Socket.IO instance for real-time updates
+        })
         
-        // Get follower's wallet for profit crediting
-        let followerWallet = await Wallet.findOne({ userId: copyTrade.followerUserId })
-        if (!followerWallet) {
-          followerWallet = await Wallet.create({ userId: copyTrade.followerUserId, balance: 0 })
-        }
+        const masterShare = refillResult.masterShare || 0
+        const followerShare = refillResult.followerShare || 0
+        const creditBefore = refillResult.creditBefore || 0
+        const creditAfter = refillResult.creditAfter || 0
+        const creditChange = refillResult.creditChange || 0
+        const walletCredited = refillResult.walletChange || 0
         
-        let masterShare = 0
-        let followerShare = 0
-        let creditChange = 0
-        let walletCredited = 0
-        
-        const creditBefore = followerAccount.credit || 0
-        const walletBefore = followerWallet.balance || 0
-        
-        console.log(`[CopyTrade] ========== CREDIT-BASED SETTLEMENT ==========`)
-        console.log(`[CopyTrade] Share Percentage (Master): ${sharePercentage}%`)
-        console.log(`[CopyTrade] Raw P/L: $${rawPnl.toFixed(2)}`)
-        console.log(`[CopyTrade] Follower Credit BEFORE: $${creditBefore.toFixed(2)}`)
-        console.log(`[CopyTrade] Follower Wallet BEFORE: $${walletBefore.toFixed(2)}`)
-        
-        if (rawPnl < 0) {
-          // ========== LOSS CASE ==========
-          // Loss is deducted from CREDIT only (not wallet)
-          // Master does NOT share in losses - follower bears full loss
-          // Credit cannot go below 0
-          
-          const lossAmount = Math.abs(rawPnl)
-          
-          console.log(`[CopyTrade] ========== LOSS HANDLING ==========`)
-          console.log(`[CopyTrade] Loss Amount: $${lossAmount.toFixed(2)}`)
-          console.log(`[CopyTrade] RULE: Loss deducted from CREDIT only (capped at 0)`)
-          
-          // Deduct loss from CREDIT (cap at 0, no negative credit)
-          const newCredit = Math.max(0, creditBefore - lossAmount)
-          followerAccount.credit = newCredit
-          await followerAccount.save()
-          creditChange = newCredit - creditBefore // Will be negative
-          
-          console.log(`[CopyTrade] Credit Before: $${creditBefore.toFixed(2)}`)
-          console.log(`[CopyTrade] Loss Deducted: $${lossAmount.toFixed(2)}`)
-          console.log(`[CopyTrade] Credit After: $${newCredit.toFixed(2)}`)
-          console.log(`[CopyTrade] Wallet: $${walletBefore.toFixed(2)} (UNCHANGED)`)
-          
-          // Check if credit is depleted - auto-stop copy trading
-          if (newCredit <= 0) {
-            console.log(`[CopyTrade] ⚠️ Credit depleted! Auto-stopping copy trading.`)
-            // Update follower status to STOPPED
-            await CopyFollower.updateOne(
-              { followerAccountId: copyTrade.followerAccountId },
-              { status: 'STOPPED', stoppedReason: 'Credit depleted from trade loss' }
-            )
-          }
-          
-          // For loss, master doesn't get anything, follower bears full loss from credit
-          masterShare = 0
-          followerShare = rawPnl // Negative value
-          
-        } else if (rawPnl > 0) {
-          // ========== PROFIT CASE ==========
-          // Profit is split 50/50 between follower and master
-          // - Follower's share goes to MAIN WALLET (withdrawable)
-          // - Master's share goes to pendingCommission
-          // - Credit is NOT increased (it's for exposure only)
-          
-          masterShare = rawPnl * (sharePercentage / 100)
-          followerShare = rawPnl - masterShare
-          
-          console.log(`[CopyTrade] ========== PROFIT HANDLING ==========`)
-          console.log(`[CopyTrade] Total Profit: $${rawPnl.toFixed(2)}`)
-          console.log(`[CopyTrade] Master Share (${sharePercentage}%): $${masterShare.toFixed(2)}`)
-          console.log(`[CopyTrade] Follower Share (${100 - sharePercentage}%): $${followerShare.toFixed(2)}`)
-          
-          // Credit follower's share to MAIN WALLET (not credit)
-          followerWallet.balance = walletBefore + followerShare
-          await followerWallet.save()
-          walletCredited = followerShare
-          
-          console.log(`[CopyTrade] Wallet Before: $${walletBefore.toFixed(2)}`)
-          console.log(`[CopyTrade] Follower Share to Wallet: $${followerShare.toFixed(2)}`)
-          console.log(`[CopyTrade] Wallet After: $${followerWallet.balance.toFixed(2)}`)
-          console.log(`[CopyTrade] Credit: $${creditBefore.toFixed(2)} (UNCHANGED)`)
-          
-          // Credit master's share
-          if (master) {
-            master.pendingCommission = (master.pendingCommission || 0) + masterShare
-            master.totalCommissionEarned = (master.totalCommissionEarned || 0) + masterShare
-            await master.save()
-            console.log(`[CopyTrade] Master Credited: $${masterShare.toFixed(2)}`)
-            console.log(`[CopyTrade] Master Pending Commission: $${master.pendingCommission.toFixed(2)}`)
-          }
-        }
-        
-        // Get final credit for tracking
-        const finalAccount = await TradingAccount.findById(copyTrade.followerAccountId)
-        const creditAfter = finalAccount?.credit || 0
-        
-        console.log(`[CopyTrade] ========== FINAL SETTLEMENT ==========`)
+        console.log(`[CopyTrade] ========== CREDIT REFILL SETTLEMENT ==========`)
+        console.log(`[CopyTrade] Action: ${refillResult.action}`)
         console.log(`[CopyTrade] Raw P/L: $${rawPnl.toFixed(2)}`)
         console.log(`[CopyTrade] Master Share: $${masterShare.toFixed(2)}`)
         console.log(`[CopyTrade] Follower Share: $${followerShare.toFixed(2)}`)
-        console.log(`[CopyTrade] Credit Change: $${creditChange.toFixed(2)}`)
+        console.log(`[CopyTrade] Credit: $${creditBefore.toFixed(2)} → $${creditAfter.toFixed(2)}`)
+        console.log(`[CopyTrade] Deficit: $${refillResult.deficitBefore?.toFixed(2) || 0} → $${refillResult.deficitAfter?.toFixed(2) || 0}`)
         console.log(`[CopyTrade] Wallet Credited: $${walletCredited.toFixed(2)}`)
-        console.log(`[CopyTrade] Credit After: $${creditAfter.toFixed(2)}`)
+        console.log(`[CopyTrade] Refill Mode: ${refillResult.isRefillMode}`)
+        
+        // Credit master's share (if profit)
+        if (masterShare > 0 && master) {
+          master.pendingCommission = (master.pendingCommission || 0) + masterShare
+          master.totalCommissionEarned = (master.totalCommissionEarned || 0) + masterShare
+          await master.save()
+          console.log(`[CopyTrade] Master Credited: $${masterShare.toFixed(2)}`)
+        }
 
         // Update copy trade record
         copyTrade.masterClosePrice = masterClosePrice
@@ -830,12 +773,16 @@ class CopyTradingEngine {
         copyTrade.creditAfter = creditAfter
         copyTrade.creditChange = creditChange
         copyTrade.walletCredited = walletCredited
+        copyTrade.refillAction = refillResult.action
+        copyTrade.profitToCredit = refillResult.profitToCredit || 0
+        copyTrade.profitToWallet = refillResult.profitToWallet || 0
+        copyTrade.deficitAfter = refillResult.deficitAfter || 0
         copyTrade.status = 'CLOSED'
         copyTrade.closedAt = new Date()
         copyTrade.commissionApplied = true
         await copyTrade.save()
 
-        // Update follower stats with their net P/L (50% share)
+        // Update follower stats
         await CopyFollower.findByIdAndUpdate(copyTrade.followerId, {
           $inc: {
             'stats.activeCopiedTrades': -1,
@@ -852,7 +799,10 @@ class CopyTradingEngine {
           status: 'SUCCESS',
           rawPnl: rawPnl,
           followerPnl: followerShare,
-          masterShare: masterShare
+          masterShare: masterShare,
+          refillAction: refillResult.action,
+          creditAfter: creditAfter,
+          deficitAfter: refillResult.deficitAfter || 0
         })
 
       } catch (error) {

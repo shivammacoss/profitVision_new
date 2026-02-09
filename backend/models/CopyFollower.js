@@ -99,6 +99,43 @@ const copyFollowerSchema = new mongoose.Schema({
   currentCredit: {
     type: Number,
     default: 0
+  },
+  
+  // ========== AUTO-REFILL SYSTEM ==========
+  // Minimum credit balance that must be maintained (default: 1000)
+  minimumCredit: {
+    type: Number,
+    default: 1000
+  },
+  // Current deficit amount (how much below minimum)
+  creditDeficit: {
+    type: Number,
+    default: 0
+  },
+  // Whether auto-refill mode is active (deficit > 0)
+  isRefillMode: {
+    type: Boolean,
+    default: false
+  },
+  // Total amount refilled from profits
+  totalRefilled: {
+    type: Number,
+    default: 0
+  },
+  // Total profits that went to wallet (after refill complete)
+  totalProfitToWallet: {
+    type: Number,
+    default: 0
+  },
+  // Last refill transaction timestamp
+  lastRefillAt: {
+    type: Date,
+    default: null
+  },
+  // Refill history count
+  refillCount: {
+    type: Number,
+    default: 0
   }
 }, { timestamps: true })
 

@@ -151,6 +151,39 @@ const copyTradeSchema = new mongoose.Schema({
   commissionApplied: {
     type: Boolean,
     default: false
+  },
+  
+  // ========== AUTO-REFILL TRACKING ==========
+  // Credit tracking (renamed for clarity)
+  creditBefore: {
+    type: Number,
+    default: null
+  },
+  creditAfter: {
+    type: Number,
+    default: null
+  },
+  creditChange: {
+    type: Number,
+    default: 0
+  },
+  // Refill-specific fields
+  refillAction: {
+    type: String,
+    enum: ['NO_CHANGE', 'LOSS_DEDUCTED', 'PROFIT_REFILL', 'REFILL_COMPLETE', 'PROFIT_TO_WALLET', null],
+    default: null
+  },
+  profitToCredit: {
+    type: Number,
+    default: 0
+  },
+  profitToWallet: {
+    type: Number,
+    default: 0
+  },
+  deficitAfter: {
+    type: Number,
+    default: 0
   }
 }, { timestamps: true })
 

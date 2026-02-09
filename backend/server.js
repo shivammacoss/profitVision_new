@@ -261,6 +261,23 @@ io.on('connection', (socket) => {
     }
   })
 
+  // Subscribe to credit/refill updates for a user
+  socket.on('subscribeCreditUpdates', (data) => {
+    const { userId } = data
+    if (userId) {
+      socket.join(`user:${userId}`)
+      console.log(`Socket ${socket.id} subscribed to credit updates for user ${userId}`)
+    }
+  })
+
+  // Unsubscribe from credit updates
+  socket.on('unsubscribeCreditUpdates', (data) => {
+    const { userId } = data
+    if (userId) {
+      socket.leave(`user:${userId}`)
+    }
+  })
+
   socket.on('disconnect', () => {
     connectedClients.delete(socket.id)
     priceSubscribers.delete(socket.id)
@@ -270,6 +287,10 @@ io.on('connection', (socket) => {
 
 // Make io accessible to routes
 app.set('io', io)
+
+// Initialize copyTradingEngine with Socket.IO for real-time credit updates
+import copyTradingEngine from './services/copyTradingEngine.js'
+copyTradingEngine.setSocketIO(io)
 
 // Middleware
 app.use(cors({

@@ -12,6 +12,8 @@ import User from '../models/User.js'
 import Wallet from '../models/Wallet.js'
 import Transaction from '../models/Transaction.js'
 import copyTradingEngine from '../services/copyTradingEngine.js'
+import creditRefillService from '../services/creditRefillService.js'
+import CreditRefillLedger from '../models/CreditRefillLedger.js'
 
 const router = express.Router()
 
@@ -872,6 +874,92 @@ router.get('/refill-info/:subscriptionId', async (req, res) => {
   } catch (error) {
     console.error('Error fetching refill info:', error)
     res.status(500).json({ success: false, message: 'Error fetching info', error: error.message })
+  }
+})
+
+// ==================== CREDIT AUTO-REFILL ROUTES ====================
+
+// GET /api/copy/refill-status/:subscriptionId - Get auto-refill status for a subscription
+router.get('/refill-status/:subscriptionId', async (req, res) => {
+  try {
+    const { subscriptionId } = req.params
+    const { userId } = req.query
+
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'userId is required' })
+    }
+
+    // Verify subscription belongs to user
+    const subscription = await CopyFollower.findById(subscriptionId)
+    if (!subscription || subscription.followerId.toString() !== userId) {
+      return res.status(403).json({ success: false, message: 'Unauthorized' })
+    }
+
+    const status = await creditRefillService.getRefillStatus(subscriptionId)
+    
+    res.json({
+      success: true,
+      data: status
+    })
+  } catch (error) {
+    console.error('Error fetching refill status:', error)
+    res.status(500).json({ success: false, message: error.message })
+  }
+})
+
+// GET /api/copy/refill-history/:subscriptionId - Get refill transaction history
+router.get('/refill-history/:subscriptionId', async (req, res) => {
+  try {
+    const { subscriptionId } = req.params
+    const { userId, limit = 50 } = req.query
+
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'userId is required' })
+    }
+
+    // Verify subscription belongs to user
+    const subscription = await CopyFollower.findById(subscriptionId)
+    if (!subscription || subscription.followerId.toString() !== userId) {
+      return res.status(403).json({ success: false, message: 'Unauthorized' })
+    }
+
+    const history = await creditRefillService.getRefillHistory(subscriptionId, parseInt(limit))
+    
+    res.json({
+      success: true,
+      data: history
+    })
+  } catch (error) {
+    console.error('Error fetching refill history:', error)
+    res.status(500).json({ success: false, message: error.message })
+  }
+})
+
+// GET /api/copy/refill-summary/:subscriptionId - Get refill summary statistics
+router.get('/refill-summary/:subscriptionId', async (req, res) => {
+  try {
+    const { subscriptionId } = req.params
+    const { userId } = req.query
+
+    if (!userId) {
+      return res.status(400).json({ success: false, message: 'userId is required' })
+    }
+
+    // Verify subscription belongs to user
+    const subscription = await CopyFollower.findById(subscriptionId)
+    if (!subscription || subscription.followerId.toString() !== userId) {
+      return res.status(403).json({ success: false, message: 'Unauthorized' })
+    }
+
+    const summary = await CreditRefillLedger.getRefillSummary(subscriptionId)
+    
+    res.json({
+      success: true,
+      data: summary
+    })
+  } catch (error) {
+    console.error('Error fetching refill summary:', error)
+    res.status(500).json({ success: false, message: error.message })
   }
 })
 
