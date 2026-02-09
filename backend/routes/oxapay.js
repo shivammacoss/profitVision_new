@@ -890,6 +890,126 @@ router.get('/admin/payment-history/:trackId', authenticateSuperAdmin, async (req
 })
 
 /**
+ * POST /api/oxapay/admin/verify-payment/:trackId
+ * Manually verify a payment from OxaPay and create/update transaction
+ * Use this when webhook didn't arrive (e.g., callback URL misconfigured)
+ */
+router.post('/admin/verify-payment/:trackId', authenticateSuperAdmin, async (req, res) => {
+  try {
+    const { trackId } = req.params
+    const { userId } = req.body
+    
+    if (!trackId) {
+      return res.status(400).json({ success: false, message: 'Track ID is required' })
+    }
+    
+    // Check if transaction already exists
+    let transaction = await Transaction.findOne({ oxapayTrackId: trackId })
+    if (transaction) {
+      return res.json({
+        success: true,
+        message: 'Transaction already exists',
+        transaction,
+        alreadyExists: true
+      })
+    }
+    
+    // Fetch payment info from OxaPay
+    let paymentInfo
+    try {
+      paymentInfo = await oxapayService.getPaymentInfo(trackId)
+    } catch (e) {
+      return res.status(400).json({ success: false, message: `Could not fetch payment from OxaPay: ${e.message}` })
+    }
+    
+    const payment = paymentInfo.data
+    if (!payment) {
+      return res.status(404).json({ success: false, message: 'Payment not found in OxaPay' })
+    }
+    
+    // Check payment status
+    if (payment.status !== 'Paid') {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Payment status is "${payment.status}", not "Paid". Cannot verify.`,
+        oxapayStatus: payment.status
+      })
+    }
+    
+    // Extract userId from order_id or use provided userId
+    let targetUserId = userId
+    if (!targetUserId && payment.order_id) {
+      const parts = payment.order_id.split('-')
+      if (parts.length >= 3 && parts[0] === 'DEP') {
+        targetUserId = parts[1]
+      }
+    }
+    
+    if (!targetUserId) {
+      return res.status(400).json({ success: false, message: 'Could not determine user. Please provide userId in request body.' })
+    }
+    
+    const user = await User.findById(targetUserId)
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' })
+    }
+    
+    // Get or create wallet
+    let wallet = await Wallet.findOne({ userId: user._id })
+    if (!wallet) {
+      wallet = new Wallet({ userId: user._id, balance: 0 })
+      await wallet.save()
+    }
+    
+    const amount = parseFloat(payment.amount)
+    
+    // Create transaction as Auto-Verified (admin can then approve)
+    transaction = new Transaction({
+      userId: user._id,
+      walletId: wallet._id,
+      type: 'Deposit',
+      amount: amount,
+      paymentMethod: 'Crypto (OxaPay)',
+      transactionRef: trackId,
+      oxapayTrackId: trackId,
+      oxapayOrderId: payment.order_id,
+      cryptoCurrency: payment.currency,
+      cryptoNetwork: payment.network,
+      cryptoTxHash: payment.txs?.[0]?.tx_hash || null,
+      cryptoSenderAddress: payment.txs?.[0]?.address || null,
+      cryptoConfirmations: payment.txs?.[0]?.confirmations || 0,
+      status: 'Auto-Verified',
+      autoVerified: true,
+      autoVerifiedAt: new Date(),
+      adminRemarks: `Manually verified by admin. OxaPay status: ${payment.status}. TxHash: ${payment.txs?.[0]?.tx_hash || 'N/A'}`
+    })
+    await transaction.save()
+    
+    // Add to pending deposits
+    wallet.pendingDeposits = (wallet.pendingDeposits || 0) + amount
+    await wallet.save()
+    
+    console.log(`[OxaPay Admin] Manually verified payment: $${amount} for user ${user.email}, trackId: ${trackId}`)
+    
+    res.json({
+      success: true,
+      message: `Payment of $${amount} verified and transaction created. Admin can now approve to credit wallet.`,
+      transaction: {
+        _id: transaction._id,
+        amount: transaction.amount,
+        status: transaction.status,
+        userId: user._id,
+        userEmail: user.email
+      },
+      oxapayData: payment
+    })
+  } catch (error) {
+    console.error('[OxaPay Admin] Verify payment error:', error)
+    res.status(500).json({ success: false, message: error.message })
+  }
+})
+
+/**
  * GET /api/oxapay/admin/settings
  * Get crypto payment gateway settings
  */
