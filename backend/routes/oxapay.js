@@ -124,18 +124,29 @@ router.post('/create-deposit', async (req, res) => {
  * - Wallet credit depends on cryptoAutoCredit setting
  * - Admin can manually approve/reject Auto-Verified deposits
  */
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+router.post('/webhook', async (req, res) => {
   const ipAddress = req.headers['x-forwarded-for'] || req.socket.remoteAddress
   let webhookLog = null
   
   try {
-    const rawBody = req.body.toString()
+    // Handle both raw buffer and already-parsed JSON body
+    let rawBody, payload
+    if (Buffer.isBuffer(req.body)) {
+      rawBody = req.body.toString()
+      payload = JSON.parse(rawBody)
+    } else if (typeof req.body === 'string') {
+      rawBody = req.body
+      payload = JSON.parse(rawBody)
+    } else {
+      // Body is already parsed as object
+      payload = req.body
+      rawBody = JSON.stringify(payload)
+    }
+    
     const hmacHeader = req.headers['hmac']
 
     // Validate HMAC signature
     const hmacValid = oxapayService.validateWebhookSignature(rawBody, hmacHeader, 'payment')
-    
-    const payload = JSON.parse(rawBody)
     const { track_id, status, amount, order_id, currency, network, txs } = payload
 
     console.log(`[OxaPay Webhook] Received: trackId=${track_id}, status=${status}, amount=${amount}, orderId=${order_id}`)
