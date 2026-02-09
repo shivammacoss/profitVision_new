@@ -73,7 +73,7 @@ const transactionSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['Pending', 'Approved', 'Rejected', 'Completed'],
+    enum: ['Pending', 'Approved', 'Rejected', 'Completed', 'Auto-Verified', 'Confirming'],
     default: 'Pending'
   },
   adminRemarks: {
@@ -85,7 +85,66 @@ const transactionSchema = new mongoose.Schema({
   },
   processedBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    ref: 'Admin'
+  },
+  
+  // ========== CRYPTO DEPOSIT FIELDS (OxaPay) ==========
+  // OxaPay tracking
+  oxapayTrackId: {
+    type: String,
+    default: null,
+    index: true
+  },
+  oxapayOrderId: {
+    type: String,
+    default: null
+  },
+  
+  // Crypto payment details
+  cryptoCurrency: {
+    type: String,
+    default: null
+  },
+  cryptoNetwork: {
+    type: String,
+    default: null
+  },
+  cryptoTxHash: {
+    type: String,
+    default: null
+  },
+  cryptoSenderAddress: {
+    type: String,
+    default: null
+  },
+  cryptoConfirmations: {
+    type: Number,
+    default: 0
+  },
+  
+  // Verification tracking
+  autoVerified: {
+    type: Boolean,
+    default: false
+  },
+  autoVerifiedAt: {
+    type: Date,
+    default: null
+  },
+  walletCredited: {
+    type: Boolean,
+    default: false
+  },
+  walletCreditedAt: {
+    type: Date,
+    default: null
+  },
+  
+  // Webhook log reference
+  webhookLogId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'OxaPayWebhookLog',
+    default: null
   }
 }, { timestamps: true })
 
