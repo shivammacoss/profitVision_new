@@ -949,16 +949,19 @@ class CopyTradingEngine {
         const master = await MasterTrader.findById(group.masterId)
         if (!master) continue
 
-        // Commission is FIXED at 50% - master.approvedCommissionPercentage should always be 50
-        // If for some reason it's not set, default to 50%
-        const commissionPercentage = master.approvedCommissionPercentage || 50
-        // Admin share is 0% - all commission goes to master
-        const adminSharePercentage = master.adminSharePercentage || 0
+        // STRICTLY ENFORCED: Commission is FIXED at 50%
+        // Ignore any stored value - always use 50%
+        const commissionPercentage = 50
+        // STRICTLY ENFORCED: Admin share is ALWAYS 0%
+        // Admin does NOT take any share from master's commission
+        const adminSharePercentage = 0
 
         // Calculate commission: 50% of profit goes to master, 50% stays with follower
         const totalCommission = group.totalPnl * (commissionPercentage / 100)
-        const adminShare = totalCommission * (adminSharePercentage / 100) // Should be 0
-        const masterShare = totalCommission - adminShare // Should equal totalCommission
+        // Admin share is ALWAYS 0 - hardcoded, not calculated
+        const adminShare = 0
+        // Master gets 100% of the commission (which is 50% of profit)
+        const masterShare = totalCommission
 
         // Deduct from follower account
         const followerAccount = await TradingAccount.findById(group.followerAccountId)

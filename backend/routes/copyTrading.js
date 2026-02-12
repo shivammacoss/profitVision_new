@@ -66,13 +66,14 @@ router.post('/master/apply', async (req, res) => {
     })
     const minTradesMet = tradeCount >= settings.masterRequirements.minTotalTrades
 
-    // Create master application with FIXED 50% commission
+    // Create master application with FIXED 50% commission, 0% admin share
     const master = await MasterTrader.create({
       userId,
       tradingAccountId,
       displayName,
       description,
       requestedCommissionPercentage: FIXED_COMMISSION_PERCENTAGE,
+      adminSharePercentage: 0, // STRICTLY ENFORCED: Admin takes 0%
       minimumFollowerDeposit: minimumFollowerDeposit || 0,
       minimumEquityMet: minEquityMet,
       minimumTradesMet: minTradesMet,
@@ -201,20 +202,20 @@ router.get('/masters', async (req, res) => {
       .sort({ 'stats.totalFollowers': -1 })
       .lean()
 
-    // Add total commission (master + admin share) for display to users
+    // FIXED COMMISSION: 50% to master, 50% stays with follower, 0% to admin
+    // Admin does NOT take any share - this is strictly enforced
     const mastersWithTotalCommission = masters.map(master => {
-      const masterCommission = master.approvedCommissionPercentage || 0
-      const adminSharePercent = master.adminSharePercentage || 30
-      // Total commission user pays = master commission + (master commission * admin share / (100 - admin share))
-      // Example: master 10%, admin takes 30% of total → user pays ~14.3% total
-      // Simpler: if admin takes 30% of commission, master gets 70%, so total = master / 0.7
-      const totalCommission = adminSharePercent < 100 ? 
-        Math.round((masterCommission / (1 - adminSharePercent / 100)) * 10) / 10 : 
-        masterCommission
+      // Commission is FIXED at 50% regardless of stored value
+      const masterCommission = 50
+      // Admin share is ALWAYS 0%
+      const adminSharePercent = 0
+      // Total commission = master commission (since admin takes 0%)
+      const totalCommission = masterCommission
       return {
         ...master,
         totalCommissionPercentage: totalCommission,
-        masterCommissionPercentage: masterCommission
+        masterCommissionPercentage: masterCommission,
+        adminSharePercentage: 0 // Always 0
       }
     })
 
