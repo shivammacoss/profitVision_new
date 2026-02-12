@@ -5,6 +5,8 @@ import IBReferral from '../models/IBReferral.js'
 import IBSettings from '../models/IBSettings.js'
 import Trade from '../models/Trade.js'
 import User from '../models/User.js'
+import Wallet from '../models/Wallet.js'
+import Transaction from '../models/Transaction.js'
 
 class IBEngine {
   constructor() {
@@ -224,15 +226,35 @@ class IBEngine {
       }
     }
 
-    // Direct withdrawal
+    // Direct withdrawal - transfer to main wallet
     ibUser.ibWalletBalance -= amount
     ibUser.totalCommissionWithdrawn += amount
     await ibUser.save()
 
+    // Credit to user's main wallet
+    let wallet = await Wallet.findOne({ userId: ibUser.userId })
+    if (!wallet) {
+      wallet = new Wallet({ userId: ibUser.userId, balance: 0 })
+    }
+    wallet.balance += amount
+    await wallet.save()
+
+    // Create transaction record
+    await Transaction.create({
+      userId: ibUser.userId,
+      walletId: wallet._id,
+      type: 'Deposit',
+      amount: amount,
+      status: 'Approved',
+      paymentMethod: 'IB Commission',
+      adminRemarks: 'IB commission withdrawal to main wallet'
+    })
+
     return {
       status: 'COMPLETED',
       amount,
-      newBalance: ibUser.ibWalletBalance
+      newBalance: ibUser.ibWalletBalance,
+      walletBalance: wallet.balance
     }
   }
 
@@ -247,10 +269,30 @@ class IBEngine {
     ibUser.totalCommissionWithdrawn += amount
     await ibUser.save()
 
+    // Credit to user's main wallet
+    let wallet = await Wallet.findOne({ userId: ibUser.userId })
+    if (!wallet) {
+      wallet = new Wallet({ userId: ibUser.userId, balance: 0 })
+    }
+    wallet.balance += amount
+    await wallet.save()
+
+    // Create transaction record
+    await Transaction.create({
+      userId: ibUser.userId,
+      walletId: wallet._id,
+      type: 'Deposit',
+      amount: amount,
+      status: 'Approved',
+      paymentMethod: 'IB Commission',
+      adminRemarks: 'IB commission withdrawal approved by admin'
+    })
+
     return {
       status: 'APPROVED',
       amount,
-      newBalance: ibUser.ibWalletBalance
+      newBalance: ibUser.ibWalletBalance,
+      walletBalance: wallet.balance
     }
   }
 
