@@ -199,9 +199,13 @@ class IBEngine {
 
   // Process IB withdrawal
   async processWithdrawal(ibUserId, amount, adminApproval = false) {
-    const ibUser = await IBUser.findById(ibUserId)
+    console.log(`[IB Withdrawal] Starting withdrawal for IB user: ${ibUserId}, amount: $${amount}`)
+    
+    const ibUser = await IBUser.findById(ibUserId).populate('userId', 'email firstName')
     if (!ibUser) throw new Error('IB user not found')
     if (ibUser.status !== 'ACTIVE') throw new Error('IB account is not active')
+
+    console.log(`[IB Withdrawal] IB User: ${ibUser.userId?.email}, IB Balance: $${ibUser.ibWalletBalance}`)
 
     const settings = await IBSettings.getSettings()
     
@@ -215,6 +219,7 @@ class IBEngine {
 
     if (settings.commissionSettings.withdrawalApprovalRequired && !adminApproval) {
       // Add to pending withdrawal
+      console.log(`[IB Withdrawal] Withdrawal requires approval, adding to pending`)
       ibUser.pendingWithdrawal += amount
       ibUser.ibWalletBalance -= amount
       await ibUser.save()
@@ -227,21 +232,30 @@ class IBEngine {
     }
 
     // Direct withdrawal - transfer to main wallet
+    console.log(`[IB Withdrawal] Processing direct withdrawal to main wallet`)
+    
+    const previousIBBalance = ibUser.ibWalletBalance
     ibUser.ibWalletBalance -= amount
     ibUser.totalCommissionWithdrawn += amount
     await ibUser.save()
+    console.log(`[IB Withdrawal] IB balance updated: $${previousIBBalance} -> $${ibUser.ibWalletBalance}`)
 
     // Credit to user's main wallet
-    let wallet = await Wallet.findOne({ userId: ibUser.userId })
+    let wallet = await Wallet.findOne({ userId: ibUser.userId._id || ibUser.userId })
+    const previousWalletBalance = wallet?.balance || 0
+    
     if (!wallet) {
-      wallet = new Wallet({ userId: ibUser.userId, balance: 0 })
+      console.log(`[IB Withdrawal] Creating new wallet for user`)
+      wallet = new Wallet({ userId: ibUser.userId._id || ibUser.userId, balance: 0 })
     }
+    
     wallet.balance += amount
     await wallet.save()
+    console.log(`[IB Withdrawal] Wallet balance updated: $${previousWalletBalance} -> $${wallet.balance}`)
 
     // Create transaction record
-    await Transaction.create({
-      userId: ibUser.userId,
+    const transaction = await Transaction.create({
+      userId: ibUser.userId._id || ibUser.userId,
       walletId: wallet._id,
       type: 'Deposit',
       amount: amount,
@@ -249,6 +263,9 @@ class IBEngine {
       paymentMethod: 'IB Commission',
       adminRemarks: 'IB commission withdrawal to main wallet'
     })
+    console.log(`[IB Withdrawal] Transaction created: ${transaction._id}`)
+
+    console.log(`[IB Withdrawal] SUCCESS - $${amount} credited to wallet for user ${ibUser.userId?.email}`)
 
     return {
       status: 'COMPLETED',
@@ -260,26 +277,34 @@ class IBEngine {
 
   // Approve pending withdrawal
   async approveWithdrawal(ibUserId, adminId) {
-    const ibUser = await IBUser.findById(ibUserId)
+    console.log(`[IB Withdrawal] Admin approving withdrawal for IB user: ${ibUserId}`)
+    
+    const ibUser = await IBUser.findById(ibUserId).populate('userId', 'email firstName')
     if (!ibUser) throw new Error('IB user not found')
     if (ibUser.pendingWithdrawal <= 0) throw new Error('No pending withdrawal')
 
     const amount = ibUser.pendingWithdrawal
+    console.log(`[IB Withdrawal] Approving pending withdrawal of $${amount} for ${ibUser.userId?.email}`)
+    
     ibUser.pendingWithdrawal = 0
     ibUser.totalCommissionWithdrawn += amount
     await ibUser.save()
 
     // Credit to user's main wallet
-    let wallet = await Wallet.findOne({ userId: ibUser.userId })
+    let wallet = await Wallet.findOne({ userId: ibUser.userId._id || ibUser.userId })
+    const previousBalance = wallet?.balance || 0
+    
     if (!wallet) {
-      wallet = new Wallet({ userId: ibUser.userId, balance: 0 })
+      console.log(`[IB Withdrawal] Creating new wallet for user`)
+      wallet = new Wallet({ userId: ibUser.userId._id || ibUser.userId, balance: 0 })
     }
     wallet.balance += amount
     await wallet.save()
+    console.log(`[IB Withdrawal] Wallet balance updated: $${previousBalance} -> $${wallet.balance}`)
 
     // Create transaction record
-    await Transaction.create({
-      userId: ibUser.userId,
+    const transaction = await Transaction.create({
+      userId: ibUser.userId._id || ibUser.userId,
       walletId: wallet._id,
       type: 'Deposit',
       amount: amount,
@@ -287,6 +312,8 @@ class IBEngine {
       paymentMethod: 'IB Commission',
       adminRemarks: 'IB commission withdrawal approved by admin'
     })
+    console.log(`[IB Withdrawal] Transaction created: ${transaction._id}`)
+    console.log(`[IB Withdrawal] SUCCESS - $${amount} credited to wallet for user ${ibUser.userId?.email}`)
 
     return {
       status: 'APPROVED',
