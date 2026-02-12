@@ -277,10 +277,17 @@ router.post('/master/withdraw', async (req, res) => {
 router.get('/master/commissions/:masterId', async (req, res) => {
   try {
     const { masterId } = req.params
-    const { limit = 50, status } = req.query
+    const { limit = 50, status, startDate, endDate } = req.query
 
-    const query = { masterId }
+    const query = { masterId: new mongoose.Types.ObjectId(masterId) }
     if (status) query.status = status
+    
+    // Date range filtering
+    if (startDate || endDate) {
+      query.tradingDay = {}
+      if (startDate) query.tradingDay.$gte = startDate
+      if (endDate) query.tradingDay.$lte = endDate
+    }
 
     const commissions = await CopyCommission.find(query)
       .populate('followerUserId', 'firstName lastName email')
@@ -288,9 +295,9 @@ router.get('/master/commissions/:masterId', async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(parseInt(limit))
 
-    // Calculate totals
+    // Calculate totals with date filter
     const totals = await CopyCommission.aggregate([
-      { $match: { masterId: new mongoose.Types.ObjectId(masterId) } },
+      { $match: query },
       {
         $group: {
           _id: null,
@@ -318,6 +325,134 @@ router.get('/master/commissions/:masterId', async (req, res) => {
   } catch (error) {
     console.error('Error fetching master commissions:', error)
     res.status(500).json({ message: 'Error fetching commissions', error: error.message })
+  }
+})
+
+// GET /api/copy/master/commissions/:masterId/summary - Get user-wise commission summary
+router.get('/master/commissions/:masterId/summary', async (req, res) => {
+  try {
+    const { masterId } = req.params
+    const { startDate, endDate } = req.query
+
+    const matchQuery = { masterId: new mongoose.Types.ObjectId(masterId) }
+    if (startDate || endDate) {
+      matchQuery.tradingDay = {}
+      if (startDate) matchQuery.tradingDay.$gte = startDate
+      if (endDate) matchQuery.tradingDay.$lte = endDate
+    }
+
+    // Aggregate commission by follower user
+    const userSummary = await CopyCommission.aggregate([
+      { $match: matchQuery },
+      {
+        $group: {
+          _id: '$followerUserId',
+          totalProfit: { $sum: '$dailyProfit' },
+          totalCommission: { $sum: '$totalCommission' },
+          masterShare: { $sum: '$masterShare' },
+          adminShare: { $sum: '$adminShare' },
+          tradingDays: { $addToSet: '$tradingDay' },
+          lastTradingDay: { $max: '$tradingDay' },
+          firstTradingDay: { $min: '$tradingDay' },
+          recordCount: { $sum: 1 }
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'user'
+        }
+      },
+      { $unwind: '$user' },
+      {
+        $project: {
+          _id: 1,
+          userId: '$_id',
+          userName: { $concat: ['$user.firstName', ' ', { $ifNull: ['$user.lastName', ''] }] },
+          userEmail: '$user.email',
+          totalProfit: 1,
+          totalCommission: 1,
+          masterShare: 1,
+          adminShare: 1,
+          tradingDaysCount: { $size: '$tradingDays' },
+          lastTradingDay: 1,
+          firstTradingDay: 1,
+          recordCount: 1
+        }
+      },
+      { $sort: { masterShare: -1 } }
+    ])
+
+    // Overall totals
+    const overallTotals = await CopyCommission.aggregate([
+      { $match: matchQuery },
+      {
+        $group: {
+          _id: null,
+          totalProfit: { $sum: '$dailyProfit' },
+          totalCommission: { $sum: '$totalCommission' },
+          totalMasterShare: { $sum: '$masterShare' },
+          totalAdminShare: { $sum: '$adminShare' },
+          uniqueFollowers: { $addToSet: '$followerUserId' }
+        }
+      },
+      {
+        $project: {
+          totalProfit: 1,
+          totalCommission: 1,
+          totalMasterShare: 1,
+          totalAdminShare: 1,
+          followerCount: { $size: '$uniqueFollowers' }
+        }
+      }
+    ])
+
+    res.json({
+      success: true,
+      userSummary,
+      totals: overallTotals[0] || { totalProfit: 0, totalCommission: 0, totalMasterShare: 0, totalAdminShare: 0, followerCount: 0 }
+    })
+  } catch (error) {
+    console.error('Error fetching commission summary:', error)
+    res.status(500).json({ message: 'Error fetching commission summary', error: error.message })
+  }
+})
+
+// GET /api/copy/master/commissions/:masterId/export - Export commissions as CSV
+router.get('/master/commissions/:masterId/export', async (req, res) => {
+  try {
+    const { masterId } = req.params
+    const { startDate, endDate, format = 'csv' } = req.query
+
+    const matchQuery = { masterId: new mongoose.Types.ObjectId(masterId) }
+    if (startDate || endDate) {
+      matchQuery.tradingDay = {}
+      if (startDate) matchQuery.tradingDay.$gte = startDate
+      if (endDate) matchQuery.tradingDay.$lte = endDate
+    }
+
+    const commissions = await CopyCommission.find(matchQuery)
+      .populate('followerUserId', 'firstName lastName email')
+      .populate('followerAccountId', 'accountId')
+      .sort({ tradingDay: -1 })
+
+    // Generate CSV
+    const csvHeaders = 'Date,Follower Name,Follower Email,Account ID,Daily Profit,Commission Rate,Total Commission,Master Share,Admin Share,Status\n'
+    const csvRows = commissions.map(c => {
+      const followerName = `${c.followerUserId?.firstName || ''} ${c.followerUserId?.lastName || ''}`.trim()
+      return `${c.tradingDay},"${followerName}",${c.followerUserId?.email || ''},${c.followerAccountId?.accountId || ''},${c.dailyProfit?.toFixed(2)},${c.commissionPercentage}%,${c.totalCommission?.toFixed(2)},${c.masterShare?.toFixed(2)},${c.adminShare?.toFixed(2)},${c.status}`
+    }).join('\n')
+
+    const csvContent = csvHeaders + csvRows
+
+    res.setHeader('Content-Type', 'text/csv')
+    res.setHeader('Content-Disposition', `attachment; filename=commission_report_${masterId}_${new Date().toISOString().split('T')[0]}.csv`)
+    res.send(csvContent)
+  } catch (error) {
+    console.error('Error exporting commissions:', error)
+    res.status(500).json({ message: 'Error exporting commissions', error: error.message })
   }
 })
 
@@ -1245,18 +1380,26 @@ router.get('/admin/followers', async (req, res) => {
   }
 })
 
-// GET /api/copy/admin/commissions - Get commission records
+// GET /api/copy/admin/commissions - Get commission records with date filtering
 router.get('/admin/commissions', async (req, res) => {
   try {
-    const { status, tradingDay, limit = 100 } = req.query
+    const { status, tradingDay, startDate, endDate, masterId, limit = 100 } = req.query
 
     const query = {}
     if (status) query.status = status
     if (tradingDay) query.tradingDay = tradingDay
+    if (masterId) query.masterId = new mongoose.Types.ObjectId(masterId)
+    
+    // Date range filtering
+    if (startDate || endDate) {
+      query.tradingDay = query.tradingDay || {}
+      if (startDate) query.tradingDay.$gte = startDate
+      if (endDate) query.tradingDay.$lte = endDate
+    }
 
     const commissions = await CopyCommission.find(query)
       .populate('masterId', 'displayName')
-      .populate('followerUserId', 'firstName lastName')
+      .populate('followerUserId', 'firstName lastName email')
       .sort({ createdAt: -1 })
       .limit(parseInt(limit))
 
@@ -1268,17 +1411,162 @@ router.get('/admin/commissions', async (req, res) => {
           _id: null,
           totalCommission: { $sum: '$totalCommission' },
           totalAdminShare: { $sum: '$adminShare' },
-          totalMasterShare: { $sum: '$masterShare' }
+          totalMasterShare: { $sum: '$masterShare' },
+          totalDailyProfit: { $sum: '$dailyProfit' }
         }
       }
     ])
 
     res.json({ 
       commissions,
-      totals: totals[0] || { totalCommission: 0, totalAdminShare: 0, totalMasterShare: 0 }
+      totals: totals[0] || { totalCommission: 0, totalAdminShare: 0, totalMasterShare: 0, totalDailyProfit: 0 }
     })
   } catch (error) {
     res.status(500).json({ message: 'Error fetching commissions', error: error.message })
+  }
+})
+
+// GET /api/copy/admin/commissions/master-summary - Get master-wise commission breakdown
+router.get('/admin/commissions/master-summary', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query
+
+    const matchQuery = {}
+    if (startDate || endDate) {
+      matchQuery.tradingDay = {}
+      if (startDate) matchQuery.tradingDay.$gte = startDate
+      if (endDate) matchQuery.tradingDay.$lte = endDate
+    }
+
+    // Aggregate commission by master
+    const masterSummary = await CopyCommission.aggregate([
+      { $match: matchQuery },
+      {
+        $group: {
+          _id: '$masterId',
+          totalProfit: { $sum: '$dailyProfit' },
+          totalCommission: { $sum: '$totalCommission' },
+          masterShare: { $sum: '$masterShare' },
+          adminShare: { $sum: '$adminShare' },
+          uniqueFollowers: { $addToSet: '$followerUserId' },
+          tradingDays: { $addToSet: '$tradingDay' },
+          lastTradingDay: { $max: '$tradingDay' },
+          recordCount: { $sum: 1 }
+        }
+      },
+      {
+        $lookup: {
+          from: 'mastertraders',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'master'
+        }
+      },
+      { $unwind: '$master' },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'master.userId',
+          foreignField: '_id',
+          as: 'user'
+        }
+      },
+      { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 1,
+          masterId: '$_id',
+          displayName: '$master.displayName',
+          userName: { $concat: ['$user.firstName', ' ', { $ifNull: ['$user.lastName', ''] }] },
+          userEmail: '$user.email',
+          status: '$master.status',
+          totalProfit: 1,
+          totalCommission: 1,
+          masterShare: 1,
+          adminShare: 1,
+          followerCount: { $size: '$uniqueFollowers' },
+          tradingDaysCount: { $size: '$tradingDays' },
+          lastTradingDay: 1,
+          recordCount: 1,
+          pendingCommission: '$master.pendingCommission',
+          totalCommissionEarned: '$master.totalCommissionEarned',
+          totalCommissionWithdrawn: '$master.totalCommissionWithdrawn'
+        }
+      },
+      { $sort: { masterShare: -1 } }
+    ])
+
+    // Overall totals
+    const overallTotals = await CopyCommission.aggregate([
+      { $match: matchQuery },
+      {
+        $group: {
+          _id: null,
+          totalProfit: { $sum: '$dailyProfit' },
+          totalCommission: { $sum: '$totalCommission' },
+          totalMasterShare: { $sum: '$masterShare' },
+          totalAdminShare: { $sum: '$adminShare' },
+          uniqueMasters: { $addToSet: '$masterId' },
+          uniqueFollowers: { $addToSet: '$followerUserId' }
+        }
+      },
+      {
+        $project: {
+          totalProfit: 1,
+          totalCommission: 1,
+          totalMasterShare: 1,
+          totalAdminShare: 1,
+          masterCount: { $size: '$uniqueMasters' },
+          followerCount: { $size: '$uniqueFollowers' }
+        }
+      }
+    ])
+
+    res.json({
+      success: true,
+      masterSummary,
+      totals: overallTotals[0] || { totalProfit: 0, totalCommission: 0, totalMasterShare: 0, totalAdminShare: 0, masterCount: 0, followerCount: 0 }
+    })
+  } catch (error) {
+    console.error('Error fetching master commission summary:', error)
+    res.status(500).json({ message: 'Error fetching master commission summary', error: error.message })
+  }
+})
+
+// GET /api/copy/admin/commissions/export - Export all commissions as CSV (admin)
+router.get('/admin/commissions/export', async (req, res) => {
+  try {
+    const { startDate, endDate, masterId } = req.query
+
+    const matchQuery = {}
+    if (masterId) matchQuery.masterId = new mongoose.Types.ObjectId(masterId)
+    if (startDate || endDate) {
+      matchQuery.tradingDay = {}
+      if (startDate) matchQuery.tradingDay.$gte = startDate
+      if (endDate) matchQuery.tradingDay.$lte = endDate
+    }
+
+    const commissions = await CopyCommission.find(matchQuery)
+      .populate('masterId', 'displayName')
+      .populate('followerUserId', 'firstName lastName email')
+      .populate('followerAccountId', 'accountId')
+      .sort({ tradingDay: -1 })
+
+    // Generate CSV
+    const csvHeaders = 'Date,Master,Follower Name,Follower Email,Account ID,Daily Profit,Commission Rate,Total Commission,Master Share,Admin Share,Status\n'
+    const csvRows = commissions.map(c => {
+      const followerName = `${c.followerUserId?.firstName || ''} ${c.followerUserId?.lastName || ''}`.trim()
+      return `${c.tradingDay},"${c.masterId?.displayName || ''}","${followerName}",${c.followerUserId?.email || ''},${c.followerAccountId?.accountId || ''},${c.dailyProfit?.toFixed(2)},${c.commissionPercentage}%,${c.totalCommission?.toFixed(2)},${c.masterShare?.toFixed(2)},${c.adminShare?.toFixed(2)},${c.status}`
+    }).join('\n')
+
+    const csvContent = csvHeaders + csvRows
+
+    res.setHeader('Content-Type', 'text/csv')
+    res.setHeader('Content-Disposition', `attachment; filename=admin_commission_report_${new Date().toISOString().split('T')[0]}.csv`)
+    res.send(csvContent)
+  } catch (error) {
+    console.error('Error exporting admin commissions:', error)
+    res.status(500).json({ message: 'Error exporting commissions', error: error.message })
   }
 })
 

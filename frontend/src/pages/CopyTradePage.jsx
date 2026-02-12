@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { 
   LayoutDashboard, User, Wallet, Users, Copy, UserCircle, HelpCircle, FileText, LogOut,
   TrendingUp, Star, UserPlus, Pause, Play, X, Search, Filter, ChevronRight, Trophy, Crown, DollarSign,
-  ArrowLeft, Home, Sun, Moon
+  ArrowLeft, Home, Sun, Moon, Download, Calendar, BarChart3
 } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import logo from '../assets/logo.png'
@@ -22,6 +22,10 @@ const CopyTradePage = () => {
   const [myCommissions, setMyCommissions] = useState([])
   const [commissionTotals, setCommissionTotals] = useState(null)
   const [masterStats, setMasterStats] = useState(null)
+  const [userSummary, setUserSummary] = useState([])
+  const [summaryTotals, setSummaryTotals] = useState(null)
+  const [commissionView, setCommissionView] = useState('history') // 'history' or 'summary'
+  const [dateFilter, setDateFilter] = useState({ startDate: '', endDate: '' })
   const [loading, setLoading] = useState(true)
   const [showFollowModal, setShowFollowModal] = useState(false)
   const [selectedMaster, setSelectedMaster] = useState(null)
@@ -115,7 +119,13 @@ const CopyTradePage = () => {
   const fetchMyCommissions = async () => {
     if (!myMasterProfile?._id) return
     try {
-      const res = await fetch(`${API_URL}/copy/master/commissions/${myMasterProfile._id}`)
+      let url = `${API_URL}/copy/master/commissions/${myMasterProfile._id}`
+      const params = new URLSearchParams()
+      if (dateFilter.startDate) params.append('startDate', dateFilter.startDate)
+      if (dateFilter.endDate) params.append('endDate', dateFilter.endDate)
+      if (params.toString()) url += `?${params.toString()}`
+      
+      const res = await fetch(url)
       const data = await res.json()
       if (data.success) {
         setMyCommissions(data.commissions || [])
@@ -125,6 +135,41 @@ const CopyTradePage = () => {
     } catch (error) {
       console.error('Error fetching commissions:', error)
     }
+  }
+
+  const fetchUserSummary = async () => {
+    if (!myMasterProfile?._id) return
+    try {
+      let url = `${API_URL}/copy/master/commissions/${myMasterProfile._id}/summary`
+      const params = new URLSearchParams()
+      if (dateFilter.startDate) params.append('startDate', dateFilter.startDate)
+      if (dateFilter.endDate) params.append('endDate', dateFilter.endDate)
+      if (params.toString()) url += `?${params.toString()}`
+      
+      const res = await fetch(url)
+      const data = await res.json()
+      if (data.success) {
+        setUserSummary(data.userSummary || [])
+        setSummaryTotals(data.totals)
+      }
+    } catch (error) {
+      console.error('Error fetching user summary:', error)
+    }
+  }
+
+  const handleExportCSV = () => {
+    if (!myMasterProfile?._id) return
+    let url = `${API_URL}/copy/master/commissions/${myMasterProfile._id}/export`
+    const params = new URLSearchParams()
+    if (dateFilter.startDate) params.append('startDate', dateFilter.startDate)
+    if (dateFilter.endDate) params.append('endDate', dateFilter.endDate)
+    if (params.toString()) url += `?${params.toString()}`
+    window.open(url, '_blank')
+  }
+
+  const applyDateFilter = () => {
+    fetchMyCommissions()
+    fetchUserSummary()
   }
 
   const handleWithdrawCommission = async () => {
@@ -1112,7 +1157,114 @@ const CopyTradePage = () => {
                 </div>
               )}
 
+              {/* Date Filter & View Toggle */}
+              <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-4 border mb-6`}>
+                <div className={`flex ${isMobile ? 'flex-col gap-4' : 'items-center justify-between'}`}>
+                  <div className={`flex ${isMobile ? 'flex-col' : 'items-center'} gap-3`}>
+                    <div className="flex items-center gap-2">
+                      <Calendar size={16} className="text-gray-500" />
+                      <input
+                        type="date"
+                        value={dateFilter.startDate}
+                        onChange={(e) => setDateFilter({...dateFilter, startDate: e.target.value})}
+                        className={`${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-3 py-2 text-sm`}
+                      />
+                      <span className="text-gray-500">to</span>
+                      <input
+                        type="date"
+                        value={dateFilter.endDate}
+                        onChange={(e) => setDateFilter({...dateFilter, endDate: e.target.value})}
+                        className={`${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-3 py-2 text-sm`}
+                      />
+                      <button
+                        onClick={applyDateFilter}
+                        className="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-600"
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className={`flex ${isDarkMode ? 'bg-dark-700' : 'bg-gray-100'} rounded-lg p-1`}>
+                      <button
+                        onClick={() => setCommissionView('history')}
+                        className={`px-3 py-1.5 rounded text-sm ${commissionView === 'history' ? 'bg-purple-500 text-white' : 'text-gray-500'}`}
+                      >
+                        History
+                      </button>
+                      <button
+                        onClick={() => { setCommissionView('summary'); fetchUserSummary(); }}
+                        className={`px-3 py-1.5 rounded text-sm ${commissionView === 'summary' ? 'bg-purple-500 text-white' : 'text-gray-500'}`}
+                      >
+                        <BarChart3 size={14} className="inline mr-1" />
+                        Summary
+                      </button>
+                    </div>
+                    <button
+                      onClick={handleExportCSV}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm ${isDarkMode ? 'bg-dark-700 text-white hover:bg-dark-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                    >
+                      <Download size={16} />
+                      Export CSV
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* User-wise Summary View */}
+              {commissionView === 'summary' && (
+                <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl border mb-6`}>
+                  <div className={`px-5 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                    <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Commission by Follower</h3>
+                    <p className="text-gray-500 text-sm">Total commission earned from each follower</p>
+                  </div>
+                  
+                  {userSummary.length === 0 ? (
+                    <div className="text-center py-12">
+                      <BarChart3 size={48} className="mx-auto text-gray-600 mb-4" />
+                      <p className="text-gray-500">No commission data yet</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className={isDarkMode ? 'bg-dark-700' : 'bg-gray-50'}>
+                          <tr>
+                            <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Follower</th>
+                            <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Email</th>
+                            <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Total Profit</th>
+                            <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Your Commission</th>
+                            <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Trading Days</th>
+                            <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Last Active</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {userSummary.map(user => (
+                            <tr key={user._id} className={`border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+                              <td className={`px-4 py-3 text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{user.userName}</td>
+                              <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{user.userEmail}</td>
+                              <td className="px-4 py-3 text-sm text-accent-green font-medium">${user.totalProfit?.toFixed(2)}</td>
+                              <td className="px-4 py-3 text-sm text-purple-400 font-medium">${user.masterShare?.toFixed(2)}</td>
+                              <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{user.tradingDaysCount}</td>
+                              <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{user.lastTradingDay}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {summaryTotals && (
+                        <div className={`px-4 py-3 border-t ${isDarkMode ? 'border-gray-700 bg-dark-700' : 'border-gray-200 bg-gray-50'}`}>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-gray-500">Total from {summaryTotals.followerCount} followers:</span>
+                            <span className="text-purple-400 font-bold">${summaryTotals.totalMasterShare?.toFixed(2)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Commission History */}
+              {commissionView === 'history' && (
               <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl border`}>
                 <div className={`px-5 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
                   <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Commission History</h3>
@@ -1164,6 +1316,7 @@ const CopyTradePage = () => {
                   </div>
                 )}
               </div>
+              )}
 
               {/* Commission Info */}
               <div className={`mt-6 ${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-5 border`}>
