@@ -1017,4 +1017,107 @@ router.put('/admin/entry-fee-settings', async (req, res) => {
   }
 })
 
+// ==================== IB WITHDRAWAL ROUTES ====================
+
+// GET /api/ib/admin/pending-withdrawals - Get pending withdrawals
+router.get('/admin/pending-withdrawals', async (req, res) => {
+  try {
+    const ibs = await IBUser.find({ pendingWithdrawal: { $gt: 0 } })
+      .populate('userId', 'firstName lastName email')
+      .sort({ updatedAt: -1 })
+
+    res.json({ withdrawals: ibs })
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching pending withdrawals', error: error.message })
+  }
+})
+
+// PUT /api/ib/admin/approve-withdrawal/:id - Approve withdrawal
+router.put('/admin/approve-withdrawal/:id', async (req, res) => {
+  try {
+    const { adminId } = req.body
+    const ibUser = await IBUser.findById(req.params.id).populate('userId', 'email firstName')
+    
+    if (!ibUser) {
+      return res.status(404).json({ message: 'IB user not found' })
+    }
+    
+    if (ibUser.pendingWithdrawal <= 0) {
+      return res.status(400).json({ message: 'No pending withdrawal' })
+    }
+
+    const amount = ibUser.pendingWithdrawal
+    
+    // Reset pending and add to withdrawn
+    ibUser.pendingWithdrawal = 0
+    ibUser.totalCommissionWithdrawn += amount
+    await ibUser.save()
+
+    // Credit to user's main wallet
+    const Wallet = (await import('../models/Wallet.js')).default
+    const Transaction = (await import('../models/Transaction.js')).default
+    
+    let wallet = await Wallet.findOne({ userId: ibUser.userId._id || ibUser.userId })
+    if (!wallet) {
+      wallet = new Wallet({ userId: ibUser.userId._id || ibUser.userId, balance: 0 })
+    }
+    
+    wallet.balance += amount
+    await wallet.save()
+
+    // Create transaction record
+    await Transaction.create({
+      userId: ibUser.userId._id || ibUser.userId,
+      walletId: wallet._id,
+      type: 'Deposit',
+      amount: amount,
+      status: 'Approved',
+      paymentMethod: 'IB Commission',
+      adminRemarks: `IB withdrawal approved by admin`
+    })
+
+    res.json({ 
+      message: 'Withdrawal approved', 
+      amount,
+      newBalance: ibUser.ibWalletBalance,
+      walletBalance: wallet.balance
+    })
+  } catch (error) {
+    console.error('Error approving withdrawal:', error)
+    res.status(500).json({ message: 'Error approving withdrawal', error: error.message })
+  }
+})
+
+// PUT /api/ib/admin/reject-withdrawal/:id - Reject withdrawal
+router.put('/admin/reject-withdrawal/:id', async (req, res) => {
+  try {
+    const { reason } = req.body
+    const ibUser = await IBUser.findById(req.params.id).populate('userId', 'email firstName')
+    
+    if (!ibUser) {
+      return res.status(404).json({ message: 'IB user not found' })
+    }
+    
+    if (ibUser.pendingWithdrawal <= 0) {
+      return res.status(400).json({ message: 'No pending withdrawal' })
+    }
+
+    const amount = ibUser.pendingWithdrawal
+    
+    // Return to IB wallet balance
+    ibUser.ibWalletBalance += amount
+    ibUser.pendingWithdrawal = 0
+    await ibUser.save()
+
+    res.json({ 
+      message: 'Withdrawal rejected and returned to IB wallet', 
+      amount,
+      newBalance: ibUser.ibWalletBalance
+    })
+  } catch (error) {
+    console.error('Error rejecting withdrawal:', error)
+    res.status(500).json({ message: 'Error rejecting withdrawal', error: error.message })
+  }
+})
+
 export default router
