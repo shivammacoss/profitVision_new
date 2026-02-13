@@ -47,6 +47,10 @@ const AdminIBManagement = () => {
   const [targetIB, setTargetIB] = useState('')
   const [transferLoading, setTransferLoading] = useState(false)
   const [userSearchTerm, setUserSearchTerm] = useState('')
+  
+  // Withdrawal Requests states
+  const [pendingWithdrawals, setPendingWithdrawals] = useState([])
+  const [withdrawalLoading, setWithdrawalLoading] = useState(false)
 
   useEffect(() => {
     fetchDashboard()
@@ -55,6 +59,7 @@ const AdminIBManagement = () => {
     fetchAllUsers()
     fetchReferralPlans()
     fetchEntryFeeSettings()
+    fetchPendingWithdrawals()
   }, [])
 
   const fetchEntryFeeSettings = async () => {
@@ -214,6 +219,68 @@ const AdminIBManagement = () => {
     } catch (error) {
       console.error('Error blocking IB:', error)
     }
+  }
+
+  // Fetch pending IB withdrawals
+  const fetchPendingWithdrawals = async () => {
+    try {
+      const res = await fetch(`${API_URL}/ib/admin/pending-withdrawals`)
+      const data = await res.json()
+      setPendingWithdrawals(data.withdrawals || [])
+    } catch (error) {
+      console.error('Error fetching pending withdrawals:', error)
+    }
+  }
+
+  // Approve IB withdrawal
+  const handleApproveWithdrawal = async (ibId) => {
+    if (!confirm('Approve this withdrawal request? Amount will be credited to user\'s main wallet.')) return
+    setWithdrawalLoading(true)
+    try {
+      const res = await fetch(`${API_URL}/ib/admin/approve-withdrawal/${ibId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminId: 'admin' })
+      })
+      const data = await res.json()
+      if (data.message) {
+        setMessage({ type: 'success', text: data.message })
+        fetchPendingWithdrawals()
+        fetchDashboard()
+      } else {
+        setMessage({ type: 'error', text: data.message || 'Failed to approve withdrawal' })
+      }
+    } catch (error) {
+      console.error('Error approving withdrawal:', error)
+      setMessage({ type: 'error', text: 'Error approving withdrawal' })
+    }
+    setWithdrawalLoading(false)
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000)
+  }
+
+  // Reject IB withdrawal
+  const handleRejectWithdrawal = async (ibId) => {
+    if (!confirm('Reject this withdrawal request? Amount will be returned to IB wallet.')) return
+    setWithdrawalLoading(true)
+    try {
+      const res = await fetch(`${API_URL}/ib/admin/reject-withdrawal/${ibId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminId: 'admin' })
+      })
+      const data = await res.json()
+      if (data.message) {
+        setMessage({ type: 'success', text: data.message })
+        fetchPendingWithdrawals()
+      } else {
+        setMessage({ type: 'error', text: data.message || 'Failed to reject withdrawal' })
+      }
+    } catch (error) {
+      console.error('Error rejecting withdrawal:', error)
+      setMessage({ type: 'error', text: 'Error rejecting withdrawal' })
+    }
+    setWithdrawalLoading(false)
+    setTimeout(() => setMessage({ type: '', text: '' }), 3000)
   }
 
   const handleTransferReferrals = async () => {
@@ -412,6 +479,7 @@ const AdminIBManagement = () => {
         {[
           { id: 'ibs', label: 'Active IBs', count: dashboard?.ibs?.active },
           { id: 'applications', label: 'Applications', count: applications.length },
+          { id: 'withdrawals', label: 'Withdrawal Requests', count: pendingWithdrawals.length, icon: DollarSign },
           { id: 'settings', label: 'Entry Fee Settings', icon: Settings },
           { id: 'referral-income', label: 'Referral Income Plan', icon: Layers },
           { id: 'joining-income', label: 'Direct Joining Plan', icon: DollarSign },
@@ -567,6 +635,78 @@ const AdminIBManagement = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Withdrawal Requests Tab */}
+      {activeTab === 'withdrawals' && (
+        <div className="bg-dark-800 rounded-xl border border-gray-800 overflow-hidden">
+          <div className="p-4 border-b border-gray-800 flex items-center justify-between">
+            <h2 className="text-white font-semibold">Pending Withdrawal Requests</h2>
+            <button
+              onClick={fetchPendingWithdrawals}
+              className="flex items-center gap-2 px-3 py-1.5 bg-dark-700 text-gray-400 rounded-lg hover:text-white text-sm"
+            >
+              <RefreshCw size={14} /> Refresh
+            </button>
+          </div>
+
+          {pendingWithdrawals.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">No pending withdrawal requests</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-dark-700">
+                  <tr>
+                    <th className="text-left text-gray-400 text-sm font-medium p-4">IB User</th>
+                    <th className="text-left text-gray-400 text-sm font-medium p-4">Email</th>
+                    <th className="text-right text-gray-400 text-sm font-medium p-4">Amount</th>
+                    <th className="text-right text-gray-400 text-sm font-medium p-4">IB Balance</th>
+                    <th className="text-center text-gray-400 text-sm font-medium p-4">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {pendingWithdrawals.map((ib) => (
+                    <tr key={ib._id} className="hover:bg-dark-700/50">
+                      <td className="p-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-yellow-500/20 rounded-full flex items-center justify-center">
+                            <span className="text-yellow-500 font-medium">{ib.userId?.firstName?.charAt(0) || 'I'}</span>
+                          </div>
+                          <span className="text-white font-medium">
+                            {ib.userId?.firstName} {ib.userId?.lastName}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="p-4 text-gray-400">{ib.userId?.email}</td>
+                      <td className="p-4 text-right">
+                        <span className="text-yellow-500 font-semibold">${ib.pendingWithdrawal?.toFixed(2)}</span>
+                      </td>
+                      <td className="p-4 text-right text-gray-400">${ib.ibWalletBalance?.toFixed(2)}</td>
+                      <td className="p-4">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => handleApproveWithdrawal(ib._id)}
+                            disabled={withdrawalLoading}
+                            className="flex items-center gap-1 px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 text-sm disabled:opacity-50"
+                          >
+                            <Check size={16} /> Approve
+                          </button>
+                          <button
+                            onClick={() => handleRejectWithdrawal(ib._id)}
+                            disabled={withdrawalLoading}
+                            className="flex items-center gap-1 px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm disabled:opacity-50"
+                          >
+                            <X size={16} /> Reject
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
