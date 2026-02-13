@@ -346,19 +346,6 @@ router.post('/webhook', async (req, res) => {
           await wallet.save()
           
           console.log(`[OxaPay Webhook] Deposit AUTO-CREDITED: ${user.email}, $${amountNum}`)
-          
-          // Process Direct Referral Income (one-time on first deposit)
-          setImmediate(async () => {
-            try {
-              const directReferralEngine = (await import('../services/directReferralEngine.js')).default
-              const result = await directReferralEngine.processNewUserActivation(user._id, 'FIRST_DEPOSIT')
-              if (result.processed) {
-                console.log(`[OxaPay Webhook] Direct referral income distributed: $${result.totalDistributed} for user ${user.email}`)
-              }
-            } catch (refError) {
-              console.error('[OxaPay Webhook] Error processing direct referral:', refError)
-            }
-          })
         }
 
         await transaction.save()
@@ -760,19 +747,6 @@ router.post('/admin/approve-crypto-deposit/:transactionId', authenticateSuperAdm
     await transaction.save()
     
     console.log(`[OxaPay Admin] Crypto deposit approved: $${transaction.amount} for user ${transaction.userId}`)
-    
-    // Process Direct Referral Income (one-time on first deposit)
-    setImmediate(async () => {
-      try {
-        const directReferralEngine = (await import('../services/directReferralEngine.js')).default
-        const result = await directReferralEngine.processNewUserActivation(transaction.userId, 'FIRST_DEPOSIT')
-        if (result.processed) {
-          console.log(`[OxaPay Admin] Direct referral income distributed: $${result.totalDistributed} for user ${transaction.userId}`)
-        }
-      } catch (refError) {
-        console.error('[OxaPay Admin] Error processing direct referral:', refError)
-      }
-    })
     
     res.json({
       success: true,

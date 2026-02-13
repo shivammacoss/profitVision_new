@@ -345,23 +345,9 @@ router.post('/close', async (req, res) => {
     // Do NOT call closeFollowerTrades here to avoid duplicate processing
     setImmediate(async () => {
       try {
-        // Check IB mode settings
-        const IBModeSettings = (await import('../models/IBModeSettings.js')).default
-        const ibModeSettings = await IBModeSettings.getSettings()
-        
-        if (ibModeSettings.isMonthlyMode()) {
-          // MONTHLY_CONTROLLED mode: Record trade volume for month-end batch processing
-          const monthlyIBEngine = (await import('../services/monthlyIBEngine.js')).default
-          const monthlyResult = await monthlyIBEngine.recordTradeVolume(result.trade)
-          if (monthlyResult.processed) {
-            console.log(`[Background] Monthly IB: Recorded ${result.trade.quantity} lots for user ${result.trade.userId}`)
-          }
-        } else {
-          // REALTIME mode: Process IB commission immediately (legacy)
-          const ibResult = await ibEngine.processTradeCommission(result.trade)
-          if (ibResult.processed) {
-            console.log(`[Background] IB commission processed: ${ibResult.commissions?.length || 0} IBs credited`)
-          }
+        const ibResult = await ibEngine.processTradeCommission(result.trade)
+        if (ibResult.processed) {
+          console.log(`[Background] IB commission processed: ${ibResult.commissions?.length || 0} IBs credited`)
         }
       } catch (ibError) {
         console.error('[Background] Error processing IB:', ibError)
