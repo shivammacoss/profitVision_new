@@ -4,6 +4,7 @@ import IBPlan from '../models/IBPlanNew.js'
 import IBCommission from '../models/IBCommissionNew.js'
 import IBWallet from '../models/IBWallet.js'
 import IBLevel from '../models/IBLevel.js'
+import IBUser from '../models/IBUser.js'
 import ibEngine from '../services/ibEngineNew.js'
 import mongoose from 'mongoose'
 
