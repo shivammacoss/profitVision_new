@@ -945,9 +945,9 @@ const CopyTradePage = () => {
                         <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Lots</th>
                         <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Open Price</th>
                         <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Close Price</th>
-                        <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Raw P/L</th>
-                        <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Commission</th>
-                        <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Net P/L</th>
+                        <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Total P/L</th>
+                        <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Master Share</th>
+                        <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Your Share</th>
                         <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Status</th>
                       </tr>
                     </thead>
@@ -964,7 +964,7 @@ const CopyTradePage = () => {
                             ${(trade.rawPnl || 0).toFixed(2)}
                           </td>
                           <td className="px-4 py-3 text-sm text-yellow-500">
-                            {(trade.masterPnl || 0) > 0 ? `-$${(trade.masterPnl || 0).toFixed(2)}` : '$0.00'}
+                            {(trade.masterPnl || 0) > 0 ? `$${(trade.masterPnl || 0).toFixed(2)}` : '-'}
                           </td>
                           <td className={`px-4 py-3 text-sm font-medium ${(trade.followerPnl || 0) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                             ${(trade.followerPnl || 0).toFixed(2)}
