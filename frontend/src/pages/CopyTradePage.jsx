@@ -1159,42 +1159,44 @@ const CopyTradePage = () => {
 
               {/* Date Filter & View Toggle */}
               <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-4 border mb-6`}>
-                <div className={`flex ${isMobile ? 'flex-col gap-4' : 'items-center justify-between'}`}>
-                  <div className={`flex ${isMobile ? 'flex-col' : 'items-center'} gap-3`}>
-                    <div className="flex items-center gap-2">
-                      <Calendar size={16} className="text-gray-500" />
+                <div className="flex flex-col gap-4">
+                  {/* Date Filter Row */}
+                  <div className={`flex ${isMobile ? 'flex-col' : 'flex-row items-center'} gap-2`}>
+                    <div className={`flex ${isMobile ? 'flex-wrap' : ''} items-center gap-2`}>
+                      <Calendar size={16} className="text-gray-500 flex-shrink-0" />
                       <input
                         type="date"
                         value={dateFilter.startDate}
                         onChange={(e) => setDateFilter({...dateFilter, startDate: e.target.value})}
-                        className={`${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-3 py-2 text-sm`}
+                        className={`${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-2 py-2 text-sm ${isMobile ? 'flex-1 min-w-[120px]' : ''}`}
                       />
-                      <span className="text-gray-500">to</span>
+                      <span className="text-gray-500 text-sm">to</span>
                       <input
                         type="date"
                         value={dateFilter.endDate}
                         onChange={(e) => setDateFilter({...dateFilter, endDate: e.target.value})}
-                        className={`${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-3 py-2 text-sm`}
+                        className={`${isDarkMode ? 'bg-dark-700 border-gray-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-900'} border rounded-lg px-2 py-2 text-sm ${isMobile ? 'flex-1 min-w-[120px]' : ''}`}
                       />
-                      <button
-                        onClick={applyDateFilter}
-                        className="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-600"
-                      >
-                        Apply
-                      </button>
                     </div>
+                    <button
+                      onClick={applyDateFilter}
+                      className={`bg-blue-500 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-600 ${isMobile ? 'w-full' : ''}`}
+                    >
+                      Apply
+                    </button>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className={`flex ${isDarkMode ? 'bg-dark-700' : 'bg-gray-100'} rounded-lg p-1`}>
+                  {/* View Toggle Row */}
+                  <div className={`flex ${isMobile ? 'flex-col' : 'flex-row items-center justify-between'} gap-2`}>
+                    <div className={`flex ${isDarkMode ? 'bg-dark-700' : 'bg-gray-100'} rounded-lg p-1 ${isMobile ? 'w-full' : ''}`}>
                       <button
                         onClick={() => setCommissionView('history')}
-                        className={`px-3 py-1.5 rounded text-sm ${commissionView === 'history' ? 'bg-purple-500 text-white' : 'text-gray-500'}`}
+                        className={`flex-1 px-3 py-1.5 rounded text-sm ${commissionView === 'history' ? 'bg-purple-500 text-white' : 'text-gray-500'}`}
                       >
                         History
                       </button>
                       <button
                         onClick={() => { setCommissionView('summary'); fetchUserSummary(); }}
-                        className={`px-3 py-1.5 rounded text-sm ${commissionView === 'summary' ? 'bg-purple-500 text-white' : 'text-gray-500'}`}
+                        className={`flex-1 px-3 py-1.5 rounded text-sm ${commissionView === 'summary' ? 'bg-purple-500 text-white' : 'text-gray-500'}`}
                       >
                         <BarChart3 size={14} className="inline mr-1" />
                         Summary
@@ -1202,7 +1204,7 @@ const CopyTradePage = () => {
                     </div>
                     <button
                       onClick={handleExportCSV}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm ${isDarkMode ? 'bg-dark-700 text-white hover:bg-dark-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+                      className={`flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm ${isDarkMode ? 'bg-dark-700 text-white hover:bg-dark-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'} ${isMobile ? 'w-full' : ''}`}
                     >
                       <Download size={16} />
                       Export CSV
@@ -1268,14 +1270,50 @@ const CopyTradePage = () => {
               <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl border`}>
                 <div className={`px-5 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
                   <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Commission History</h3>
-                  <p className="text-gray-500 text-sm">Daily profit share from your followers</p>
+                  <p className="text-gray-500 text-sm">Profit share from your followers' trades</p>
                 </div>
                 
                 {myCommissions.length === 0 ? (
                   <div className="text-center py-12">
                     <DollarSign size={48} className="mx-auto text-gray-600 mb-4" />
                     <p className="text-gray-500">No commission records yet</p>
-                    <p className="text-gray-600 text-sm mt-2">Commission is calculated daily from followers' profits</p>
+                    <p className="text-gray-600 text-sm mt-2">Commission is recorded when followers close profitable trades</p>
+                  </div>
+                ) : isMobile ? (
+                  <div className="p-4 space-y-3">
+                    {myCommissions.map(comm => (
+                      <div key={comm._id} className={`${isDarkMode ? 'bg-dark-700' : 'bg-gray-50'} rounded-lg p-4`}>
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <p className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                              {comm.followerUserId?.firstName || 'User'} {comm.followerUserId?.lastName || ''}
+                            </p>
+                            <p className="text-gray-500 text-xs">{comm.tradingDay}</p>
+                          </div>
+                          <span className={`px-2 py-1 rounded text-xs ${
+                            comm.status === 'DEDUCTED' ? 'bg-green-500/20 text-green-500' :
+                            comm.status === 'SETTLED' ? 'bg-blue-500/20 text-blue-500' :
+                            comm.status === 'FAILED' ? 'bg-red-500/20 text-red-500' : 'bg-yellow-500/20 text-yellow-500'
+                          }`}>
+                            {comm.status}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-sm">
+                          <div>
+                            <p className="text-gray-500 text-xs">Trade P/L</p>
+                            <p className="text-green-500 font-medium">${comm.dailyProfit?.toFixed(2)}</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500 text-xs">Rate</p>
+                            <p className={isDarkMode ? 'text-gray-300' : 'text-gray-700'}>{comm.commissionPercentage}%</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500 text-xs">Your Share</p>
+                            <p className="text-purple-400 font-medium">${comm.masterShare?.toFixed(2)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
@@ -1284,7 +1322,7 @@ const CopyTradePage = () => {
                         <tr>
                           <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Date</th>
                           <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Follower</th>
-                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Daily Profit</th>
+                          <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Trade P/L</th>
                           <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Rate</th>
                           <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Your Share</th>
                           <th className={`text-left text-xs font-medium px-4 py-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Status</th>
@@ -1297,13 +1335,13 @@ const CopyTradePage = () => {
                             <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
                               {comm.followerUserId?.firstName || 'User'} {comm.followerUserId?.lastName || ''}
                             </td>
-                            <td className="px-4 py-3 text-sm text-accent-green font-medium">${comm.dailyProfit?.toFixed(2)}</td>
+                            <td className="px-4 py-3 text-sm text-green-500 font-medium">${comm.dailyProfit?.toFixed(2)}</td>
                             <td className={`px-4 py-3 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{comm.commissionPercentage}%</td>
                             <td className="px-4 py-3 text-sm text-purple-400 font-medium">${comm.masterShare?.toFixed(2)}</td>
                             <td className="px-4 py-3">
                               <span className={`px-2 py-1 rounded text-xs ${
                                 comm.status === 'DEDUCTED' ? 'bg-green-500/20 text-green-500' :
-                                comm.status === 'SETTLED' ? 'bg-red-500/20 text-blue-500' :
+                                comm.status === 'SETTLED' ? 'bg-blue-500/20 text-blue-500' :
                                 comm.status === 'FAILED' ? 'bg-red-500/20 text-red-500' : 'bg-yellow-500/20 text-yellow-500'
                               }`}>
                                 {comm.status}
