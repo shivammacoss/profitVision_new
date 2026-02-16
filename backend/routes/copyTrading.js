@@ -1717,4 +1717,70 @@ router.get('/admin/dashboard', async (req, res) => {
   }
 })
 
+// POST /api/copy/admin/backfill-commissions - Backfill commission records from existing CopyTrade data
+router.post('/admin/backfill-commissions', async (req, res) => {
+  try {
+    // Find all closed copy trades with masterPnl > 0 that don't have commission records
+    const closedTrades = await CopyTrade.find({
+      status: 'CLOSED',
+      masterPnl: { $gt: 0 }
+    }).populate('masterId', 'approvedCommissionPercentage')
+
+    let created = 0
+    let skipped = 0
+    let errors = 0
+
+    for (const trade of closedTrades) {
+      try {
+        // Check if commission record already exists for this trade
+        const existing = await CopyCommission.findOne({ tradeId: trade._id })
+        if (existing) {
+          skipped++
+          continue
+        }
+
+        // Create commission record
+        const tradingDay = trade.closedAt ? new Date(trade.closedAt).toISOString().split('T')[0] : new Date(trade.updatedAt).toISOString().split('T')[0]
+        
+        await CopyCommission.create({
+          masterId: trade.masterId._id || trade.masterId,
+          followerId: trade.followerId,
+          followerUserId: trade.followerUserId,
+          followerAccountId: trade.followerAccountId,
+          tradingDay: tradingDay,
+          dailyProfit: trade.rawPnl || 0,
+          commissionPercentage: trade.masterId?.approvedCommissionPercentage || 50,
+          totalCommission: trade.masterPnl || 0,
+          adminShare: 0,
+          masterShare: trade.masterPnl || 0,
+          adminSharePercentage: 0,
+          status: 'DEDUCTED',
+          deductedAt: trade.closedAt || trade.updatedAt,
+          tradeId: trade._id
+        })
+        created++
+      } catch (err) {
+        // Skip duplicate key errors
+        if (err.code !== 11000) {
+          console.error(`Error creating commission for trade ${trade._id}:`, err.message)
+          errors++
+        } else {
+          skipped++
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      message: 'Commission records backfilled',
+      totalTrades: closedTrades.length,
+      created,
+      skipped,
+      errors
+    })
+  } catch (error) {
+    res.status(500).json({ message: 'Error backfilling commissions', error: error.message })
+  }
+})
+
 export default router
