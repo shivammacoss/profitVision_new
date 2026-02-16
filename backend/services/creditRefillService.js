@@ -83,14 +83,76 @@ class CreditRefillService {
   }
 
   /**
-   * Handle loss - deduct from credit and track deficit
+   * Handle loss - deduct from credit, auto-refill from wallet if below minimum
    */
   async _handleLoss(params) {
     const { follower, account, userId, masterId, lossAmount, minimumCredit,
             creditBefore, deficitBefore, tradeId, copyTradeId, metadata } = params
 
-    const creditAfter = Math.max(0, creditBefore - lossAmount)
+    let creditAfter = Math.max(0, creditBefore - lossAmount)
     const actualDeduction = creditBefore - creditAfter
+    let walletRefillAmount = 0
+    let walletDeducted = false
+
+    // Record the loss in ledger first
+    await CreditLedger.create({
+      userId, tradingAccountId: account._id, type: 'TRADE_LOSS',
+      amount: -actualDeduction, balanceAfter: creditAfter,
+      tradeId, copyTradeId, masterId,
+      description: `Copy trade loss: -$${actualDeduction.toFixed(2)}`,
+      metadata: { ...metadata, pnl: -lossAmount, minimumCredit }
+    })
+
+    // AUTO-REFILL FROM WALLET: If credit drops below minimum, try to refill from wallet
+    if (creditAfter < minimumCredit) {
+      const deficit = minimumCredit - creditAfter
+      const wallet = await Wallet.findOne({ userId })
+      const walletBalance = wallet?.balance || 0
+
+      if (walletBalance > 0) {
+        // Refill as much as possible from wallet (up to deficit or wallet balance)
+        walletRefillAmount = Math.min(deficit, walletBalance)
+        
+        // Deduct from wallet
+        await Wallet.findOneAndUpdate(
+          { userId },
+          { $inc: { balance: -walletRefillAmount } }
+        )
+        
+        // Add to credit
+        creditAfter += walletRefillAmount
+        walletDeducted = true
+
+        console.log(`[CreditRefill] Auto-refill from wallet: $${walletRefillAmount.toFixed(2)}`)
+
+        // Record wallet refill in credit ledger
+        await CreditLedger.create({
+          userId, tradingAccountId: account._id, type: 'WALLET_AUTO_REFILL',
+          amount: walletRefillAmount, balanceAfter: creditAfter,
+          tradeId, copyTradeId, masterId,
+          description: `Auto-refill from wallet: +$${walletRefillAmount.toFixed(2)}`,
+          metadata: { ...metadata, walletBalanceBefore: walletBalance, walletBalanceAfter: walletBalance - walletRefillAmount, minimumCredit }
+        })
+
+        // Record in Transaction history for user visibility
+        const Transaction = (await import('../models/Transaction.js')).default
+        await Transaction.create({
+          userId,
+          type: 'COPY_CREDIT_REFILL',
+          amount: walletRefillAmount,
+          status: 'APPROVED',
+          description: `Auto credit refill from wallet for copy trading`,
+          metadata: {
+            tradingAccountId: account._id,
+            creditBefore: creditAfter - walletRefillAmount,
+            creditAfter: creditAfter,
+            walletDeducted: walletRefillAmount,
+            reason: 'Credit below minimum after trade loss'
+          }
+        })
+      }
+    }
+
     const deficitAfter = Math.max(0, minimumCredit - creditAfter)
     const isRefillMode = deficitAfter > 0
 
@@ -100,16 +162,7 @@ class CreditRefillService {
       $set: { currentCredit: creditAfter, creditDeficit: deficitAfter, isRefillMode }
     })
 
-    // Record in ledger
-    await CreditLedger.create({
-      userId, tradingAccountId: account._id, type: 'TRADE_LOSS',
-      amount: -actualDeduction, balanceAfter: creditAfter,
-      tradeId, copyTradeId, masterId,
-      description: `Copy trade loss: -$${actualDeduction.toFixed(2)}`,
-      metadata: { ...metadata, pnl: -lossAmount, minimumCredit }
-    })
-
-    if (deficitAfter > deficitBefore) {
+    if (deficitAfter > deficitBefore && !walletDeducted) {
       await CreditRefillLedger.recordDeficitCreated({
         userId, tradingAccountId: account._id, copyFollowerId: follower._id,
         masterId, creditBefore, creditAfter, lossAmount: actualDeduction,
@@ -120,13 +173,17 @@ class CreditRefillService {
     const creditDepleted = creditAfter <= 0
     if (creditDepleted) {
       await CopyFollower.findByIdAndUpdate(follower._id, {
-        $set: { status: 'STOPPED', stoppedAt: new Date(), stopReason: 'Credit depleted' }
+        $set: { status: 'STOPPED', stoppedAt: new Date(), stopReason: 'Credit depleted - insufficient wallet balance' }
       })
     }
 
     return {
-      success: true, action: 'LOSS_DEDUCTED', rawPnl: -lossAmount,
-      creditChange: -actualDeduction, walletChange: 0, masterShare: 0,
+      success: true, action: walletDeducted ? 'LOSS_WITH_WALLET_REFILL' : 'LOSS_DEDUCTED', 
+      rawPnl: -lossAmount,
+      creditChange: -actualDeduction + walletRefillAmount, 
+      walletChange: -walletRefillAmount, 
+      walletRefillAmount,
+      masterShare: 0,
       followerShare: -lossAmount, creditBefore, creditAfter,
       deficitBefore, deficitAfter, isRefillMode, creditDepleted
     }
