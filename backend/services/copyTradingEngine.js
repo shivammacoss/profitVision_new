@@ -755,12 +755,38 @@ class CopyTradingEngine {
         console.log(`[CopyTrade] Wallet Credited: $${walletCredited.toFixed(2)}`)
         console.log(`[CopyTrade] Refill Mode: ${refillResult.isRefillMode}`)
         
-        // Credit master's share (if profit)
+        // Credit master's share (if profit) and create commission record
         if (masterShare > 0 && master) {
           master.pendingCommission = (master.pendingCommission || 0) + masterShare
           master.totalCommissionEarned = (master.totalCommissionEarned || 0) + masterShare
           await master.save()
           console.log(`[CopyTrade] Master Credited: $${masterShare.toFixed(2)}`)
+          
+          // Create commission record for history tracking
+          try {
+            await CopyCommission.create({
+              masterId: copyTrade.masterId,
+              followerId: copyTrade.followerId,
+              followerUserId: copyTrade.followerUserId,
+              followerAccountId: copyTrade.followerAccountId,
+              tradingDay: new Date().toISOString().split('T')[0],
+              dailyProfit: rawPnl,
+              commissionPercentage: sharePercentage,
+              totalCommission: masterShare,
+              adminShare: 0,
+              masterShare: masterShare,
+              adminSharePercentage: 0,
+              status: 'DEDUCTED',
+              deductedAt: new Date(),
+              tradeId: copyTrade._id
+            })
+            console.log(`[CopyTrade] Commission record created for master ${copyTrade.masterId}`)
+          } catch (commErr) {
+            // Duplicate key error is OK - means commission already recorded for this trade
+            if (commErr.code !== 11000) {
+              console.error(`[CopyTrade] Error creating commission record:`, commErr.message)
+            }
+          }
         }
 
         // Update copy trade record

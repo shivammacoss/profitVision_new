@@ -77,11 +77,17 @@ const copyCommissionSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     default: null
+  },
+  // Trade reference for per-trade commission tracking
+  tradeId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'CopyTrade',
+    default: null
   }
 }, { timestamps: true })
 
-// Compound index to prevent duplicate daily commissions
-copyCommissionSchema.index({ masterId: 1, followerId: 1, tradingDay: 1 }, { unique: true })
+// Compound index to prevent duplicate commissions per trade
+copyCommissionSchema.index({ masterId: 1, tradeId: 1 }, { unique: true, sparse: true })
 copyCommissionSchema.index({ masterId: 1, status: 1 })
 copyCommissionSchema.index({ tradingDay: 1, status: 1 })
 
