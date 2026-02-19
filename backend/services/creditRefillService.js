@@ -49,6 +49,9 @@ class CreditRefillService {
     const minimumCredit = follower.minimumCredit || this.DEFAULT_MINIMUM_CREDIT
     const creditBefore = account.credit || 0
     const deficitBefore = follower.creditDeficit || 0
+    
+    console.log(`[CreditRefill] Credit Before: $${creditBefore.toFixed(2)}, Minimum: $${minimumCredit}, Deficit Before: $${deficitBefore.toFixed(2)}`)
+    console.log(`[CreditRefill] Is Below Minimum: ${creditBefore < minimumCredit}`)
 
     let result
     if (rawPnl < 0) {
@@ -199,6 +202,9 @@ class CreditRefillService {
     const masterShare = profitAmount * (masterSharePercentage / 100)
     const followerGrossShare = profitAmount - masterShare
 
+    console.log(`[CreditRefill] PROFIT: Raw=$${profitAmount.toFixed(2)}, MasterShare=$${masterShare.toFixed(2)}, FollowerShare=$${followerGrossShare.toFixed(2)}`)
+    console.log(`[CreditRefill] PROFIT: CreditBefore=$${creditBefore.toFixed(2)}, MinimumCredit=$${minimumCredit}`)
+
     let profitToCredit = 0, profitToWallet = 0
     let creditAfter = creditBefore, deficitAfter = deficitBefore
     let isRefillMode = deficitBefore > 0, refillComplete = false
@@ -206,6 +212,8 @@ class CreditRefillService {
     if (creditBefore < minimumCredit) {
       // AUTO-REFILL MODE
       const currentDeficit = minimumCredit - creditBefore
+      console.log(`[CreditRefill] REFILL MODE: CurrentDeficit=$${currentDeficit.toFixed(2)}`)
+      
       if (followerGrossShare >= currentDeficit) {
         profitToCredit = currentDeficit
         profitToWallet = followerGrossShare - currentDeficit
@@ -213,16 +221,19 @@ class CreditRefillService {
         deficitAfter = 0
         isRefillMode = false
         refillComplete = true
+        console.log(`[CreditRefill] REFILL COMPLETE: $${profitToCredit.toFixed(2)} to credit, $${profitToWallet.toFixed(2)} to wallet`)
       } else {
         profitToCredit = followerGrossShare
         profitToWallet = 0
         creditAfter = creditBefore + followerGrossShare
         deficitAfter = minimumCredit - creditAfter
         isRefillMode = true
+        console.log(`[CreditRefill] PARTIAL REFILL: $${profitToCredit.toFixed(2)} to credit, remaining deficit=$${deficitAfter.toFixed(2)}`)
       }
     } else {
       // NORMAL MODE - all to wallet
       profitToWallet = followerGrossShare
+      console.log(`[CreditRefill] NORMAL MODE: $${profitToWallet.toFixed(2)} to wallet`)
     }
 
     // Atomic updates
