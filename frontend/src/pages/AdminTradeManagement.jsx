@@ -488,39 +488,33 @@ const AdminTradeManagement = () => {
 
       {/* Trades Table */}
       <div className="bg-dark-800 rounded-xl border border-gray-800 overflow-hidden">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 sm:p-5 border-b border-gray-800">
-          <h2 className="text-white font-semibold text-lg">All Trades</h2>
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Date Filters */}
-            <div className="flex items-center gap-2">
-              <span className="text-gray-400 text-sm">From:</span>
-              <input
-                type="date"
-                value={dateFrom}
-                onChange={(e) => setDateFrom(e.target.value)}
-                className="bg-dark-700 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-gray-600 text-sm"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-gray-400 text-sm">To:</span>
-              <input
-                type="date"
-                value={dateTo}
-                onChange={(e) => setDateTo(e.target.value)}
-                className="bg-dark-700 border border-gray-700 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-gray-600 text-sm"
-              />
-            </div>
+        <div className="flex items-center gap-3 p-4 border-b border-gray-800 overflow-x-auto">
+          <h2 className="text-white font-semibold text-lg whitespace-nowrap">All Trades</h2>
+          <div className="flex items-center gap-2 flex-nowrap ml-auto">
+            <span className="text-gray-400 text-sm whitespace-nowrap">From:</span>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="bg-dark-700 border border-gray-700 rounded-lg px-2 py-1.5 text-white focus:outline-none focus:border-gray-600 text-sm"
+            />
+            <span className="text-gray-400 text-sm whitespace-nowrap">To:</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="bg-dark-700 border border-gray-700 rounded-lg px-2 py-1.5 text-white focus:outline-none focus:border-gray-600 text-sm"
+            />
             {(dateFrom || dateTo) && (
               <>
                 <button
                   onClick={() => { setDateFrom(''); setDateTo(''); }}
-                  className="p-2 bg-dark-700 hover:bg-dark-600 border border-gray-700 text-gray-400 hover:text-white rounded-lg transition-colors"
+                  className="p-1.5 bg-dark-700 hover:bg-dark-600 border border-gray-700 text-gray-400 hover:text-white rounded-lg transition-colors"
                   title="Clear date filter"
                 >
-                  <X size={16} />
+                  <X size={14} />
                 </button>
-                {/* Show filtered P/L for selected date range */}
-                <div className="px-3 py-2 bg-dark-700 border border-gray-700 rounded-lg">
+                <div className="px-2 py-1.5 bg-dark-700 border border-gray-700 rounded-lg whitespace-nowrap">
                   <span className="text-gray-400 text-sm">Selected P/L: </span>
                   <span className={`font-bold ${filteredPnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                     {filteredPnl >= 0 ? '+' : ''}${filteredPnl.toFixed(2)}
@@ -533,24 +527,24 @@ const AdminTradeManagement = () => {
                 setShowCreateModal(true)
                 fetchMarketPrice('XAUUSD')
               }}
-              className="px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg flex items-center gap-2"
+              className="px-3 py-1.5 bg-primary-500 hover:bg-primary-600 text-white rounded-lg flex items-center gap-1 whitespace-nowrap text-sm"
             >
-              <Plus size={18} /> Create Trade
+              <Plus size={16} /> Create Trade
             </button>
             <div className="relative">
-              <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+              <Search size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500" />
               <input
                 type="text"
                 placeholder="Search trades..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full sm:w-48 bg-dark-700 border border-gray-700 rounded-lg pl-10 pr-4 py-2 text-white placeholder-gray-500 focus:outline-none focus:border-gray-600"
+                className="w-32 bg-dark-700 border border-gray-700 rounded-lg pl-8 pr-2 py-1.5 text-white placeholder-gray-500 focus:outline-none focus:border-gray-600 text-sm"
               />
             </div>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="bg-dark-700 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-gray-600"
+              className="bg-dark-700 border border-gray-700 rounded-lg px-2 py-1.5 text-white focus:outline-none focus:border-gray-600 text-sm"
             >
               <option value="all">All Status</option>
               <option value="open">Open</option>
