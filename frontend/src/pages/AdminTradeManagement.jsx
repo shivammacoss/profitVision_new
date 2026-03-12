@@ -443,6 +443,16 @@ const AdminTradeManagement = () => {
     return matchesSearch && matchesDate
   })
 
+  // Calculate P/L for filtered trades (selected date range)
+  const filteredPnl = filteredTrades.reduce((sum, trade) => {
+    if (trade.status === 'CLOSED') {
+      return sum + (trade.realizedPnl || 0)
+    } else if (trade.status === 'OPEN') {
+      return sum + calculateFloatingPnl(trade)
+    }
+    return sum
+  }, 0)
+
   const getStatusIcon = (status) => {
     switch (status?.toUpperCase()) {
       case 'OPEN': return <CheckCircle size={14} />
@@ -501,13 +511,22 @@ const AdminTradeManagement = () => {
               />
             </div>
             {(dateFrom || dateTo) && (
-              <button
-                onClick={() => { setDateFrom(''); setDateTo(''); }}
-                className="p-2 bg-dark-700 hover:bg-dark-600 border border-gray-700 text-gray-400 hover:text-white rounded-lg transition-colors"
-                title="Clear date filter"
-              >
-                <X size={16} />
-              </button>
+              <>
+                <button
+                  onClick={() => { setDateFrom(''); setDateTo(''); }}
+                  className="p-2 bg-dark-700 hover:bg-dark-600 border border-gray-700 text-gray-400 hover:text-white rounded-lg transition-colors"
+                  title="Clear date filter"
+                >
+                  <X size={16} />
+                </button>
+                {/* Show filtered P/L for selected date range */}
+                <div className="px-3 py-2 bg-dark-700 border border-gray-700 rounded-lg">
+                  <span className="text-gray-400 text-sm">Selected P/L: </span>
+                  <span className={`font-bold ${filteredPnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                    {filteredPnl >= 0 ? '+' : ''}${filteredPnl.toFixed(2)}
+                  </span>
+                </div>
+              </>
             )}
             <button
               onClick={() => {
