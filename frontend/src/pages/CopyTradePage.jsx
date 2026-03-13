@@ -24,7 +24,9 @@ const CopyTradePage = () => {
   const [masterStats, setMasterStats] = useState(null)
   const [userSummary, setUserSummary] = useState([])
   const [summaryTotals, setSummaryTotals] = useState(null)
-  const [commissionView, setCommissionView] = useState('history') // 'history' or 'summary'
+  const [allTrades, setAllTrades] = useState([])
+  const [allTradesTotals, setAllTradesTotals] = useState(null)
+  const [commissionView, setCommissionView] = useState('history') // 'history', 'daily', 'allTrades', 'summary'
   const [dateFilter, setDateFilter] = useState({ startDate: '', endDate: '' })
   const [loading, setLoading] = useState(true)
   const [showFollowModal, setShowFollowModal] = useState(false)
@@ -157,6 +159,26 @@ const CopyTradePage = () => {
     }
   }
 
+  const fetchAllTrades = async () => {
+    if (!myMasterProfile?._id) return
+    try {
+      let url = `${API_URL}/copy/master/all-trades/${myMasterProfile._id}`
+      const params = new URLSearchParams()
+      if (dateFilter.startDate) params.append('startDate', dateFilter.startDate)
+      if (dateFilter.endDate) params.append('endDate', dateFilter.endDate)
+      if (params.toString()) url += `?${params.toString()}`
+      
+      const res = await fetch(url)
+      const data = await res.json()
+      if (data.success) {
+        setAllTrades(data.trades || [])
+        setAllTradesTotals(data.totals)
+      }
+    } catch (error) {
+      console.error('Error fetching all trades:', error)
+    }
+  }
+
   const handleExportCSV = () => {
     if (!myMasterProfile?._id) return
     let url = `${API_URL}/copy/master/commissions/${myMasterProfile._id}/export`
@@ -170,6 +192,7 @@ const CopyTradePage = () => {
   const applyDateFilter = () => {
     fetchMyCommissions()
     fetchUserSummary()
+    fetchAllTrades()
   }
 
   const handleWithdrawCommission = async () => {
@@ -1195,7 +1218,7 @@ const CopyTradePage = () => {
                   </div>
                   {/* View Toggle Row */}
                   <div className={`flex ${isMobile ? 'flex-col' : 'flex-row items-center justify-between'} gap-2`}>
-                    <div className={`flex ${isDarkMode ? 'bg-dark-700' : 'bg-gray-100'} rounded-lg p-1 ${isMobile ? 'w-full' : ''}`}>
+                    <div className={`flex flex-wrap ${isDarkMode ? 'bg-dark-700' : 'bg-gray-100'} rounded-lg p-1 ${isMobile ? 'w-full' : ''}`}>
                       <button
                         onClick={() => setCommissionView('history')}
                         className={`flex-1 px-3 py-1.5 rounded text-sm ${commissionView === 'history' ? 'bg-purple-500 text-white' : 'text-gray-500'}`}
@@ -1207,6 +1230,12 @@ const CopyTradePage = () => {
                         className={`flex-1 px-3 py-1.5 rounded text-sm ${commissionView === 'daily' ? 'bg-purple-500 text-white' : 'text-gray-500'}`}
                       >
                         Daily
+                      </button>
+                      <button
+                        onClick={() => { setCommissionView('allTrades'); fetchAllTrades(); }}
+                        className={`flex-1 px-3 py-1.5 rounded text-sm ${commissionView === 'allTrades' ? 'bg-purple-500 text-white' : 'text-gray-500'}`}
+                      >
+                        All Trades
                       </button>
                       <button
                         onClick={() => { setCommissionView('summary'); fetchUserSummary(); }}
@@ -1332,6 +1361,108 @@ const CopyTradePage = () => {
                                 <div className="text-right">
                                   <p className="text-green-500 font-medium">${comm.dailyProfit?.toFixed(2)}</p>
                                   <p className="text-purple-400 text-sm">Your Share: ${comm.masterShare?.toFixed(2)}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
+
+              {/* All Trades View (Profit + Loss) */}
+              {commissionView === 'allTrades' && (
+                <div className="space-y-4 mb-6">
+                  {/* Totals Summary */}
+                  {allTradesTotals && (
+                    <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl border p-4`}>
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
+                        <div>
+                          <p className="text-gray-500 text-xs">Total Trades</p>
+                          <p className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{allTradesTotals.totalTrades}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 text-xs">Profit Trades</p>
+                          <p className="text-lg font-bold text-green-500">{allTradesTotals.profitTrades}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 text-xs">Loss Trades</p>
+                          <p className="text-lg font-bold text-red-500">{allTradesTotals.lossTrades}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 text-xs">Total Profit</p>
+                          <p className="text-lg font-bold text-green-500">${allTradesTotals.totalProfit?.toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500 text-xs">Net P/L</p>
+                          <p className={`text-lg font-bold ${allTradesTotals.netPnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            ${allTradesTotals.netPnl?.toFixed(2)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {allTrades.length === 0 ? (
+                    <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl border p-12 text-center`}>
+                      <TrendingUp size={48} className="mx-auto text-gray-600 mb-4" />
+                      <p className="text-gray-500">No closed trades yet</p>
+                    </div>
+                  ) : (
+                    Object.entries(
+                      allTrades.reduce((acc, trade) => {
+                        const day = trade.tradingDay;
+                        if (!acc[day]) acc[day] = [];
+                        acc[day].push(trade);
+                        return acc;
+                      }, {})
+                    ).sort((a, b) => b[0].localeCompare(a[0])).map(([date, trades]) => {
+                      const dayProfit = trades.filter(t => t.rawPnl > 0).reduce((sum, t) => sum + t.rawPnl, 0);
+                      const dayLoss = trades.filter(t => t.rawPnl < 0).reduce((sum, t) => sum + t.rawPnl, 0);
+                      const dayNet = dayProfit + dayLoss;
+                      return (
+                        <div key={date} className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl border overflow-hidden`}>
+                          {/* Date Header */}
+                          <div className={`px-4 py-3 ${isDarkMode ? 'bg-dark-700' : 'bg-gray-50'} flex flex-wrap justify-between items-center gap-2`}>
+                            <div>
+                              <span className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{date}</span>
+                              <span className="text-gray-500 text-sm ml-2">({trades.length} trades)</span>
+                            </div>
+                            <div className="flex gap-4 text-sm">
+                              <span className="text-green-500">Profit: ${dayProfit.toFixed(2)}</span>
+                              <span className="text-red-500">Loss: ${dayLoss.toFixed(2)}</span>
+                              <span className={`font-bold ${dayNet >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                Net: ${dayNet.toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+                          {/* Trades for this day */}
+                          <div className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'}`}>
+                            {trades.map(trade => (
+                              <div key={trade._id} className="px-4 py-3 flex flex-wrap justify-between items-center gap-2">
+                                <div className="flex items-center gap-3">
+                                  <div>
+                                    <p className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                                      {trade.followerUserId?.firstName || 'User'} {trade.followerUserId?.lastName || ''}
+                                    </p>
+                                    <div className="flex items-center gap-2 text-sm">
+                                      <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>{trade.symbol || '-'}</span>
+                                      <span className={`text-xs px-1.5 py-0.5 rounded ${trade.side === 'BUY' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
+                                        {trade.side || '-'}
+                                      </span>
+                                      <span className="text-gray-500">{trade.followerLotSize?.toFixed(2) || '-'} lots</span>
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <p className={`font-medium ${trade.rawPnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                    {trade.rawPnl >= 0 ? '+' : ''}${trade.rawPnl?.toFixed(2)}
+                                  </p>
+                                  <p className="text-gray-500 text-xs">
+                                    {trade.rawPnl > 0 ? `Commission: $${(trade.rawPnl * 0.5).toFixed(2)}` : 'No Commission'}
+                                  </p>
                                 </div>
                               </div>
                             ))}

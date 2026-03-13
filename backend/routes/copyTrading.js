@@ -330,6 +330,57 @@ router.get('/master/commissions/:masterId', async (req, res) => {
   }
 })
 
+// GET /api/copy/master/all-trades/:masterId - Get all closed copy trades (profit + loss)
+router.get('/master/all-trades/:masterId', async (req, res) => {
+  try {
+    const { masterId } = req.params
+    const { limit = 100, startDate, endDate } = req.query
+
+    const query = { 
+      masterId: new mongoose.Types.ObjectId(masterId),
+      status: 'CLOSED'
+    }
+    
+    // Date range filtering
+    if (startDate || endDate) {
+      query.tradingDay = {}
+      if (startDate) query.tradingDay.$gte = startDate
+      if (endDate) query.tradingDay.$lte = endDate
+    }
+
+    const trades = await CopyTrade.find(query)
+      .populate('followerUserId', 'firstName lastName email')
+      .populate('followerAccountId', 'accountId')
+      .sort({ closedAt: -1 })
+      .limit(parseInt(limit))
+
+    // Calculate totals
+    const totals = await CopyTrade.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: null,
+          totalTrades: { $sum: 1 },
+          totalProfit: { $sum: { $cond: [{ $gt: ['$rawPnl', 0] }, '$rawPnl', 0] } },
+          totalLoss: { $sum: { $cond: [{ $lt: ['$rawPnl', 0] }, '$rawPnl', 0] } },
+          netPnl: { $sum: '$rawPnl' },
+          profitTrades: { $sum: { $cond: [{ $gt: ['$rawPnl', 0] }, 1, 0] } },
+          lossTrades: { $sum: { $cond: [{ $lt: ['$rawPnl', 0] }, 1, 0] } }
+        }
+      }
+    ])
+
+    res.json({
+      success: true,
+      trades,
+      totals: totals[0] || { totalTrades: 0, totalProfit: 0, totalLoss: 0, netPnl: 0, profitTrades: 0, lossTrades: 0 }
+    })
+  } catch (error) {
+    console.error('Error fetching all trades:', error)
+    res.status(500).json({ message: 'Error fetching all trades', error: error.message })
+  }
+})
+
 // GET /api/copy/master/commissions/:masterId/summary - Get user-wise commission summary
 router.get('/master/commissions/:masterId/summary', async (req, res) => {
   try {

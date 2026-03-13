@@ -179,7 +179,7 @@ const copyTradeSchema = new mongoose.Schema({
   // Refill-specific fields
   refillAction: {
     type: String,
-    enum: ['NO_CHANGE', 'LOSS_DEDUCTED', 'PROFIT_REFILL', 'REFILL_COMPLETE', 'PROFIT_TO_WALLET', null],
+    enum: ['NO_CHANGE', 'LOSS_DEDUCTED', 'LOSS_WITH_WALLET_REFILL', 'PROFIT_REFILL', 'REFILL_COMPLETE', 'PROFIT_TO_WALLET', null],
     default: null
   },
   profitToCredit: {
