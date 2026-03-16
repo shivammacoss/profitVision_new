@@ -9,17 +9,18 @@ dotenv.config()
 /**
  * PRODUCTION MIGRATION: Copy Trading Minimum Credit Fix
  * 
- * PURPOSE: Fix old accounts to use Master's minimumFollowerDeposit as minimumCredit
+ * PURPOSE: Fix old accounts to use User's deposit as minimumCredit
  * 
  * LOGIC: 
- * - minimumCredit should equal Master's requirement (not user's deposit)
- * - Each Master sets their own minimum ($1000, $1051, $1500, etc.)
- * - Auto-refill triggers when credit < master's requirement
+ * - minimumCredit should equal User's initialDeposit (not master's requirement)
+ * - Each user gets their own minimum based on their deposit
+ * - Auto-refill triggers when credit < user's deposit amount
  * 
  * EXAMPLES:
- * - Profit Vision Master: minimumCredit = $1051
- * - vibhooti Master: minimumCredit = $1000
- * - Any Master: minimumCredit = their set requirement
+ * - User deposits $500: minimumCredit = $500
+ * - User deposits $1500: minimumCredit = $1500
+ * - User deposits $2000: minimumCredit = $2000
+ * - User deposits $3000: minimumCredit = $3000
  * 
  * RUN ONCE: Deploy and run to fix all existing accounts
  */

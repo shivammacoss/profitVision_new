@@ -23,10 +23,10 @@ class CreditRefillService {
   /**
    * Process trade close with auto-refill logic
    * 
-   * PRODUCTION READY: Master-controlled minimumCredit system
-   * - minimumCredit = Master's minimumFollowerDeposit (not user's deposit)
-   * - Auto-refill triggers when credit < master's requirement
-   * - Works for any master requirement ($1000, $1051, $1500, $2000+)
+   * USER-CENTRIC: User's deposit amount = their minimumCredit
+   * - minimumCredit = User's initialDeposit (not master's requirement)
+   * - Auto-refill triggers when credit < user's deposit amount
+   * - Works for any user deposit ($500, $1000, $1500, $2000, $3000+)
    */
   async processTradeClose(params) {
     const {
@@ -44,17 +44,17 @@ class CreditRefillService {
     const account = await TradingAccount.findById(tradingAccountId)
     if (!account) throw new Error(`Trading account not found: ${tradingAccountId}`)
 
-    // 🔧 PRODUCTION LOGIC: Use master's requirement as minimumCredit
-    const minimumCredit = follower.minimumCredit || this.DEFAULT_MINIMUM_CREDIT
+    // 🔧 USER-CENTRIC LOGIC: Use user's deposit as minimumCredit
+    const minimumCredit = follower.initialDeposit || this.DEFAULT_MINIMUM_CREDIT
     const creditBefore = account.credit || 0
     const deficitBefore = follower.creditDeficit || 0
     
-    console.log(`[CreditRefill] Master's Minimum Requirement: $${minimumCredit}`)
     console.log(`[CreditRefill] User's Initial Deposit: $${follower.initialDeposit}`)
+    console.log(`[CreditRefill] User's Minimum Credit: $${minimumCredit}`)
     console.log(`[CreditRefill] Credit Before: $${creditBefore.toFixed(2)}`)
     console.log(`[CreditRefill] Is Below Minimum: ${creditBefore < minimumCredit}`)
     
-    // 🔧 AUTO-FIX: Update minimumCredit if different from master's requirement
+    // 🔧 AUTO-FIX: Update minimumCredit if different from user's deposit
     if (follower.minimumCredit !== minimumCredit) {
       console.log(`[CreditRefill] 🔧 AUTO-FIXING minimumCredit from ${follower.minimumCredit} to ${minimumCredit}`)
       await CopyFollower.findByIdAndUpdate(copyFollowerId, {
@@ -71,7 +71,7 @@ class CreditRefillService {
         amount: minimumCredit - (follower.minimumCredit || 1000),
         balanceBefore: follower.minimumCredit || 1000,
         balanceAfter: minimumCredit,
-        description: `Auto-fixed minimum credit to match master's requirement: $${minimumCredit}`,
+        description: `Auto-fixed minimum credit to match user's deposit: $${minimumCredit}`,
         metadata: { ...metadata, oldMinimumCredit: follower.minimumCredit, newMinimumCredit: minimumCredit }
       })
     }
@@ -332,8 +332,8 @@ class CreditRefillService {
     if (!follower) throw new Error('Subscription not found')
     const account = follower.followerAccountId
     
-    // 🔧 PRODUCTION LOGIC: Use master's requirement as minimumCredit
-    const minimumCredit = follower.minimumCredit || this.DEFAULT_MINIMUM_CREDIT
+    // 🔧 USER-CENTRIC LOGIC: Use user's deposit as minimumCredit
+    const minimumCredit = follower.initialDeposit || this.DEFAULT_MINIMUM_CREDIT
     
     const currentCredit = account?.credit || 0
     return {

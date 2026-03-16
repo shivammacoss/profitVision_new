@@ -675,10 +675,10 @@ router.post('/follow', async (req, res) => {
       })
     }
 
-    // Create follower subscription with PRODUCTION LOGIC:
-    // Master's minimumFollowerDeposit = minimumCredit (auto-refill threshold)
-    // User's depositAmount must be >= master's requirement
-    const minimumCreditRequired = master.minimumFollowerDeposit || 1000
+    // Create follower subscription with USER-CENTRIC LOGIC:
+    // User's deposit amount = their minimumCredit (individual auto-refill limit)
+    // Master's minimumFollowerDeposit = just validation threshold
+    const minimumCreditRequired = depositAmount  // ✅ User's deposit = their limit
     
     const follower = await CopyFollower.create({
       followerId: followerUserId,
@@ -692,7 +692,7 @@ router.post('/follow', async (req, res) => {
       initialDeposit: depositAmount,
       initialCredit: depositAmount,
       currentCredit: depositAmount,
-      minimumCredit: minimumCreditRequired, // ✅ Master's requirement = auto-refill threshold
+      minimumCredit: minimumCreditRequired, // ✅ User's deposit = their minimum limit
       creditDeficit: 0,
       isRefillMode: false
     })
