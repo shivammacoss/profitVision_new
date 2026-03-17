@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Settings, RefreshCw } from 'lucide-react'
+import { API_URL } from '../../config/api'
 
 export default function AccountSwitcher({ userId, isDarkMode = true }) {
   const [accounts, setAccounts] = useState([])
@@ -23,7 +24,7 @@ export default function AccountSwitcher({ userId, isDarkMode = true }) {
     }
     
     try {
-      const response = await fetch(`/api/copy/master/accounts/${userId}`, {
+      const response = await fetch(`${API_URL}/copy/master/accounts/${userId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -54,7 +55,7 @@ export default function AccountSwitcher({ userId, isDarkMode = true }) {
     setMessage('')
     
     try {
-      const response = await fetch(`/api/copy/master/primary/${userId}`, {
+      const response = await fetch(`${API_URL}/copy/master/primary/${userId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
