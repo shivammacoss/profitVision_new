@@ -1228,7 +1228,7 @@ const CopyTradePage = () => {
                         History
                       </button>
                       <button
-                        onClick={() => setCommissionView('daily')}
+                        onClick={() => { setCommissionView('daily'); fetchAllTrades(); }}
                         className={`flex-1 px-3 py-1.5 rounded text-sm ${commissionView === 'daily' ? 'bg-purple-500 text-white' : 'text-gray-500'}`}
                       >
                         Daily
@@ -1310,25 +1310,26 @@ const CopyTradePage = () => {
                 </div>
               )}
 
-              {/* Daily Breakdown View */}
+              {/* Daily Breakdown View - Shows ALL trades with commission info */}
               {commissionView === 'daily' && (
                 <div className="space-y-4 mb-6">
-                  {myCommissions.length === 0 ? (
+                  {allTrades.length === 0 ? (
                     <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl border p-12 text-center`}>
                       <Calendar size={48} className="mx-auto text-gray-600 mb-4" />
-                      <p className="text-gray-500">No commission records yet</p>
+                      <p className="text-gray-500">No trades yet</p>
                     </div>
                   ) : (
                     Object.entries(
-                      myCommissions.reduce((acc, comm) => {
-                        const day = comm.tradingDay;
+                      allTrades.reduce((acc, trade) => {
+                        const day = trade.tradingDay;
                         if (!acc[day]) acc[day] = [];
-                        acc[day].push(comm);
+                        acc[day].push(trade);
                         return acc;
                       }, {})
                     ).sort((a, b) => b[0].localeCompare(a[0])).map(([date, trades]) => {
-                      const dayTotal = trades.reduce((sum, t) => sum + (t.masterShare || 0), 0);
-                      const dayProfit = trades.reduce((sum, t) => sum + (t.dailyProfit || 0), 0);
+                      const dayProfit = trades.filter(t => t.rawPnl > 0).reduce((sum, t) => sum + t.rawPnl, 0);
+                      const dayLoss = trades.filter(t => t.rawPnl < 0).reduce((sum, t) => sum + t.rawPnl, 0);
+                      const dayCommission = dayProfit * 0.5; // 50% commission on profit only
                       return (
                         <div key={date} className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl border overflow-hidden`}>
                           {/* Date Header */}
@@ -1338,31 +1339,35 @@ const CopyTradePage = () => {
                               <span className="text-gray-500 text-sm ml-2">({trades.length} trades)</span>
                             </div>
                             <div className="flex gap-4 text-sm">
-                              <span className="text-green-500">P/L: ${dayProfit.toFixed(2)}</span>
-                              <span className="text-purple-400 font-bold">Commission: ${dayTotal.toFixed(2)}</span>
+                              <span className="text-green-500">P/L: ${(dayProfit + dayLoss).toFixed(2)}</span>
+                              <span className="text-purple-400 font-bold">Commission: ${dayCommission.toFixed(2)}</span>
                             </div>
                           </div>
                           {/* Trades for this day */}
                           <div className={`divide-y ${isDarkMode ? 'divide-gray-700' : 'divide-gray-200'}`}>
-                            {trades.map(comm => (
-                              <div key={comm._id} className="px-4 py-3 flex flex-wrap justify-between items-center gap-2">
+                            {trades.map(trade => (
+                              <div key={trade._id} className="px-4 py-3 flex flex-wrap justify-between items-center gap-2">
                                 <div className="flex items-center gap-3">
                                   <div>
                                     <p className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                                      {comm.followerUserId?.firstName || 'User'} {comm.followerUserId?.lastName || ''}
+                                      {trade.followerUserId?.firstName || 'User'} {trade.followerUserId?.lastName || ''}
                                     </p>
                                     <div className="flex items-center gap-2 text-sm">
-                                      <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>{comm.tradeId?.symbol || '-'}</span>
-                                      <span className={`text-xs px-1.5 py-0.5 rounded ${comm.tradeId?.side === 'BUY' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
-                                        {comm.tradeId?.side || '-'}
+                                      <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>{trade.symbol || '-'}</span>
+                                      <span className={`text-xs px-1.5 py-0.5 rounded ${trade.side === 'BUY' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500'}`}>
+                                        {trade.side || '-'}
                                       </span>
-                                      <span className="text-gray-500">{comm.tradeId?.followerLotSize?.toFixed(2) || '-'} lots</span>
+                                      <span className="text-gray-500">{trade.followerLotSize?.toFixed(2) || '-'} lots</span>
                                     </div>
                                   </div>
                                 </div>
                                 <div className="text-right">
-                                  <p className="text-green-500 font-medium">${comm.dailyProfit?.toFixed(2)}</p>
-                                  <p className="text-purple-400 text-sm">Your Share: ${comm.masterShare?.toFixed(2)}</p>
+                                  <p className={`font-medium ${trade.rawPnl >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                    {trade.rawPnl >= 0 ? '+' : ''}${trade.rawPnl?.toFixed(2)}
+                                  </p>
+                                  <p className={`text-sm ${trade.rawPnl > 0 ? 'text-purple-400' : 'text-gray-500'}`}>
+                                    {trade.rawPnl > 0 ? `Your Share: $${(trade.rawPnl * 0.5).toFixed(2)}` : 'No Commission'}
+                                  </p>
                                 </div>
                               </div>
                             ))}
