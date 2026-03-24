@@ -603,22 +603,40 @@ const AdminTradeManagement = () => {
                         {calculateFloatingPnl(trade) >= 0 ? '+' : ''}${calculateFloatingPnl(trade).toFixed(2)}
                       </p>
                     </div>
+                    <div>
+                      <p className="text-gray-500">Book Type</p>
+                      <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
+                        trade.bookType === 'A' 
+                          ? 'bg-purple-500/20 text-purple-500' 
+                          : 'bg-blue-500/20 text-blue-500'
+                      }`}>
+                        {trade.bookType === 'A' ? 'A-Book (Read-Only)' : 'B-Book'}
+                      </span>
+                    </div>
                   </div>
                   {/* Action Buttons */}
                   <div className="flex gap-2 pt-3 border-t border-gray-600">
-                    <button
-                      onClick={() => openEditModal(trade)}
-                      className="flex-1 py-2 bg-red-500/20 hover:bg-red-500/30 text-blue-500 rounded-lg text-sm font-medium flex items-center justify-center gap-1"
-                    >
-                      <Edit size={14} /> Edit
-                    </button>
-                    {trade.status === 'OPEN' && (
-                      <button
-                        onClick={() => openCloseModal(trade)}
-                        className="flex-1 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-500 rounded-lg text-sm font-medium flex items-center justify-center gap-1"
-                      >
-                        <XCircle size={14} /> Close
-                      </button>
+                    {trade.bookType === 'A' ? (
+                      <div className="w-full py-2 bg-gray-500/20 text-gray-400 rounded-lg text-sm font-medium text-center">
+                        Read-Only (A-Book)
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => openEditModal(trade)}
+                          className="flex-1 py-2 bg-red-500/20 hover:bg-red-500/30 text-blue-500 rounded-lg text-sm font-medium flex items-center justify-center gap-1"
+                        >
+                          <Edit size={14} /> Edit
+                        </button>
+                        {trade.status === 'OPEN' && (
+                          <button
+                            onClick={() => openCloseModal(trade)}
+                            className="flex-1 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-500 rounded-lg text-sm font-medium flex items-center justify-center gap-1"
+                          >
+                            <XCircle size={14} /> Close
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -637,6 +655,7 @@ const AdminTradeManagement = () => {
                     <th className={`text-left text-sm font-medium py-3 px-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Lots</th>
                     <th className={`text-left text-sm font-medium py-3 px-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Open Price</th>
                     <th className={`text-left text-sm font-medium py-3 px-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>P&L</th>
+                    <th className={`text-left text-sm font-medium py-3 px-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Book</th>
                     <th className={`text-left text-sm font-medium py-3 px-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Status</th>
                     <th className={`text-left text-sm font-medium py-3 px-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Actions</th>
                   </tr>
@@ -662,6 +681,15 @@ const AdminTradeManagement = () => {
                         {calculateFloatingPnl(trade) >= 0 ? '+' : ''}${calculateFloatingPnl(trade).toFixed(2)}
                       </td>
                       <td className="py-4 px-4">
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${
+                          trade.bookType === 'A' 
+                            ? 'bg-purple-500/20 text-purple-500' 
+                            : 'bg-blue-500/20 text-blue-500'
+                        }`}>
+                          {trade.bookType === 'A' ? 'A-Book' : 'B-Book'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-4">
                         <div className="flex flex-col gap-1">
                           <span className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs w-fit ${getStatusColor(trade.status)}`}>
                             {getStatusIcon(trade.status)}
@@ -673,24 +701,28 @@ const AdminTradeManagement = () => {
                         </div>
                       </td>
                       <td className="py-4 px-4">
-                        <div className="flex items-center gap-1">
-                          <button 
-                            onClick={() => openEditModal(trade)}
-                            className="p-2 hover:bg-red-500/20 rounded-lg transition-colors text-gray-400 hover:text-blue-500" 
-                            title="Edit Trade"
-                          >
-                            <Edit size={16} />
-                          </button>
-                          {trade.status === 'OPEN' && (
+                        {trade.bookType === 'A' ? (
+                          <span className="px-2 py-1 rounded text-xs bg-gray-500/20 text-gray-400">Read-Only</span>
+                        ) : (
+                          <div className="flex items-center gap-1">
                             <button 
-                              onClick={() => openCloseModal(trade)}
-                              className="p-2 hover:bg-red-500/20 rounded-lg transition-colors text-gray-400 hover:text-red-500" 
-                              title="Close Trade"
+                              onClick={() => openEditModal(trade)}
+                              className="p-2 hover:bg-red-500/20 rounded-lg transition-colors text-gray-400 hover:text-blue-500" 
+                              title="Edit Trade"
                             >
-                              <XCircle size={16} />
+                              <Edit size={16} />
                             </button>
-                          )}
-                        </div>
+                            {trade.status === 'OPEN' && (
+                              <button 
+                                onClick={() => openCloseModal(trade)}
+                                className="p-2 hover:bg-red-500/20 rounded-lg transition-colors text-gray-400 hover:text-red-500" 
+                                title="Close Trade"
+                              >
+                                <XCircle size={16} />
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </td>
                     </tr>
                   ))}
