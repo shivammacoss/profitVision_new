@@ -31,8 +31,6 @@ import AdminPropFirm from './pages/AdminPropFirm'
 import AdminManagement from './pages/AdminManagement'
 import AdminKYC from './pages/AdminKYC'
 import AdminSupport from './pages/AdminSupport'
-import BuyChallengePage from './pages/BuyChallengePage'
-import ChallengeDashboardPage from './pages/ChallengeDashboardPage'
 import AdminPropTrading from './pages/AdminPropTrading'
 import AdminEarnings from './pages/AdminEarnings'
 import ForgotPassword from './pages/ForgotPassword'
@@ -41,8 +39,11 @@ import AdminBookManagement from './pages/AdminBookManagement'
 import AdminPaymentGateway from './pages/AdminPaymentGateway'
 import AdminEmailSender from './pages/AdminEmailSender'
 import AdminManualCrypto from './pages/AdminManualCrypto'
+import BuyChallengePage from './pages/BuyChallengePage'
+import ChallengeDashboardPage from './pages/ChallengeDashboardPage'
 import BrandedLogin from './pages/BrandedLogin'
 import BrandedSignup from './pages/BrandedSignup'
+import ProfitVisionLanding from './pages/ProfitVisionLanding'
 import ChatBot from './components/ChatBot'
 
 function App() {
@@ -50,7 +51,7 @@ function App() {
     <Router>
       <ChatBot />
       <Routes>
-        <Route path="/" element={<HomePage />} />
+        <Route path="/" element={<ProfitVisionLanding />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/user/signup" element={<Signup />} />
