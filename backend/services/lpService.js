@@ -174,6 +174,13 @@ class LPService {
         console.log(`[LP Service] Response:`, JSON.stringify(data, null, 2))
         console.log(`[LP Service] ==========================================`)
         return { success: true, data }
+      } else if (response.status === 404) {
+        // Trade not found in Corecen - likely was never pushed or already closed
+        console.warn(`[LP Service] ⚠ Trade ${trade.tradeId} not found in Corecen (404) - was it ever pushed?`)
+        console.warn(`[LP Service] Response:`, JSON.stringify(data, null, 2))
+        console.log(`[LP Service] ==========================================`)
+        // Return success anyway since trade is being closed locally
+        return { success: true, warning: 'Trade not found in Corecen but closing locally', data }
       } else {
         console.error(`[LP Service] ✗ Failed to close trade on Corecen`)
         console.error(`[LP Service] HTTP Status: ${response.status}`)
