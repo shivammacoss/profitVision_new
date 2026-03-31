@@ -407,7 +407,8 @@ class TradeEngine {
   }
 
   // Close a trade
-  async closeTrade(tradeId, currentBid, currentAsk, closedBy = 'USER', adminId = null) {
+  // options.skipCreditProcessing: true when called from closeFollowerTrades (credit handled there)
+  async closeTrade(tradeId, currentBid, currentAsk, closedBy = 'USER', adminId = null, options = {}) {
     const trade = await Trade.findById(tradeId).populate({ path: 'tradingAccountId', populate: { path: 'accountTypeId' } })
     if (!trade) throw new Error('Trade not found')
     if (trade.status !== 'OPEN') throw new Error('Trade is not open')
@@ -464,9 +465,19 @@ class TradeEngine {
     // If this is a copy trade, DO NOT mutate wallet/balance here
     // Copy trade P&L is handled by copyTradingEngine using CREDIT only
     if (trade.isCopyTrade) {
-      console.log(`[TradeEngine] COPY TRADE detected (${trade.tradeId}) - skipping wallet mutation`)
-      console.log(`[TradeEngine] P&L: $${realizedPnl.toFixed(2)} will be handled by copyTradingEngine via CREDIT`)
-      // Skip all balance/credit mutations - copyTradingEngine handles this
+      console.log(`[TradeEngine] COPY TRADE detected (${trade.tradeId}) - skipping normal wallet mutation`)
+      
+      // If NOT called from closeFollowerTrades, process credit/wallet HERE
+      // This handles: user manual close, SL/TP trigger, admin close, stop-out
+      if (!options.skipCreditProcessing) {
+        try {
+          await this.processCopyTradeCredit(trade, realizedPnlForBalance)
+        } catch (creditErr) {
+          console.error(`[TradeEngine] Error processing copy trade credit for ${trade.tradeId}:`, creditErr)
+        }
+      } else {
+        console.log(`[TradeEngine] P&L: $${realizedPnlForBalance.toFixed(2)} will be handled by copyTradingEngine`)
+      }
     } else {
       // ========== MANUAL TRADE - Normal wallet mutation ==========
       // Update account balance with proper credit handling
@@ -551,9 +562,12 @@ class TradeEngine {
     try {
       const MasterTrader = (await import('../models/MasterTrader.js')).default
       
+      // Extract _id from populated tradingAccountId (populated object vs ObjectId)
+      const accountId = trade.tradingAccountId?._id || trade.tradingAccountId
+      
       // Check if this trade's account belongs to an active master
       const master = await MasterTrader.findOne({
-        tradingAccountId: trade.tradingAccountId,
+        tradingAccountId: accountId,
         status: 'ACTIVE'
       })
       
@@ -572,6 +586,89 @@ class TradeEngine {
     } catch (error) {
       console.error('Error closing follower trades:', error)
     }
+  }
+
+  // Process credit/wallet for a copy trade closed directly (not via closeFollowerTrades)
+  // This handles: user manual close, SL/TP trigger, admin close, stop-out
+  async processCopyTradeCredit(trade, realizedPnlForBalance) {
+    const CopyTrade = (await import('../models/CopyTrade.js')).default
+    const CopyFollower = (await import('../models/CopyFollower.js')).default
+    const MasterTrader = (await import('../models/MasterTrader.js')).default
+    const creditRefillService = (await import('./creditRefillService.js')).default
+
+    // Find the CopyTrade record for this follower trade
+    const copyTrade = await CopyTrade.findOne({ followerTradeId: trade._id, status: { $in: ['OPEN', 'CLOSING'] } })
+    if (!copyTrade) {
+      console.log(`[TradeEngine] No open CopyTrade record found for trade ${trade.tradeId} - credit may already be processed`)
+      return
+    }
+
+    console.log(`[TradeEngine] Processing copy trade credit directly for ${trade.tradeId}, P&L: $${realizedPnlForBalance.toFixed(2)}`)
+
+    const master = await MasterTrader.findById(copyTrade.masterId)
+    const sharePercentage = master?.approvedCommissionPercentage || 50
+
+    // Process through credit refill service (same logic as closeFollowerTrades)
+    const refillResult = await creditRefillService.processTradeClose({
+      copyFollowerId: copyTrade.followerId,
+      tradingAccountId: copyTrade.followerAccountId,
+      userId: copyTrade.followerUserId,
+      masterId: copyTrade.masterId,
+      rawPnl: realizedPnlForBalance,
+      masterSharePercentage: sharePercentage,
+      tradeId: trade._id,
+      copyTradeId: copyTrade._id,
+      metadata: {
+        symbol: trade.symbol,
+        side: trade.side,
+        lotSize: trade.quantity,
+        openPrice: trade.openPrice,
+        closePrice: trade.closePrice,
+        closedBy: trade.closedBy,
+        directClose: true
+      }
+    })
+
+    // Credit master's share if profit
+    const masterShare = refillResult.masterShare || 0
+    if (masterShare > 0 && master) {
+      master.pendingCommission = (master.pendingCommission || 0) + masterShare
+      master.totalCommissionEarned = (master.totalCommissionEarned || 0) + masterShare
+      await master.save()
+      console.log(`[TradeEngine] Master credited: $${masterShare.toFixed(2)}`)
+    }
+
+    // Update CopyTrade record
+    copyTrade.masterClosePrice = trade.closePrice
+    copyTrade.followerClosePrice = trade.closePrice
+    copyTrade.rawPnl = realizedPnlForBalance
+    copyTrade.followerPnl = refillResult.followerShare || 0
+    copyTrade.masterPnl = masterShare
+    copyTrade.creditBefore = refillResult.creditBefore || 0
+    copyTrade.creditAfter = refillResult.creditAfter || 0
+    copyTrade.creditChange = refillResult.creditChange || 0
+    copyTrade.walletCredited = refillResult.walletChange || 0
+    copyTrade.refillAction = refillResult.action
+    copyTrade.profitToCredit = refillResult.profitToCredit || 0
+    copyTrade.profitToWallet = refillResult.profitToWallet || 0
+    copyTrade.deficitAfter = refillResult.deficitAfter || 0
+    copyTrade.status = 'CLOSED'
+    copyTrade.closedAt = new Date()
+    copyTrade.commissionApplied = true
+    await copyTrade.save()
+
+    // Update follower stats
+    const followerShare = refillResult.followerShare || 0
+    await CopyFollower.findByIdAndUpdate(copyTrade.followerId, {
+      $inc: {
+        'stats.activeCopiedTrades': -1,
+        'stats.totalProfit': followerShare >= 0 ? followerShare : 0,
+        'stats.totalLoss': followerShare < 0 ? Math.abs(followerShare) : 0,
+        'stats.totalCommissionPaid': masterShare > 0 ? masterShare : 0
+      }
+    })
+
+    console.log(`[TradeEngine] ✅ Copy trade credit processed: Action=${refillResult.action}, Credit: $${refillResult.creditAfter?.toFixed(2)}, Wallet: $${refillResult.walletChange?.toFixed(2)}`)
   }
 
   // Modify trade SL/TP

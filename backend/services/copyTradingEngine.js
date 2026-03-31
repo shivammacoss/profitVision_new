@@ -679,7 +679,9 @@ class CopyTradingEngine {
             copyTrade.followerTradeId,
             masterClosePrice,
             masterClosePrice,
-            'USER'
+            'USER',
+            null,
+            { skipCreditProcessing: true }
           )
         } catch (closeError) {
           // Handle race condition - trade might have been closed by another process
