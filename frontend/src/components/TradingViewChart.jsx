@@ -129,7 +129,7 @@ const TradingViewChart = memo(({ symbol = 'XAUUSD', theme = 'dark', isMobile = f
   return (
     <div
       ref={containerRef}
-      style={{ width: '100%', height: '100%' }}
+      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
     />
   )
 })
