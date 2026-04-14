@@ -158,6 +158,30 @@ io.on('connection', (socket) => {
     }
   })
 
+  // Subscribe to price stream
+  socket.on('subscribePrices', () => {
+    socket.join('prices')
+    priceSubscribers.add(socket.id)
+    console.log(`Socket ${socket.id} subscribed to price stream`)
+    
+    // Send current prices immediately
+    const lpPrices = getAllLpPrices()
+    if (lpPrices && lpPrices.size > 0) {
+      socket.emit('priceStream', {
+        prices: Object.fromEntries(lpPrices),
+        updated: {},
+        timestamp: Date.now()
+      })
+    }
+  })
+
+  // Unsubscribe from price stream
+  socket.on('unsubscribePrices', () => {
+    socket.leave('prices')
+    priceSubscribers.delete(socket.id)
+    console.log(`Socket ${socket.id} unsubscribed from price stream`)
+  })
+
   // Handle price updates from client (for PnL calculation)
   socket.on('priceUpdate', async (data) => {
     const { tradingAccountId, prices } = data
