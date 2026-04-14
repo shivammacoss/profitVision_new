@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Mail, ChevronDown, Search, Eye, EyeOff } from 'lucide-react'
+import { Mail, ChevronDown, Search, Eye, EyeOff, Gift } from 'lucide-react'
 import { useTheme } from '../context/ThemeContext'
 import logo from '../assets/logo.png'
 
@@ -46,7 +46,7 @@ const Signup = () => {
   const navigate = useNavigate()
   const { isDarkMode } = useTheme()
   const [searchParams] = useSearchParams()
-  const referralCode = searchParams.get('ref')
+  const refFromUrl = searchParams.get('ref')
   const [activeTab, setActiveTab] = useState('signup')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -60,6 +60,7 @@ const Signup = () => {
   const [step, setStep] = useState('form') // 'form' or 'otp'
   const [otp, setOtp] = useState('')
   const [resendTimer, setResendTimer] = useState(0)
+  const [referralCode, setReferralCode] = useState(refFromUrl || '')
   const [formData, setFormData] = useState({
     firstName: '',
     email: '',
@@ -123,7 +124,7 @@ const Signup = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          referralCode: referralCode || undefined
+          referralCode: referralCode.trim() || undefined
         })
       })
       
@@ -170,14 +171,15 @@ const Signup = () => {
       localStorage.setItem('isNewUser', 'true')
       
       // Also call register-referral API for backward compatibility
-      if (referralCode && data.user?._id) {
+      const finalRef = referralCode.trim()
+      if (finalRef && data.user?._id) {
         try {
           await fetch(`${API_URL}/ib/register-referral`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               userId: data.user._id,
-              referralCode: referralCode
+              referralCode: finalRef
             })
           })
         } catch (refError) {
@@ -210,7 +212,7 @@ const Signup = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          referralCode: referralCode || undefined
+          referralCode: referralCode.trim() || undefined
         })
       })
       
@@ -345,6 +347,17 @@ const Signup = () => {
                   value={formData.phone}
                   onChange={handleChange}
                   className={`flex-1 ${isDarkMode ? 'bg-dark-600 border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'} border rounded-r-lg px-3 sm:px-4 py-3 placeholder-gray-500 focus:outline-none focus:border-gray-600 transition-colors min-w-0`}
+                />
+              </div>
+
+              <div className="relative">
+                <Gift size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
+                <input
+                  type="text"
+                  placeholder="Referral code (optional)"
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                  className={`w-full ${isDarkMode ? 'bg-dark-600 border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'} border rounded-lg pl-11 pr-4 py-3 placeholder-gray-500 focus:outline-none focus:border-gray-600 transition-colors font-mono tracking-widest`}
                 />
               </div>
 
