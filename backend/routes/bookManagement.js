@@ -669,28 +669,43 @@ router.put('/users/:id/transfer', async (req, res) => {
     let closedTradesCount = 0
     
     // If transferring from A-Book to B-Book, close all open trades on Corecen LP
+    // Demo account trades must NEVER be synced to/from LP — only close real-account trades there
     if (bookType === 'B' && previousBookType === 'A') {
       try {
         const lpService = (await import('../services/lpService.js')).default
-        
-        // Find all open A-Book trades for this user
+
+        // Find all open A-Book trades for this user, with account populated so we can skip demo ones
         const openTrades = await Trade.find({
           userId: user._id,
           bookType: 'A',
           status: 'OPEN'
-        })
-        
-        console.log(`[Book Management] Found ${openTrades.length} open A-Book trades to close on Corecen`)
-        
-        // Close each trade on Corecen LP
-        for (const trade of openTrades) {
+        }).populate('tradingAccountId', 'isDemo')
+
+        const realTrades = openTrades.filter(t => !t.tradingAccountId?.isDemo)
+        const demoTrades = openTrades.filter(t => t.tradingAccountId?.isDemo)
+
+        console.log(`[Book Management] Found ${openTrades.length} open A-Book trades (${realTrades.length} real, ${demoTrades.length} demo). Only real trades will be closed on LP.`)
+
+        // Demo trades: just flip local bookType to B, do NOT touch LP
+        for (const trade of demoTrades) {
+          try {
+            trade.bookType = 'B'
+            trade.lpSyncStatus = 'NOT_APPLICABLE'
+            await trade.save()
+          } catch (tradeError) {
+            console.error(`[Book Management] Error flipping demo trade ${trade.tradeId} to B-book:`, tradeError.message)
+          }
+        }
+
+        // Real trades: close on Corecen LP and then flip local bookType to B
+        for (const trade of realTrades) {
           try {
             // Set close data for LP sync
             trade.closePrice = trade.currentPrice || trade.openPrice
             trade.closedAt = new Date()
             trade.closedBy = 'ADMIN'
             trade.realizedPnl = 0 // Will be calculated by Corecen
-            
+
             const lpResult = await lpService.closeTradeOnCorecen(trade)
             if (lpResult.success) {
               console.log(`[Book Management] Trade ${trade.tradeId} closed on Corecen LP`)
@@ -698,7 +713,7 @@ router.put('/users/:id/transfer', async (req, res) => {
             } else {
               console.error(`[Book Management] Failed to close trade ${trade.tradeId} on Corecen: ${lpResult.error}`)
             }
-            
+
             // Update local trade bookType to B (so it won't sync anymore)
             trade.bookType = 'B'
             trade.lpSyncStatus = 'NOT_APPLICABLE'
@@ -707,8 +722,8 @@ router.put('/users/:id/transfer', async (req, res) => {
             console.error(`[Book Management] Error closing trade ${trade.tradeId}:`, tradeError.message)
           }
         }
-        
-        console.log(`[Book Management] Closed ${closedTradesCount}/${openTrades.length} trades on Corecen LP`)
+
+        console.log(`[Book Management] Closed ${closedTradesCount}/${realTrades.length} real-account trades on Corecen LP`)
       } catch (closeError) {
         console.error('[Book Management] Error closing trades on LP:', closeError.message)
       }

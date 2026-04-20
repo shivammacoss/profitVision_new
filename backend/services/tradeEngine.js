@@ -348,7 +348,8 @@ class TradeEngine {
 
     // Get user's book type (A or B) and name for LP push
     const user = await User.findById(userId).select('bookType firstName email')
-    const userBookType = user?.bookType || 'B'
+    // Demo accounts must always stay B-book regardless of user.bookType — demo trades never go to LP
+    const userBookType = account.isDemo ? 'B' : (user?.bookType || 'B')
 
     // Create trade
     const trade = await Trade.create({
@@ -390,8 +391,8 @@ class TradeEngine {
       console.log(`[Trade] Deducted commission from balance: $${commission} (spread $${spreadCost} is built into price, not deducted)`)
     }
 
-    // Push A-Book trades to Corecen LP
-    if (orderType === 'MARKET' && userBookType === 'A' && lpService.isConfigured()) {
+    // Push A-Book trades to Corecen LP — never for demo accounts
+    if (orderType === 'MARKET' && userBookType === 'A' && !account.isDemo && lpService.isConfigured()) {
       try {
         const lpResult = await lpService.pushTradeToCorecen(trade, user)
         if (lpResult.success) {
@@ -539,8 +540,9 @@ class TradeEngine {
       console.error('Error processing Referral Income:', refError)
     }
 
-    // Close A-Book trade on Corecen LP
-    if (trade.bookType === 'A' && lpService.isConfigured()) {
+    // Close A-Book trade on Corecen LP — never for demo accounts
+    const closingAccountIsDemo = trade.tradingAccountId?.isDemo === true
+    if (trade.bookType === 'A' && !closingAccountIsDemo && lpService.isConfigured()) {
       try {
         const lpResult = await lpService.closeTradeOnCorecen(trade)
         if (lpResult.success) {

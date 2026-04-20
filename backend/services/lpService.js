@@ -56,10 +56,35 @@ class LPService {
       .digest('hex')
   }
 
+  // Defensive guard — demo account trades must NEVER hit the LP.
+  // Returns true if the given trade belongs to a demo trading account.
+  // trade.tradingAccountId can be either a raw ObjectId or a populated document.
+  async _isDemoTrade(trade) {
+    try {
+      const acc = trade?.tradingAccountId
+      if (acc && typeof acc === 'object' && 'isDemo' in acc) {
+        return acc.isDemo === true
+      }
+      if (!acc) return false
+      const TradingAccount = (await import('../models/TradingAccount.js')).default
+      const account = await TradingAccount.findById(acc).select('isDemo')
+      return account?.isDemo === true
+    } catch (e) {
+      // Fail closed — if we can't determine, treat as demo so we don't leak to LP
+      console.error('[LP Service] _isDemoTrade check failed, treating as demo for safety:', e.message)
+      return true
+    }
+  }
+
   // Push A-Book trade to Corecen when trade opens
   async pushTradeToCorecen(trade, user) {
+    if (await this._isDemoTrade(trade)) {
+      console.log(`[LP Service] Refusing to push demo-account trade ${trade.tradeId} to LP`)
+      return { success: false, message: 'Demo account trades never route to LP' }
+    }
+
     const config = this.getCorecenConfig()
-    
+
     if (!config.apiKey || !config.apiSecret) {
       console.log('[LP Service] Corecen API credentials not configured, skipping trade push')
       return { success: false, message: 'LP credentials not configured' }
@@ -123,8 +148,13 @@ class LPService {
 
   // Close A-Book trade on Corecen when trade closes
   async closeTradeOnCorecen(trade) {
+    if (await this._isDemoTrade(trade)) {
+      console.log(`[LP Service] Refusing to close demo-account trade ${trade.tradeId} on LP`)
+      return { success: false, message: 'Demo account trades never route to LP' }
+    }
+
     const config = this.getCorecenConfig()
-    
+
     console.log(`[LP Service] ========== CLOSE TRADE REQUEST ==========`)
     console.log(`[LP Service] Trade ID: ${trade.tradeId}`)
     console.log(`[LP Service] LP API URL: ${config.apiUrl}`)
@@ -199,8 +229,13 @@ class LPService {
 
   // Update trade SL/TP on Corecen
   async updateTradeOnCorecen(trade) {
+    if (await this._isDemoTrade(trade)) {
+      console.log(`[LP Service] Refusing to update demo-account trade ${trade.tradeId} on LP`)
+      return { success: false, message: 'Demo account trades never route to LP' }
+    }
+
     const config = this.getCorecenConfig()
-    
+
     if (!config.apiKey || !config.apiSecret) {
       return { success: false, message: 'LP credentials not configured' }
     }
@@ -298,41 +333,45 @@ class LPService {
 
   // Close all open A-Book trades for a user in LP
   // Called before deleting user or trades locally
+  // Demo account trades are skipped — they never existed on LP in the first place
   async closeAllUserTrades(userId) {
     try {
-      // Find all open A-Book trades for this user
+      // Find all open A-Book trades for this user, with account populated so we can skip demo ones
       const Trade = (await import('../models/Trade.js')).default
-      const openTrades = await Trade.find({ 
-        userId, 
-        status: 'OPEN', 
-        bookType: 'A' 
-      })
+      const openTrades = await Trade.find({
+        userId,
+        status: 'OPEN',
+        bookType: 'A'
+      }).populate('tradingAccountId', 'isDemo')
 
-      console.log(`[LP Service] Found ${openTrades.length} open A-Book trades for user ${userId}`)
+      const realTrades = openTrades.filter(t => !t.tradingAccountId?.isDemo)
+      const demoTrades = openTrades.filter(t => t.tradingAccountId?.isDemo)
+
+      console.log(`[LP Service] Found ${openTrades.length} open A-Book trades for user ${userId} (${realTrades.length} real, ${demoTrades.length} demo — demo skipped)`)
 
       const results = []
-      for (const trade of openTrades) {
+      for (const trade of realTrades) {
         // Close trade at current market price (we'll use 0 for now, LP will handle)
         trade.status = 'CLOSED'
         trade.closedBy = 'ADMIN'
         trade.closedAt = new Date()
         trade.realizedPnl = 0 // LP will calculate actual P/L
-        
+
         const result = await this.closeTradeOnCorecen(trade)
         results.push({ tradeId: trade.tradeId, result })
-        
+
         // Update local trade status
         await trade.save()
       }
 
       const successCount = results.filter(r => r.result.success).length
-      console.log(`[LP Service] Closed ${successCount}/${openTrades.length} trades in LP`)
+      console.log(`[LP Service] Closed ${successCount}/${realTrades.length} real-account trades in LP`)
 
-      return { 
-        success: true, 
-        total: openTrades.length, 
+      return {
+        success: true,
+        total: realTrades.length,
         closed: successCount,
-        results 
+        results
       }
     } catch (error) {
       console.error(`[LP Service] Error closing user trades: ${error.message}`)

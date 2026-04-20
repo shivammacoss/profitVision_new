@@ -213,9 +213,14 @@ router.post('/open', async (req, res) => {
       }
     })
 
-    // Push A-Book trade to Corecen LP (non-blocking)
+    // Push A-Book trade to Corecen LP (non-blocking) — never for demo accounts
     setImmediate(async () => {
       try {
+        const tradingAccount = await TradingAccount.findById(tradingAccountId).select('isDemo')
+        if (tradingAccount?.isDemo) {
+          console.log(`[Trade] Skipping LP push — trading account ${tradingAccountId} is demo`)
+          return
+        }
         const user = await User.findById(userId)
         if (user && user.bookType === 'A') {
           console.log(`[Trade] User ${user.email} is A-Book, pushing trade to Corecen`)
@@ -371,9 +376,15 @@ router.post('/close', async (req, res) => {
       }
     })
 
-    // Close A-Book trade on Corecen LP (non-blocking)
+    // Close A-Book trade on Corecen LP (non-blocking) — never for demo accounts
     setImmediate(async () => {
       try {
+        // Skip LP close entirely if the underlying trading account is demo
+        const tradeAccount = await TradingAccount.findById(result.trade.tradingAccountId).select('isDemo')
+        if (tradeAccount?.isDemo) {
+          console.log(`[Trade] Skipping LP close — trading account ${result.trade.tradingAccountId} is demo`)
+          return
+        }
         const user = await User.findById(result.trade.userId)
         if (user && user.bookType === 'A') {
           console.log(`[Trade] User ${user.email} is A-Book, closing trade on Corecen`)
