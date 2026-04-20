@@ -426,9 +426,9 @@ class IBEngine {
           status: 'CREDITED'
         })
 
-        // Credit IB wallet
+        // Credit IB wallet — trade commission goes into Referral Income bucket
         const wallet = await IBWallet.getOrCreateWallet(ibUser._id)
-        await wallet.creditCommission(commissionAmount)
+        await wallet.creditReferralIncome(commissionAmount)
 
         commissionResults.push({
           ibUserId: ibUser._id,
@@ -749,9 +749,9 @@ class IBEngine {
           status: 'CREDITED'
         })
 
-        // Credit IB wallet
+        // Credit IB wallet — first-join commission goes into Direct/Signup bucket
         const wallet = await IBWallet.getOrCreateWallet(ibUser._id)
-        await wallet.creditCommission(commissionAmount)
+        await wallet.creditDirectIncome(commissionAmount)
 
         commissionResults.push({
           ibUserId: ibUser._id,
@@ -837,9 +837,9 @@ class IBEngine {
           status: 'CREDITED'
         })
 
-        // Credit IB wallet
+        // Credit IB wallet — referral bonus goes into Referral Income bucket
         const wallet = await IBWallet.getOrCreateWallet(ibUser._id)
-        await wallet.creditCommission(commissionAmount)
+        await wallet.creditReferralIncome(commissionAmount)
 
         commissionResults.push({
           ibUserId: ibUser._id,
@@ -934,9 +934,9 @@ class IBEngine {
           status: 'CREDITED'
         })
 
-        // Credit IB wallet
+        // Credit IB wallet — extended trade commission goes into Referral Income bucket
         const wallet = await IBWallet.getOrCreateWallet(ibUser._id)
-        await wallet.creditCommission(commissionAmount)
+        await wallet.creditReferralIncome(commissionAmount)
 
         commissionResults.push({
           ibUserId: ibUser._id,

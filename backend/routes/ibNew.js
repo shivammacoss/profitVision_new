@@ -124,19 +124,26 @@ router.get('/my-profile/:userId', async (req, res) => {
       console.error('Error getting level progress:', e)
     }
 
-    // Get income breakdown (Direct Joining vs Referral Income)
-    const directIncomeResult = await ReferralCommission.aggregate([
-      { $match: { recipientUserId: new mongoose.Types.ObjectId(userId), commissionType: 'DIRECT_JOINING', status: 'CREDITED' } },
-      { $group: { _id: null, total: { $sum: '$commissionAmount' }, count: { $sum: 1 } } }
-    ])
-    const referralIncomeResult = await ReferralCommission.aggregate([
-      { $match: { recipientUserId: new mongoose.Types.ObjectId(userId), commissionType: 'REFERRAL_INCOME', status: 'CREDITED' } },
-      { $group: { _id: null, total: { $sum: '$commissionAmount' }, count: { $sum: 1 } } }
+    // Get income breakdown (3 streams: Signup Bonus, Trade Commission, Referral Income)
+    const [directIncomeResult, referralIncomeResult, tradeCommissionResult] = await Promise.all([
+      ReferralCommission.aggregate([
+        { $match: { recipientUserId: new mongoose.Types.ObjectId(userId), commissionType: 'DIRECT_JOINING', status: 'CREDITED' } },
+        { $group: { _id: null, total: { $sum: '$commissionAmount' }, count: { $sum: 1 } } }
+      ]),
+      ReferralCommission.aggregate([
+        { $match: { recipientUserId: new mongoose.Types.ObjectId(userId), commissionType: 'REFERRAL_INCOME', status: 'CREDITED' } },
+        { $group: { _id: null, total: { $sum: '$commissionAmount' }, count: { $sum: 1 } } }
+      ]),
+      IBCommission.aggregate([
+        { $match: { ibUserId: new mongoose.Types.ObjectId(userId), status: 'CREDITED' } },
+        { $group: { _id: null, total: { $sum: '$commissionAmount' }, count: { $sum: 1 } } }
+      ])
     ])
 
     const incomeBreakdown = {
       directJoining: { total: directIncomeResult[0]?.total || 0, count: directIncomeResult[0]?.count || 0 },
-      referralIncome: { total: referralIncomeResult[0]?.total || 0, count: referralIncomeResult[0]?.count || 0 }
+      referralIncome: { total: referralIncomeResult[0]?.total || 0, count: referralIncomeResult[0]?.count || 0 },
+      tradeCommission: { total: tradeCommissionResult[0]?.total || 0, count: tradeCommissionResult[0]?.count || 0 }
     }
 
     res.json({
@@ -174,21 +181,29 @@ router.get('/my-referrals/:userId', async (req, res) => {
       .select('firstName lastName email createdAt isIB ibStatus')
       .sort({ createdAt: -1 })
 
-    // Get stats for each referral
+    // Get stats for each referral — sum both ReferralCommission and IBCommission where this referral is the source
     const referralsWithStats = await Promise.all(referrals.map(async (ref) => {
-      // Get commission earned from this referral (Direct Joining commission)
-      const directCommission = await ReferralCommission.aggregate([
-        { $match: { recipientUserId: new mongoose.Types.ObjectId(userId), sourceUserId: ref._id, status: 'CREDITED' } },
-        { $group: { _id: null, total: { $sum: '$commissionAmount' } } }
+      const [refCommResult, ibCommResult] = await Promise.all([
+        ReferralCommission.aggregate([
+          { $match: { recipientUserId: new mongoose.Types.ObjectId(userId), sourceUserId: ref._id, status: 'CREDITED' } },
+          { $group: { _id: null, total: { $sum: '$commissionAmount' } } }
+        ]),
+        IBCommission.aggregate([
+          { $match: { ibUserId: new mongoose.Types.ObjectId(userId), traderUserId: ref._id, status: 'CREDITED' } },
+          { $group: { _id: null, total: { $sum: '$commissionAmount' }, totalLots: { $sum: '$tradeLotSize' }, count: { $sum: 1 } } }
+        ])
       ])
-      
+
+      const commissionEarned = (refCommResult[0]?.total || 0) + (ibCommResult[0]?.total || 0)
+
       return {
         ...ref.toObject(),
         userId: ref,
         stats: {
-          commissionEarned: directCommission[0]?.total || 0,
+          commissionEarned,
           totalEquity: 0,
-          totalVolume: 0
+          totalVolume: ibCommResult[0]?.totalLots || 0,
+          totalTrades: ibCommResult[0]?.count || 0
         }
       }
     }))
@@ -391,41 +406,64 @@ router.get('/daily-income/:userId', async (req, res) => {
     const startDate = new Date()
     startDate.setDate(startDate.getDate() - parseInt(days))
 
-    // Get daily breakdown from ReferralCommission
-    const dailyIncome = await ReferralCommission.aggregate([
-      { 
-        $match: { 
-          recipientUserId: new mongoose.Types.ObjectId(userId),
-          status: 'CREDITED',
-          createdAt: { $gte: startDate }
-        } 
-      },
-      {
-        $group: {
-          _id: {
-            date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-            type: '$commissionType'
-          },
-          total: { $sum: '$commissionAmount' },
-          count: { $sum: 1 }
+    // Get daily breakdown from ReferralCommission (signup + downline referral income)
+    // and IBCommission (trade commission) in parallel
+    const [referralDaily, tradeDaily] = await Promise.all([
+      ReferralCommission.aggregate([
+        {
+          $match: {
+            recipientUserId: new mongoose.Types.ObjectId(userId),
+            status: 'CREDITED',
+            createdAt: { $gte: startDate }
+          }
+        },
+        {
+          $group: {
+            _id: {
+              date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+              type: '$commissionType'
+            },
+            total: { $sum: '$commissionAmount' },
+            count: { $sum: 1 }
+          }
         }
-      },
-      { $sort: { '_id.date': -1 } }
+      ]),
+      IBCommission.aggregate([
+        {
+          $match: {
+            ibUserId: new mongoose.Types.ObjectId(userId),
+            status: 'CREDITED',
+            createdAt: { $gte: startDate }
+          }
+        },
+        {
+          $group: {
+            _id: { date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } } },
+            total: { $sum: '$commissionAmount' },
+            count: { $sum: 1 }
+          }
+        }
+      ])
     ])
 
     // Restructure for easier frontend consumption
     const dailyMap = {}
-    dailyIncome.forEach(item => {
-      const date = item._id.date
+    const ensure = (date) => {
       if (!dailyMap[date]) {
-        dailyMap[date] = { date, directJoining: 0, referralIncome: 0, total: 0 }
+        dailyMap[date] = { date, directJoining: 0, referralIncome: 0, tradeCommission: 0, total: 0 }
       }
-      if (item._id.type === 'DIRECT_JOINING') {
-        dailyMap[date].directJoining = item.total
-      } else if (item._id.type === 'REFERRAL_INCOME') {
-        dailyMap[date].referralIncome = item.total
-      }
-      dailyMap[date].total += item.total
+      return dailyMap[date]
+    }
+    referralDaily.forEach(item => {
+      const row = ensure(item._id.date)
+      if (item._id.type === 'DIRECT_JOINING') row.directJoining = item.total
+      else if (item._id.type === 'REFERRAL_INCOME') row.referralIncome = item.total
+      row.total += item.total
+    })
+    tradeDaily.forEach(item => {
+      const row = ensure(item._id.date)
+      row.tradeCommission = item.total
+      row.total += item.total
     })
 
     const dailyBreakdown = Object.values(dailyMap).sort((a, b) => b.date.localeCompare(a.date))

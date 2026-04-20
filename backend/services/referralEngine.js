@@ -133,7 +133,7 @@ class ReferralEngine {
         })
 
         const wallet = await IBWallet.getOrCreateWallet(user._id)
-        await wallet.creditCommission(commissionAmount)
+        await wallet.creditReferralIncome(commissionAmount)
 
         results.push({
           userId: user._id,
@@ -196,7 +196,7 @@ class ReferralEngine {
         })
 
         const wallet = await IBWallet.getOrCreateWallet(user._id)
-        await wallet.creditCommission(commissionAmount)
+        await wallet.creditDirectIncome(commissionAmount)
 
         results.push({
           userId: user._id,

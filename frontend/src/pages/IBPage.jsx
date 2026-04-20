@@ -116,8 +116,10 @@ const IBPage = () => {
           totalCommissionEarned: data.wallet?.totalEarned || 0,
           pendingWithdrawal: data.wallet?.pendingWithdrawal || 0,
           totalWithdrawn: data.wallet?.totalWithdrawn || 0,
+          directIncomeBalance: data.wallet?.directIncomeBalance || 0,
+          referralIncomeBalance: data.wallet?.referralIncomeBalance || 0,
           stats: data.stats || {},
-          incomeBreakdown: data.incomeBreakdown || { directJoining: { total: 0 }, referralIncome: { total: 0 } }
+          incomeBreakdown: data.incomeBreakdown || { directJoining: { total: 0 }, referralIncome: { total: 0 }, tradeCommission: { total: 0 } }
         })
         // Set level progress data
         if (data.levelProgress) {
@@ -514,8 +516,8 @@ const IBPage = () => {
           ) : (
             /* Active IB Dashboard */
             <div>
-              {/* Stats Cards - Row 1: Balance & Earnings */}
-              <div className={`grid ${isMobile ? 'grid-cols-2 gap-3' : 'grid-cols-4 gap-4'} mb-4`}>
+              {/* Stats Cards - Row 1: Balance & Total Earned */}
+              <div className={`grid ${isMobile ? 'grid-cols-2 gap-3' : 'grid-cols-2 gap-4'} mb-4`}>
                 <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl ${isMobile ? 'p-3' : 'p-5'} border`}>
                   <div className="flex items-center gap-2 mb-2">
                     <div className={`${isMobile ? 'w-8 h-8' : 'w-10 h-10'} bg-accent-green/20 rounded-lg flex items-center justify-center`}>
@@ -534,14 +536,29 @@ const IBPage = () => {
                   <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Total Earned</p>
                   <p className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'} ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>${ibProfile.totalCommissionEarned?.toFixed(2) || '0.00'}</p>
                 </div>
+              </div>
+
+              {/* Stats Cards - Row 2: Income Breakdown (Signup + Trade + Referral) */}
+              <div className={`grid ${isMobile ? 'grid-cols-1 gap-3' : 'grid-cols-3 gap-4'} mb-4`}>
                 <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl ${isMobile ? 'p-3' : 'p-5'} border`}>
                   <div className="flex items-center gap-2 mb-2">
                     <div className={`${isMobile ? 'w-8 h-8' : 'w-10 h-10'} bg-cyan-500/20 rounded-lg flex items-center justify-center`}>
                       <UserPlus size={isMobile ? 16 : 20} className="text-cyan-500" />
                     </div>
                   </div>
-                  <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Direct Income</p>
+                  <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Signup Bonus</p>
                   <p className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'} ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>${ibProfile.incomeBreakdown?.directJoining?.total?.toFixed(2) || '0.00'}</p>
+                  <p className="text-xs text-gray-500 mt-1">From new referral signups</p>
+                </div>
+                <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl ${isMobile ? 'p-3' : 'p-5'} border`}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={`${isMobile ? 'w-8 h-8' : 'w-10 h-10'} bg-accent-green/20 rounded-lg flex items-center justify-center`}>
+                      <DollarSign size={isMobile ? 16 : 20} className="text-accent-green" />
+                    </div>
+                  </div>
+                  <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Trade Commission</p>
+                  <p className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'} ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>${ibProfile.incomeBreakdown?.tradeCommission?.total?.toFixed(2) || '0.00'}</p>
+                  <p className="text-xs text-gray-500 mt-1">Per-lot IB commission</p>
                 </div>
                 <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl ${isMobile ? 'p-3' : 'p-5'} border`}>
                   <div className="flex items-center gap-2 mb-2">
@@ -551,6 +568,7 @@ const IBPage = () => {
                   </div>
                   <p className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-600'}`}>Referral Income</p>
                   <p className={`font-bold ${isMobile ? 'text-lg' : 'text-2xl'} ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>${ibProfile.incomeBreakdown?.referralIncome?.total?.toFixed(2) || '0.00'}</p>
+                  <p className="text-xs text-gray-500 mt-1">Downline trade bonus</p>
                 </div>
               </div>
 
@@ -964,7 +982,7 @@ const IBPage = () => {
               {activeTab === 'daily-earnings' && (
                 <div className="space-y-4">
                   {/* Summary */}
-                  <div className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-3'} gap-3`}>
+                  <div className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-4'} gap-3`}>
                     <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-4 border`}>
                       <p className="text-gray-500 text-xs mb-1">Total (30 Days)</p>
                       <p className="text-accent-green text-xl font-bold">
@@ -972,9 +990,15 @@ const IBPage = () => {
                       </p>
                     </div>
                     <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-4 border`}>
-                      <p className="text-gray-500 text-xs mb-1">Direct Income</p>
+                      <p className="text-gray-500 text-xs mb-1">Signup Bonus</p>
                       <p className="text-cyan-400 text-xl font-bold">
                         ${dailyIncome.reduce((sum, d) => sum + (d.directJoining || 0), 0).toFixed(2)}
+                      </p>
+                    </div>
+                    <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-4 border`}>
+                      <p className="text-gray-500 text-xs mb-1">Trade Commission</p>
+                      <p className="text-accent-green text-xl font-bold">
+                        ${dailyIncome.reduce((sum, d) => sum + (d.tradeCommission || 0), 0).toFixed(2)}
                       </p>
                     </div>
                     <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl p-4 border`}>
@@ -998,7 +1022,8 @@ const IBPage = () => {
                           <thead>
                             <tr className={`text-left text-sm ${isDarkMode ? 'text-gray-400 border-gray-700' : 'text-gray-600 border-gray-200'} border-b`}>
                               <th className="px-4 py-3 font-medium">Date</th>
-                              <th className="px-4 py-3 font-medium text-right">Direct Income</th>
+                              <th className="px-4 py-3 font-medium text-right">Signup Bonus</th>
+                              <th className="px-4 py-3 font-medium text-right">Trade Commission</th>
                               <th className="px-4 py-3 font-medium text-right">Referral Income</th>
                               <th className="px-4 py-3 font-medium text-right">Total</th>
                             </tr>
@@ -1011,6 +1036,9 @@ const IBPage = () => {
                                 </td>
                                 <td className="px-4 py-3 text-right text-cyan-400 font-medium">
                                   ${(day.directJoining || 0).toFixed(2)}
+                                </td>
+                                <td className="px-4 py-3 text-right text-accent-green font-medium">
+                                  ${(day.tradeCommission || 0).toFixed(2)}
                                 </td>
                                 <td className="px-4 py-3 text-right text-yellow-400 font-medium">
                                   ${(day.referralIncome || 0).toFixed(2)}
@@ -1040,17 +1068,20 @@ const IBPage = () => {
 
               {activeTab === 'withdraw' && (
                 <div className={`grid ${isMobile ? 'grid-cols-1 gap-4' : 'grid-cols-2 gap-6'}`}>
-                  {/* Direct Income Withdrawal */}
+                  {/* Direct Income Withdrawal — Signup Bonus bucket */}
                   <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl ${isMobile ? 'p-4' : 'p-6'} border`}>
                     <div className="flex items-center gap-2 mb-4">
                       <div className="w-8 h-8 bg-cyan-500/20 rounded-lg flex items-center justify-center">
                         <DollarSign size={16} className="text-cyan-400" />
                       </div>
-                      <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Direct Income</h3>
+                      <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Signup Bonus</h3>
                     </div>
                     <div className="mb-3">
-                      <p className="text-gray-400 text-xs mb-1">Available Balance</p>
-                      <p className="text-cyan-400 font-bold text-2xl">${ibProfile.incomeBreakdown?.directJoining?.total?.toFixed(2) || '0.00'}</p>
+                      <p className="text-gray-400 text-xs mb-1">Available to Withdraw</p>
+                      <p className="text-cyan-400 font-bold text-2xl">${ibProfile.directIncomeBalance?.toFixed(2) || '0.00'}</p>
+                      <p className="text-gray-500 text-xs mt-1">
+                        Lifetime: ${ibProfile.incomeBreakdown?.directJoining?.total?.toFixed(2) || '0.00'}
+                      </p>
                     </div>
                     <div className="mb-3">
                       <label className="text-gray-400 text-xs mb-1 block">Amount</label>
@@ -1067,22 +1098,25 @@ const IBPage = () => {
                       disabled={!directWithdrawAmount || parseFloat(directWithdrawAmount) <= 0}
                       className={`w-full bg-cyan-500 text-white py-2 rounded-lg font-medium hover:bg-cyan-600 disabled:opacity-50 ${isMobile ? 'text-sm' : ''}`}
                     >
-                      Withdraw Direct Income
+                      Withdraw Signup Bonus
                     </button>
                     <p className="text-gray-500 text-xs mt-2">Instant withdrawal available</p>
                   </div>
 
-                  {/* Referral Income Withdrawal */}
+                  {/* Referral Income Withdrawal — Trade Commission + Referral Bonus bucket */}
                   <div className={`${isDarkMode ? 'bg-dark-800 border-gray-800' : 'bg-white border-gray-200 shadow-sm'} rounded-xl ${isMobile ? 'p-4' : 'p-6'} border`}>
                     <div className="flex items-center gap-2 mb-4">
                       <div className="w-8 h-8 bg-yellow-500/20 rounded-lg flex items-center justify-center">
                         <TrendingUp size={16} className="text-yellow-400" />
                       </div>
-                      <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Referral Income</h3>
+                      <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Trade & Referral Income</h3>
                     </div>
                     <div className="mb-3">
-                      <p className="text-gray-400 text-xs mb-1">Available Balance</p>
-                      <p className="text-yellow-400 font-bold text-2xl">${ibProfile.incomeBreakdown?.referralIncome?.total?.toFixed(2) || '0.00'}</p>
+                      <p className="text-gray-400 text-xs mb-1">Available to Withdraw</p>
+                      <p className="text-yellow-400 font-bold text-2xl">${ibProfile.referralIncomeBalance?.toFixed(2) || '0.00'}</p>
+                      <p className="text-gray-500 text-xs mt-1">
+                        Lifetime: ${((ibProfile.incomeBreakdown?.tradeCommission?.total || 0) + (ibProfile.incomeBreakdown?.referralIncome?.total || 0)).toFixed(2)}
+                      </p>
                     </div>
                     <div className="mb-3">
                       <label className="text-gray-400 text-xs mb-1 block">Amount</label>
@@ -1099,7 +1133,7 @@ const IBPage = () => {
                       disabled={!referralWithdrawAmount || parseFloat(referralWithdrawAmount) <= 0}
                       className={`w-full bg-yellow-500 text-black py-2 rounded-lg font-medium hover:bg-yellow-600 disabled:opacity-50 ${isMobile ? 'text-sm' : ''}`}
                     >
-                      Withdraw Referral Income
+                      Withdraw Trade & Referral Income
                     </button>
                     <p className="text-orange-400 text-xs mt-2">Requires admin approval</p>
                   </div>
