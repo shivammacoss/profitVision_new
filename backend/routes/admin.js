@@ -37,6 +37,58 @@ router.get('/users/:id', async (req, res) => {
   }
 })
 
+// PUT /api/admin/users/:id - Update user profile fields (firstName, email, phone, countryCode)
+router.put('/users/:id', async (req, res) => {
+  try {
+    const { firstName, email, phone, countryCode } = req.body
+
+    const user = await User.findById(req.params.id)
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' })
+    }
+
+    // Validate email format if provided
+    if (email !== undefined) {
+      const normalized = String(email).trim().toLowerCase()
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+        return res.status(400).json({ success: false, message: 'Invalid email format' })
+      }
+      // Check email uniqueness (excluding this user)
+      const exists = await User.findOne({ email: normalized, _id: { $ne: user._id } }).select('_id')
+      if (exists) {
+        return res.status(409).json({ success: false, message: 'Email is already in use by another user' })
+      }
+      user.email = normalized
+    }
+
+    if (firstName !== undefined) {
+      const trimmed = String(firstName).trim()
+      if (!trimmed) {
+        return res.status(400).json({ success: false, message: 'Name cannot be empty' })
+      }
+      user.firstName = trimmed
+    }
+
+    if (phone !== undefined) {
+      user.phone = String(phone).trim()
+    }
+
+    if (countryCode !== undefined) {
+      user.countryCode = String(countryCode).trim() || user.countryCode
+    }
+
+    await user.save()
+
+    const updated = user.toObject()
+    delete updated.password
+
+    res.json({ success: true, message: 'User profile updated successfully', user: updated })
+  } catch (error) {
+    console.error('Error updating user profile:', error)
+    res.status(500).json({ success: false, message: 'Error updating user profile', error: error.message })
+  }
+})
+
 // PUT /api/admin/users/:id/password - Change user password
 router.put('/users/:id/password', async (req, res) => {
   try {

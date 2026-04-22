@@ -61,7 +61,11 @@ const AdminUserManagement = () => {
   const [accountFundAmount, setAccountFundAmount] = useState('')
   const [accountFundReason, setAccountFundReason] = useState('')
   const [userWalletBalance, setUserWalletBalance] = useState(0)
-  
+  const [editFirstName, setEditFirstName] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [editCountryCode, setEditCountryCode] = useState('')
+
   const adminUser = JSON.parse(localStorage.getItem('adminUser') || '{}')
   const adminToken = localStorage.getItem('adminToken')
 
@@ -237,6 +241,58 @@ const AdminUserManagement = () => {
       }
     } catch (error) {
       setMessage({ type: 'error', text: 'Error changing password' })
+    }
+    setActionLoading(false)
+  }
+
+  const openEditUser = () => {
+    if (!selectedUser) return
+    setEditFirstName(selectedUser.firstName || '')
+    setEditEmail(selectedUser.email || '')
+    setEditPhone(selectedUser.phone || '')
+    setEditCountryCode(selectedUser.countryCode || '+1')
+    setMessage({ type: '', text: '' })
+    setModalType('edit')
+  }
+
+  const handleEditUser = async () => {
+    const trimmedName = editFirstName.trim()
+    const trimmedEmail = editEmail.trim().toLowerCase()
+
+    if (!trimmedName) {
+      setMessage({ type: 'error', text: 'Name cannot be empty' })
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+      setMessage({ type: 'error', text: 'Invalid email format' })
+      return
+    }
+
+    setActionLoading(true)
+    try {
+      const response = await fetch(`${API_URL}/admin/users/${selectedUser._id}`, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          firstName: trimmedName,
+          email: trimmedEmail,
+          phone: editPhone.trim(),
+          countryCode: editCountryCode.trim()
+        })
+      })
+
+      const data = await response.json()
+      if (response.ok && data.success) {
+        setMessage({ type: 'success', text: 'User updated successfully' })
+        // Update local caches so modal + table reflect new values without reload
+        setUsers(prev => prev.map(u => u._id === selectedUser._id ? { ...u, ...data.user } : u))
+        setSelectedUser(prev => ({ ...prev, ...data.user }))
+        setTimeout(() => setModalType('view'), 1000)
+      } else {
+        setMessage({ type: 'error', text: data.message || 'Failed to update user' })
+      }
+    } catch (error) {
+      setMessage({ type: 'error', text: 'Error updating user' })
     }
     setActionLoading(false)
   }
@@ -671,7 +727,14 @@ const AdminUserManagement = () => {
 
                 {/* Quick Actions */}
                 <div className="grid grid-cols-2 gap-2 pt-2">
-                  <button 
+                  <button
+                    onClick={openEditUser}
+                    className="flex items-center justify-center gap-2 p-3 bg-blue-500/20 text-blue-500 rounded-lg hover:bg-blue-500/30 transition-colors col-span-2"
+                  >
+                    <Edit size={16} />
+                    <span className="text-sm">Edit User Info</span>
+                  </button>
+                  <button
                     onClick={() => setModalType('password')}
                     className="flex items-center justify-center gap-2 p-3 bg-red-500/20 text-blue-500 rounded-lg hover:bg-red-500/30 transition-colors"
                   >
@@ -796,6 +859,74 @@ const AdminUserManagement = () => {
                     className={`flex-1 py-3 rounded-lg transition-colors ${isDarkMode ? 'bg-dark-700 text-gray-400 hover:bg-dark-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                   >
                     Back
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Edit User Info */}
+            {modalType === 'edit' && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-blue-500 mb-2">
+                  <Edit size={20} />
+                  <h4 className="font-semibold">Edit User Info</h4>
+                </div>
+                <div>
+                  <label className="text-gray-400 text-sm mb-1 block">Full Name</label>
+                  <input
+                    type="text"
+                    value={editFirstName}
+                    onChange={(e) => setEditFirstName(e.target.value)}
+                    placeholder="Enter full name"
+                    className={`w-full border rounded-lg px-4 py-3 placeholder-gray-500 focus:outline-none focus:border-blue-500 ${isDarkMode ? 'bg-dark-700 border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'}`}
+                  />
+                </div>
+                <div>
+                  <label className="text-gray-400 text-sm mb-1 block">Email</label>
+                  <input
+                    type="email"
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    placeholder="user@example.com"
+                    className={`w-full border rounded-lg px-4 py-3 placeholder-gray-500 focus:outline-none focus:border-blue-500 ${isDarkMode ? 'bg-dark-700 border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'}`}
+                  />
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-gray-400 text-sm mb-1 block">Country Code</label>
+                    <input
+                      type="text"
+                      value={editCountryCode}
+                      onChange={(e) => setEditCountryCode(e.target.value)}
+                      placeholder="+1"
+                      className={`w-full border rounded-lg px-4 py-3 placeholder-gray-500 focus:outline-none focus:border-blue-500 ${isDarkMode ? 'bg-dark-700 border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'}`}
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-gray-400 text-sm mb-1 block">Phone Number</label>
+                    <input
+                      type="tel"
+                      value={editPhone}
+                      onChange={(e) => setEditPhone(e.target.value)}
+                      placeholder="Enter phone number"
+                      className={`w-full border rounded-lg px-4 py-3 placeholder-gray-500 focus:outline-none focus:border-blue-500 ${isDarkMode ? 'bg-dark-700 border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'}`}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500">Changing email will change the user's login email. Make sure the new email is valid and not already registered.</p>
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={() => setModalType('view')}
+                    className={`flex-1 py-3 rounded-lg transition-colors ${isDarkMode ? 'bg-dark-700 text-gray-400 hover:bg-dark-600' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={handleEditUser}
+                    disabled={actionLoading}
+                    className="flex-1 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
+                  >
+                    {actionLoading ? 'Saving...' : 'Save Changes'}
                   </button>
                 </div>
               </div>
