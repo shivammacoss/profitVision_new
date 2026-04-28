@@ -166,8 +166,8 @@ async function serverSideSlTpCheck() {
   }
 }
 
-// Run SL/TP check every 1.5 seconds (server-side, independent of frontend)
-setInterval(serverSideSlTpCheck, 1500)
+// Run SL/TP check every 300ms (server-side, near-instant like MT5)
+setInterval(serverSideSlTpCheck, 300)
 
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id)
