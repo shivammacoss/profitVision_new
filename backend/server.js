@@ -38,6 +38,8 @@ import lpIntegrationRoutes, { getAllLpPrices } from './routes/lpIntegration.js'
 import chartsRoutes from './routes/charts.js'
 import { startPeriodicFlush } from './services/candleAggregator.js'
 import lpConnectionMonitor from './services/lpConnectionMonitor.js'
+import tradeEngine from './services/tradeEngine.js'
+import propTradingEngine from './services/propTradingEngine.js'
 import manualCryptoRoutes from './routes/manualCrypto.js'
 import contactRoutes from './routes/contact.js'
 import path from 'path'
@@ -107,6 +109,65 @@ async function streamPrices() {
 
 // Start price streaming interval (broadcasts LP prices or fallback)
 setInterval(streamPrices, 500)
+
+// ========== SERVER-SIDE SL/TP & PENDING ORDER MONITOR ==========
+// Runs independently of frontend — works even when no user is online
+let slTpCheckRunning = false
+async function serverSideSlTpCheck() {
+  if (slTpCheckRunning) return // prevent overlap
+  slTpCheckRunning = true
+  try {
+    const lpPrices = getAllLpPrices()
+    if (lpPrices.size === 0) return
+
+    // Convert Map to plain object { symbol: { bid, ask } }
+    const prices = {}
+    for (const [symbol, data] of lpPrices) {
+      if (data.bid && data.ask) {
+        prices[symbol] = { bid: data.bid, ask: data.ask }
+      }
+    }
+    if (Object.keys(prices).length === 0) return
+
+    // Check SL/TP for regular trades
+    const closedRegular = await tradeEngine.checkSlTpForAllTrades(prices)
+    if (closedRegular.length > 0) {
+      console.log(`[SL/TP Monitor] Closed ${closedRegular.length} regular trade(s):`)
+      closedRegular.forEach(ct => {
+        console.log(`  - ${ct.trade.tradeId} ${ct.trade.symbol} ${ct.trigger} PnL: $${ct.pnl?.toFixed(2)}`)
+      })
+      // Notify connected clients
+      io.emit('tradesUpdated', { closedTrades: closedRegular.map(ct => ct.trade.tradeId) })
+    }
+
+    // Check SL/TP for challenge/prop trades
+    const closedChallenge = await propTradingEngine.checkSlTpForAllTrades(prices)
+    if (closedChallenge.length > 0) {
+      console.log(`[SL/TP Monitor] Closed ${closedChallenge.length} challenge trade(s)`)
+      io.emit('tradesUpdated', { closedTrades: closedChallenge.map(ct => ct.trade.tradeId) })
+    }
+
+    // Check pending orders for execution
+    const executedPending = await tradeEngine.checkPendingOrders(prices)
+    if (executedPending.length > 0) {
+      console.log(`[SL/TP Monitor] Executed ${executedPending.length} pending order(s):`)
+      executedPending.forEach(et => {
+        console.log(`  - ${et.trade.tradeId} ${et.trade.symbol} @ ${et.executionPrice}`)
+      })
+      io.emit('tradesUpdated', { executedOrders: executedPending.map(et => et.trade.tradeId) })
+    }
+  } catch (err) {
+    // Only log unexpected errors, not "Trade is not open" race conditions
+    if (!err.message?.includes('Trade is not open') && !err.message?.includes('Trade not found')) {
+      console.error('[SL/TP Monitor] Error:', err.message)
+    }
+  } finally {
+    slTpCheckRunning = false
+  }
+}
+
+// Run SL/TP check every 1.5 seconds (server-side, independent of frontend)
+setInterval(serverSideSlTpCheck, 1500)
 
 io.on('connection', (socket) => {
   console.log('Client connected:', socket.id)
