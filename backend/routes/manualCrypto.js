@@ -4,6 +4,7 @@ import Transaction from '../models/Transaction.js'
 import Wallet from '../models/Wallet.js'
 import User from '../models/User.js'
 import { authenticateUser, authenticateSuperAdmin } from '../middleware/auth.js'
+import referralEngine from '../services/referralEngine.js'
 
 const router = express.Router()
 
@@ -448,7 +449,13 @@ router.post('/admin/approve/:transactionId', authenticateSuperAdmin, async (req,
     await transaction.save()
     
     console.log(`[ManualCrypto Admin] Deposit approved: $${transaction.amount} for user ${transaction.userId}`)
-    
+
+    try {
+      await referralEngine.checkAndProcessDepositCommission(transaction.userId)
+    } catch (err) {
+      console.error('[ManualCrypto] Referral commission check error:', err.message)
+    }
+
     res.json({
       success: true,
       message: `Deposit of $${transaction.amount} approved and credited`,

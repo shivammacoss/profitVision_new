@@ -297,6 +297,31 @@ class ReferralEngine {
     }
   }
 
+  async checkAndProcessDepositCommission(userId) {
+    const user = await User.findById(userId)
+    if (!user) return { processed: false, reason: 'User not found' }
+    if (!user.parentIBId) return { processed: false, reason: 'User has no referrer' }
+    if (user.referralCommissionPaid) return { processed: false, reason: 'Commission already paid' }
+
+    const Transaction = (await import('../models/Transaction.js')).default
+    const result = await Transaction.aggregate([
+      { $match: { userId: user._id, type: 'Deposit', status: { $in: ['Approved', 'Auto-Verified'] } } },
+      { $group: { _id: null, total: { $sum: '$amount' } } }
+    ])
+    const totalDeposits = result.length > 0 ? result[0].total : 0
+
+    if (totalDeposits < 100) {
+      console.log(`[Referral] User ${userId} total deposits $${totalDeposits} < $100, skipping commission`)
+      return { processed: false, reason: `Total deposits $${totalDeposits} < $100` }
+    }
+
+    console.log(`[Referral] User ${userId} reached $${totalDeposits} deposits, processing commission`)
+    user.referralCommissionPaid = true
+    await user.save()
+
+    return this.processSignupCommission(userId)
+  }
+
   async registerWithReferral(userId, referralCode) {
     const user = await User.findById(userId)
     if (!user) throw new Error('User not found')

@@ -117,23 +117,29 @@ const Signup = () => {
     setLoading(true)
     setError('')
     setSuccess('')
-    
+
+    if (!referralCode.trim()) {
+      setError('Referral code is required to create an account')
+      setLoading(false)
+      return
+    }
+
     try {
       const response = await fetch(`${API_URL}/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          referralCode: referralCode.trim() || undefined
+          referralCode: referralCode.trim()
         })
       })
-      
+
       const data = await response.json()
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'Failed to send OTP')
       }
-      
+
       setSuccess('OTP sent to your email!')
       setStep('otp')
       setResendTimer(60) // 60 seconds cooldown
@@ -212,12 +218,12 @@ const Signup = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
-          referralCode: referralCode.trim() || undefined
+          referralCode: referralCode.trim()
         })
       })
-      
+
       const data = await response.json()
-      
+
       if (!response.ok) {
         throw new Error(data.message || 'Failed to resend OTP')
       }
@@ -354,8 +360,9 @@ const Signup = () => {
                 <Gift size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
                 <input
                   type="text"
-                  placeholder="Referral code (optional)"
+                  placeholder="Referral code *"
                   value={referralCode}
+                  required
                   onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
                   className={`w-full ${isDarkMode ? 'bg-dark-600 border-gray-700 text-white' : 'bg-gray-50 border-gray-300 text-gray-900'} border rounded-lg pl-11 pr-4 py-3 placeholder-gray-500 focus:outline-none focus:border-gray-600 transition-colors font-mono tracking-widest`}
                 />

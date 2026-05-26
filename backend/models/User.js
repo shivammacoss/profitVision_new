@@ -93,6 +93,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  referralCommissionPaid: {
+    type: Boolean,
+    default: false
+  },
   
   // Assigned Admin (for multi-admin system)
   assignedAdmin: {

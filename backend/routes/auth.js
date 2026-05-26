@@ -5,8 +5,6 @@ import User from '../models/User.js'
 import Admin from '../models/Admin.js'
 import OTP from '../models/OTP.js'
 import { generateOTP, sendOTPEmail, sendWelcomeEmail, sendPasswordResetOTP } from '../services/emailService.js'
-import referralEngine from '../services/referralEngine.js'
-
 import { JWT_SECRET } from '../config/jwt.js'
 
 const router = express.Router()
@@ -24,6 +22,19 @@ router.post('/send-otp', async (req, res) => {
     // Validate required fields
     if (!firstName || !email || !password) {
       return res.status(400).json({ message: 'Name, email and password are required' })
+    }
+
+    if (!referralCode || !referralCode.trim()) {
+      return res.status(400).json({ message: 'Referral code is required to create an account' })
+    }
+
+    const referringIB = await User.findOne({
+      referralCode: referralCode.trim(),
+      isIB: true,
+      ibStatus: 'ACTIVE'
+    })
+    if (!referringIB) {
+      return res.status(400).json({ message: 'Invalid referral code. Please enter a valid referral code.' })
     }
 
     // Check if user already exists
@@ -146,17 +157,6 @@ router.post('/verify-otp', async (req, res) => {
       await Admin.findByIdAndUpdate(assignedAdmin, { $inc: { 'stats.totalUsers': 1 } })
     }
 
-    // Process referral commission if user was referred
-    if (parentIBId) {
-      try {
-        console.log(`[Signup] Processing referral commission for new user ${user._id}`)
-        // Use referralEngine.processSignupCommission which uses IBModeSettings levelAmounts
-        await referralEngine.processSignupCommission(user._id)
-      } catch (refErr) {
-        console.error('[Signup] Referral commission error:', refErr.message)
-      }
-    }
-
     // Delete OTP record
     await OTP.deleteOne({ _id: otpRecord._id })
 
@@ -241,10 +241,23 @@ router.post('/signup', async (req, res) => {
   try {
     const { firstName, email, phone, countryCode, password, adminSlug, referralCode } = req.body
 
+    if (!referralCode || !referralCode.trim()) {
+      return res.status(400).json({ message: 'Referral code is required to create an account' })
+    }
+
     // Check if user already exists
     const existingUser = await User.findOne({ email })
     if (existingUser) {
       return res.status(400).json({ message: 'User already exists with this email' })
+    }
+
+    const referringIBCheck = await User.findOne({
+      referralCode: referralCode.trim(),
+      isIB: true,
+      ibStatus: 'ACTIVE'
+    })
+    if (!referringIBCheck) {
+      return res.status(400).json({ message: 'Invalid referral code. Please enter a valid referral code.' })
     }
 
     // Find admin by slug if provided
@@ -290,17 +303,6 @@ router.post('/signup', async (req, res) => {
     // Update admin stats if assigned
     if (assignedAdmin) {
       await Admin.findByIdAndUpdate(assignedAdmin, { $inc: { 'stats.totalUsers': 1 } })
-    }
-
-    // Process referral commission if user was referred
-    if (parentIBId) {
-      try {
-        console.log(`[Signup] Processing referral commission for new user ${user._id}`)
-        // Use referralEngine.processSignupCommission which uses IBModeSettings levelAmounts
-        await referralEngine.processSignupCommission(user._id)
-      } catch (refErr) {
-        console.error('[Signup] Referral commission error:', refErr.message)
-      }
     }
 
     // Send welcome email (async)

@@ -6,6 +6,7 @@ import User from '../models/User.js'
 import PaymentGatewaySettings from '../models/PaymentGatewaySettings.js'
 import OxaPayWebhookLog from '../models/OxaPayWebhookLog.js'
 import { authenticateUser, authenticateSuperAdmin } from '../middleware/auth.js'
+import referralEngine from '../services/referralEngine.js'
 
 const router = express.Router()
 
@@ -346,6 +347,12 @@ router.post('/webhook', async (req, res) => {
           await wallet.save()
           
           console.log(`[OxaPay Webhook] Deposit AUTO-CREDITED: ${user.email}, $${amountNum}`)
+
+          try {
+            await referralEngine.checkAndProcessDepositCommission(user._id)
+          } catch (err) {
+            console.error('[OxaPay Webhook] Referral commission check error:', err.message)
+          }
         }
 
         await transaction.save()
@@ -445,7 +452,13 @@ router.post('/simulate-webhook/:trackId', async (req, res) => {
       await transaction.save()
 
       console.log(`[OxaPay Simulate] Deposit approved for user ${transaction.userId}, amount: $${transaction.amount}`)
-      
+
+      try {
+        await referralEngine.checkAndProcessDepositCommission(transaction.userId)
+      } catch (err) {
+        console.error('[OxaPay Simulate] Referral commission check error:', err.message)
+      }
+
       return res.json({ 
         success: true, 
         message: `Deposit of $${transaction.amount} approved successfully`,
@@ -747,7 +760,13 @@ router.post('/admin/approve-crypto-deposit/:transactionId', authenticateSuperAdm
     await transaction.save()
     
     console.log(`[OxaPay Admin] Crypto deposit approved: $${transaction.amount} for user ${transaction.userId}`)
-    
+
+    try {
+      await referralEngine.checkAndProcessDepositCommission(transaction.userId)
+    } catch (err) {
+      console.error('[OxaPay] Referral commission check error:', err.message)
+    }
+
     res.json({
       success: true,
       message: `Deposit of $${transaction.amount} approved and credited`,

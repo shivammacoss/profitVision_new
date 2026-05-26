@@ -5,6 +5,7 @@ import TradingAccount from '../models/TradingAccount.js'
 import User from '../models/User.js'
 import AdminWallet from '../models/AdminWallet.js'
 import AdminWalletTransaction from '../models/AdminWalletTransaction.js'
+import referralEngine from '../services/referralEngine.js'
 
 const router = express.Router()
 
@@ -265,6 +266,14 @@ router.put('/admin/approve/:id', async (req, res) => {
     await wallet.save()
     await transaction.save()
 
+    if (transaction.type === 'DEPOSIT' || transaction.type === 'Deposit') {
+      try {
+        await referralEngine.checkAndProcessDepositCommission(transaction.userId)
+      } catch (err) {
+        console.error('[Wallet] Referral commission check error:', err.message)
+      }
+    }
+
     res.json({ message: 'Transaction approved', transaction })
   } catch (error) {
     res.status(500).json({ message: 'Error approving transaction', error: error.message })
@@ -349,6 +358,14 @@ router.put('/transaction/:id/approve', async (req, res) => {
 
     await wallet.save()
     await transaction.save()
+
+    if (transaction.type === 'Deposit') {
+      try {
+        await referralEngine.checkAndProcessDepositCommission(transaction.userId)
+      } catch (err) {
+        console.error('[Wallet] Referral commission check error:', err.message)
+      }
+    }
 
     res.json({ message: 'Transaction approved', transaction })
   } catch (error) {
