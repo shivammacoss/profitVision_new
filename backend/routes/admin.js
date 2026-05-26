@@ -2,6 +2,7 @@ import express from 'express'
 import bcrypt from 'bcryptjs'
 import User from '../models/User.js'
 import { authenticateAdmin } from '../middleware/auth.js'
+import referralEngine from '../services/referralEngine.js'
 
 const router = express.Router()
 
@@ -209,8 +210,14 @@ router.post('/users/:id/add-fund', async (req, res) => {
     })
     
     console.log(`[Admin] Added $${amount} to user ${user.email} wallet. Balance: $${previousBalance} -> $${wallet.balance}`)
-    
-    res.json({ 
+
+    try {
+      await referralEngine.checkAndProcessDepositCommission(req.params.id)
+    } catch (err) {
+      console.error('[Admin] Referral commission check error:', err.message)
+    }
+
+    res.json({
       success: true,
       message: 'Funds added successfully',
       previousBalance,
