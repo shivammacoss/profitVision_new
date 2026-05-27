@@ -45,12 +45,9 @@ import BrandedLogin from './pages/BrandedLogin'
 import ChartEmbed from './pages/ChartEmbed'
 import BrandedSignup from './pages/BrandedSignup'
 import ProfitVisionLanding from './pages/ProfitVisionLanding'
-import ChatBot from './components/ChatBot'
-
 function App() {
   return (
     <Router>
-      <ChatBot />
       <Routes>
         <Route path="/" element={<ProfitVisionLanding />} />
         <Route path="/login" element={<Login />} />
